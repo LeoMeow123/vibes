@@ -36,8 +36,9 @@ Powerwell analysis tools.
 - *Coming soon*
 
 ### Undistortion (`vibing.undistortion`)
-Image undistortion utilities.
-- *Coming soon*
+Video undistortion and perspective correction pipelines using OpenCV.
+- [spacecage-undistort](https://github.com/talmolab/spacecage-undistort) - Fisheye lens distortion correction for NASA SpaceCage experiments with ROI-based calibration and SLEAP coordinate transformation
+- [tmaze-undistort](https://github.com/LeoMeow123/tmaze-undistort) - T-maze video processing with lens distortion removal and perspective transformation to top-down views using labeled ROIs and known physical dimensions
 
 ### SLEAP Convert (`vibing.sleap_convert`)
 Convert between SLEAP file formats.

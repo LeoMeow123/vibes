@@ -37,9 +37,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/LeoMeow123/vibing"
-Repository = "https://github.com/LeoMeow123/vibing"
-Issues = "https://github.com/LeoMeow123/vibing/issues"
+Homepage = "https://github.com/LeoMeow123/vibes"
+Repository = "https://github.com/LeoMeow123/vibes"
+Issues = "https://github.com/LeoMeow123/vibes/issues"
 
 [build-system]
 requires = ["hatchling"]

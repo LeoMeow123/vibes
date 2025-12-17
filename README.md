@@ -9,8 +9,8 @@ A collection of small but useful tools for scientific publications and projects.
 uv pip install vibing
 
 # From source
-git clone https://github.com/LeoMeow123/vibing.git
-cd vibing
+git clone https://github.com/LeoMeow123/vibes.git
+cd vibes
 uv pip install -e .
 
 # With optional dependencies
@@ -69,8 +69,8 @@ save_figure(fig, "my_plot", formats=["png", "pdf"])
 
 ```bash
 # Clone and install in dev mode
-git clone https://github.com/LeoMeow123/vibing.git
-cd vibing
+git clone https://github.com/LeoMeow123/vibes.git
+cd vibes
 uv pip install -e ".[dev]"
 
 # Run tests

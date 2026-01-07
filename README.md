@@ -4,22 +4,67 @@ A collection of small but useful tools for scientific publications and projects.
 
 ## Installation
 
+### From PyPI (recommended)
 ```bash
-# Using uv (recommended)
+# Using uv
 uv pip install vibing
 
-# From source
-git clone https://github.com/LeoMeow123/vibes.git
-cd vibes
-uv pip install -e .
+# Using pip
+pip install vibing
 
 # With optional dependencies
-uv pip install -e ".[sleap]"  # SLEAP conversion tools
-uv pip install -e ".[dev]"   # Development tools
-uv pip install -e ".[all]"   # Everything
+uv pip install "vibing[calibration]"  # Camera calibration tools (opencv)
+uv pip install "vibing[sleap]"        # SLEAP conversion tools
+uv pip install "vibing[all]"          # Everything
+```
+
+### Run CLI without installing (uvx)
+```bash
+# Run distortion checker directly
+uvx --from "vibing[calibration]" vibing-distortion-check video.mp4
+
+# Or install as a tool
+uv tool install "vibing[calibration]"
+vibing-distortion-check video.mp4
+```
+
+### From GitHub
+```bash
+# Install from git
+uv pip install "git+https://github.com/LeoMeow123/vibes.git[calibration]"
+
+# Run without installing
+uv tool run --from "git+https://github.com/LeoMeow123/vibes.git[calibration]" vibing-distortion-check video.mp4
+```
+
+### From source
+```bash
+git clone https://github.com/LeoMeow123/vibes.git
+cd vibes
+uv pip install -e ".[all]"
 ```
 
 ## Tools
+
+### Calibration (`vibing.calibration`)
+Camera calibration and distortion analysis tools.
+- `check_video` - Analyze video for lens distortion using charuco board
+- `check_image` - Analyze single image for distortion
+- `check_batch` - Batch process directory of videos
+- `CharucoBoardConfig` - Configure charuco board parameters
+- `DistortionMetrics` - Distortion analysis results
+
+**CLI:** `vibing-distortion-check`
+```bash
+# Check single video
+vibing-distortion-check video.mp4
+
+# Batch process directory
+vibing-distortion-check /path/to/videos --batch --output-csv results.csv
+
+# Custom board configuration
+vibing-distortion-check video.mp4 --squares-x 10 --squares-y 7
+```
 
 ### Optimization (`vibing.optimization`)
 Gradient-based and gradient-free optimization wrappers.

@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0"
 
+from vibing import calibration
 from vibing import optimization
 from vibing import plotting
 from vibing import powerwell
@@ -10,6 +11,7 @@ from vibing import undistortion
 
 __all__ = [
     "__version__",
+    "calibration",
     "optimization",
     "plotting",
     "powerwell",

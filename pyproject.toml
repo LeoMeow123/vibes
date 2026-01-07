@@ -24,6 +24,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+calibration = [
+    "opencv-python>=4.8.0",
+]
 sleap = [
     "sleap-io>=0.2.0",
     "pyyaml>=6.0",
@@ -33,8 +36,11 @@ dev = [
     "ruff>=0.1.0",
 ]
 all = [
-    "vibing[sleap,dev]",
+    "vibing[calibration,sleap,dev]",
 ]
+
+[project.scripts]
+vibing-distortion-check = "vibing.calibration.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/LeoMeow123/vibes"

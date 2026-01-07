@@ -5,12 +5,12 @@ This module analyzes charuco boards in video frames to quantify lens distortion
 and determine whether undistortion is necessary before processing.
 """
 
-import cv2
-import numpy as np
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import cv2
+import numpy as np
 
 # ArUco dictionary mapping
 ARUCO_DICT_MAP = {
@@ -470,7 +470,7 @@ def check_video(
         print(f"Distortion Analysis for: {video_path.name}")
         print(f"{'='*60}")
         print(f"Frames analyzed: {metrics.frames_detected}/{num_frames}")
-        print(f"\nMetrics:")
+        print("\nMetrics:")
         print(
             f"  Line straightness:      {metrics.line_straightness:.3f} px "
             f"(threshold: {metrics.LINE_THRESHOLD:.1f} px)"

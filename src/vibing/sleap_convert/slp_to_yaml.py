@@ -24,7 +24,7 @@ class PolygonDef:
     """Definition for a single ROI polygon."""
 
     name: str
-    corners: list[str]  # List of keypoint names for corners [TL, BL, BR, TR] or any order
+    corners: list[str]  # Keypoint names for corners [TL, BL, BR, TR]
     color: str = "#808080"
 
 

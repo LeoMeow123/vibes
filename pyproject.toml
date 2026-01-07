@@ -41,6 +41,7 @@ all = [
 
 [project.scripts]
 vibing-distortion-check = "vibing.calibration.cli:main"
+vibing-slp-to-yaml = "vibing.sleap_convert.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/LeoMeow123/vibes"

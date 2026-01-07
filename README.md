@@ -86,10 +86,25 @@ Video undistortion and perspective correction pipelines using OpenCV.
 - [tmaze-undistort](https://github.com/LeoMeow123/tmaze-undistort) - T-maze video processing with lens distortion removal and perspective transformation to top-down views using labeled ROIs and known physical dimensions
 
 ### SLEAP Convert (`vibing.sleap_convert`)
-Convert between SLEAP file formats.
-- slp to yml conversion
-- yml to slp conversion
-- *Coming soon*
+Convert SLEAP predictions to ROI polygon YAML format.
+- `slp_to_roi_yaml` - Convert single SLP file to ROI YAML
+- `convert_batch` - Batch convert directory of SLP files
+- `extract_keypoints` - Extract keypoints from SLP (low-level)
+- `ROITemplate` - Define custom polygon templates for any arena
+
+**CLI:** `vibing-slp-to-yaml`
+```bash
+# Convert single file
+vibing-slp-to-yaml predictions.slp -o output.yml
+
+# Batch convert directory
+vibing-slp-to-yaml /path/to/slps --batch -o /path/to/yamls
+
+# List available templates
+vibing-slp-to-yaml --list-templates
+```
+
+**Built-in templates:** `tmaze_horizontal` (7-region T-maze with corner sharing)
 
 ## Quick Start
 

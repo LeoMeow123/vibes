@@ -15,6 +15,7 @@ pip install vibing
 # With optional dependencies
 uv pip install "vibing[calibration]"  # Camera calibration tools (opencv)
 uv pip install "vibing[sleap]"        # SLEAP conversion tools
+uv pip install "vibing[geometry]"     # Geometry and pose tools (shapely)
 uv pip install "vibing[all]"          # Everything
 ```
 
@@ -105,6 +106,61 @@ vibing-slp-to-yaml --list-templates
 ```
 
 **Built-in templates:** `tmaze_horizontal` (7-region T-maze with corner sharing)
+
+### Geometry (`vibing.geometry`)
+Spatial analysis utilities for points and polygons.
+- `depth_from_boundary` - Calculate penetration depth into a region
+- `signed_distance` - Signed distance to polygon (negative = inside)
+- `points_depth_from_boundary` - Batch depth calculation
+- `is_inside` / `points_inside` - Point containment checks
+
+```python
+from vibing.geometry import depth_from_boundary
+from shapely.geometry import box
+
+region = box(0, 0, 100, 100)
+depth = depth_from_boundary((50, 50), region)  # Returns 50.0 (distance to edge)
+```
+
+### Pose (`vibing.pose`)
+Tools for analyzing pose estimation data from SLEAP or similar trackers.
+
+**Region checking:**
+- `bodypart_in_region` - Check if keypoint is inside polygon
+- `bodyparts_in_region` - Batch check multiple keypoints
+- `check_bodyparts_by_name` - Check named body parts (e.g., "at least one hindpaw")
+- `count_bodyparts_in_region` - Count keypoints inside region
+
+**Track interpolation:**
+- `interpolate_gaps` - Fill short gaps in single keypoint track
+- `interpolate_track` - Interpolate all keypoints in (T, J, 2) array
+- `count_gaps` - Quality control: count and characterize gaps
+
+**Body hull:**
+- `body_hull` - Convex hull from body keypoints (Polygon or vertices)
+- `body_hull_area` - Calculate hull area
+- `body_hull_centroid` - Get hull center point
+- `body_hull_series` - Compute hull for each frame in a track
+- `body_hull_coverage` - Percentage of hull overlapping with ROI
+
+```python
+from vibing.pose import interpolate_gaps, body_hull, body_hull_coverage
+from shapely.geometry import box
+import numpy as np
+
+# Interpolate short gaps in tracking data
+track = np.array([[0, 0], [np.nan, np.nan], [2, 2], [3, 3]])
+result = interpolate_gaps(track, max_gap=7)  # Gap filled: [1, 1]
+
+# Compute body hull from keypoints
+points = np.array([[0, 0], [10, 0], [10, 10], [0, 10]])
+hull = body_hull(points)  # Shapely Polygon
+print(hull.area)  # 100.0
+
+# Calculate coverage in region
+region = box(0, 0, 50, 50)
+pct = body_hull_coverage(points, region)  # 25.0%
+```
 
 ## Quick Start
 

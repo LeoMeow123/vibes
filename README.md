@@ -2,6 +2,28 @@
 
 A collection of small but useful tools for scientific publications and projects.
 
+## Modules
+
+| Module | Description |
+|--------|-------------|
+| `calibration` | Detect lens distortion using charuco boards |
+| `sleap_convert` | Convert SLEAP predictions to ROI polygons |
+| `geometry` | Pixel↔cm conversion, depth from boundaries |
+| `pose` | Interpolate tracking gaps, body hulls, region checks |
+
+## Standalone Tools
+
+These functions work independently for common tasks:
+
+| Function | What it does | Example use case |
+|----------|--------------|------------------|
+| `geometry.PixelScale` | Convert pixels ↔ real units (cm/mm) | "My ruler is 500px = 10cm, convert all measurements" |
+| `geometry.depth_from_boundary` | How far a point is inside a region | "How deep is the snout in the arm?" |
+| `pose.interpolate_gaps` | Fill short gaps in tracking data | "SLEAP lost tracking for 3 frames, fill it in" |
+| `pose.body_hull` | Convex hull from body keypoints | "What's the body footprint polygon?" |
+| `pose.body_hull_coverage` | % of body inside a region | "What fraction of the mouse is in zone A?" |
+| `calibration.check_video` | Measure lens distortion | "Does this GoPro video need undistortion?" |
+
 ## Installation
 
 ### From PyPI (recommended)
@@ -67,20 +89,6 @@ vibing-distortion-check /path/to/videos --batch --output-csv results.csv
 vibing-distortion-check video.mp4 --squares-x 10 --squares-y 7
 ```
 
-### Optimization (`vibing.optimization`)
-Gradient-based and gradient-free optimization wrappers.
-- `minimize_lbfgsb` - L-BFGS-B optimization
-- `minimize_gradient_free` - Gradient-free methods (Nelder-Mead, Powell, COBYLA)
-
-### Plotting (`vibing.plotting`)
-Utilities for creating publication-quality figures.
-- `setup_figure` - Set up figures with consistent styling
-- `save_figure` - Save figures in multiple formats
-
-### Powerwell (`vibing.powerwell`)
-Powerwell analysis tools.
-- *Coming soon*
-
 ### Undistortion (`vibing.undistortion`)
 Video undistortion and perspective correction pipelines using OpenCV.
 - [spacecage-undistort](https://github.com/talmolab/spacecage-undistort) - Fisheye lens distortion correction for NASA SpaceCage experiments with ROI-based calibration and SLEAP coordinate transformation
@@ -108,18 +116,32 @@ vibing-slp-to-yaml --list-templates
 **Built-in templates:** `tmaze_horizontal` (7-region T-maze with corner sharing)
 
 ### Geometry (`vibing.geometry`)
-Spatial analysis utilities for points and polygons.
+Spatial analysis and unit conversion utilities.
+
+**Pixel-to-real conversion:**
+- `PixelScale` - Convert between pixels and real units (cm, mm, etc.)
+- `px_to_real` - Quick one-off conversion
+- `compute_scale` - Create scale from two reference points
+
+**Depth/distance:**
 - `depth_from_boundary` - Calculate penetration depth into a region
 - `signed_distance` - Signed distance to polygon (negative = inside)
-- `points_depth_from_boundary` - Batch depth calculation
-- `is_inside` / `points_inside` - Point containment checks
 
 ```python
-from vibing.geometry import depth_from_boundary
+from vibing.geometry import PixelScale, depth_from_boundary
 from shapely.geometry import box
 
+# Pixel to cm conversion: ruler is 500px = 10cm
+scale = PixelScale.from_reference(pixels=500, real_distance=10, unit="cm")
+print(scale.to_real(250))  # 5.0 cm
+print(scale.to_real_area(2500))  # 1.0 cm²
+
+# Or from two labeled points
+scale = PixelScale.from_two_points((100, 100), (600, 100), real_distance=20, unit="cm")
+
+# Depth from boundary
 region = box(0, 0, 100, 100)
-depth = depth_from_boundary((50, 50), region)  # Returns 50.0 (distance to edge)
+depth = depth_from_boundary((50, 50), region)  # 50.0 (distance to nearest edge)
 ```
 
 ### Pose (`vibing.pose`)
@@ -166,20 +188,22 @@ pct = body_hull_coverage(points, region)  # 25.0%
 
 ```python
 import numpy as np
-from vibing.optimization import minimize_lbfgsb
-from vibing.plotting import setup_figure, save_figure
+from vibing.geometry import PixelScale
+from vibing.pose import interpolate_gaps, body_hull
 
-# Optimization example
-def objective(x):
-    return (x[0] - 1) ** 2 + (x[1] - 2) ** 2
+# Convert pixels to cm using a reference measurement
+scale = PixelScale.from_reference(pixels=500, real_distance=10, unit="cm")
+print(scale.to_real(250))  # 5.0 cm
 
-result = minimize_lbfgsb(objective, np.array([0.0, 0.0]))
-print(f"Optimal x: {result['x']}")
+# Fill short gaps in tracking data
+track = np.array([[0, 0], [np.nan, np.nan], [2, 2], [3, 3]])
+filled = interpolate_gaps(track, max_gap=7)
+print(filled[1])  # [1., 1.] - gap interpolated
 
-# Plotting example
-fig, ax = setup_figure(width=6, height=4)
-ax.plot([1, 2, 3], [1, 4, 9])
-save_figure(fig, "my_plot", formats=["png", "pdf"])
+# Compute body footprint from keypoints
+points = np.array([[0, 0], [10, 0], [10, 10], [0, 10]])
+hull = body_hull(points)
+print(hull.area)  # 100.0
 ```
 
 ## Development

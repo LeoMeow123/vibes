@@ -1,6 +1,6 @@
 [project]
 name = "vibing"
-version = "0.3.1"
+version = "0.4.0"
 description = "A collection of small but useful tools for scientific publications and projects"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -34,12 +34,15 @@ sleap = [
 geometry = [
     "shapely>=2.0.0",
 ]
+video = [
+    "opencv-python>=4.8.0",
+]
 dev = [
     "pytest>=7.4.0",
     "ruff>=0.1.0",
 ]
 all = [
-    "vibing[calibration,sleap,geometry,dev]",
+    "vibing[calibration,sleap,geometry,video,dev]",
 ]
 
 [project.scripts]

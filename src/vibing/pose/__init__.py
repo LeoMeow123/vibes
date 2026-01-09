@@ -5,6 +5,7 @@ This module provides tools for analyzing pose estimation data:
 - Region checking: Determine if body parts are inside regions of interest
 - Interpolation: Fill short gaps in tracking data
 - Hull calculation: Compute convex hulls for spatial analysis
+- Track analysis: Velocity, distance, and dwell time
 """
 
 from vibing.pose.region import (
@@ -26,6 +27,15 @@ from vibing.pose.hull import (
     body_hull_coverage,
     body_hull_series,
 )
+from vibing.pose.analysis import (
+    cumulative_distance,
+    multi_region_dwell,
+    region_dwell_frames,
+    region_dwell_time,
+    track_distance,
+    track_speed,
+    track_velocity,
+)
 
 __all__ = [
     # Region checking
@@ -44,4 +54,12 @@ __all__ = [
     "body_hull_centroid",
     "body_hull_coverage",
     "body_hull_series",
+    # Track analysis
+    "cumulative_distance",
+    "multi_region_dwell",
+    "region_dwell_frames",
+    "region_dwell_time",
+    "track_distance",
+    "track_speed",
+    "track_velocity",
 ]

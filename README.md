@@ -9,7 +9,8 @@ A collection of small but useful tools for scientific publications and projects.
 | `calibration` | Detect lens distortion using charuco boards |
 | `sleap_convert` | Convert SLEAP predictions to ROI polygons |
 | `geometry` | Pixel↔cm conversion, depth from boundaries |
-| `pose` | Interpolate tracking gaps, body hulls, region checks |
+| `pose` | Interpolate gaps, body hulls, velocity, distance, dwell time |
+| `video` | FPS reader, frame counter, video info extraction |
 
 ## Web Tools
 
@@ -28,6 +29,11 @@ These functions work independently for common tasks:
 | `pose.interpolate_gaps` | Fill short gaps in tracking data | "SLEAP lost tracking for 3 frames, fill it in" |
 | `pose.body_hull` | Convex hull from body keypoints | "What's the body footprint polygon?" |
 | `pose.body_hull_coverage` | % of body inside a region | "What fraction of the mouse is in zone A?" |
+| `pose.track_velocity` | Speed from tracking data | "How fast is the mouse moving?" |
+| `pose.track_distance` | Total distance traveled | "How far did the mouse walk?" |
+| `pose.region_dwell_time` | Time spent in a region | "How long was the mouse in zone A?" |
+| `video.get_video_info` | FPS, frames, dimensions, duration | "What's the frame rate of this video?" |
+| `video.count_total_frames` | Batch frame counting | "How many frames across 500 videos?" |
 | `calibration.check_video` | Measure lens distortion | "Does this GoPro video need undistortion?" |
 
 ## Installation
@@ -171,23 +177,54 @@ Tools for analyzing pose estimation data from SLEAP or similar trackers.
 - `body_hull_series` - Compute hull for each frame in a track
 - `body_hull_coverage` - Percentage of hull overlapping with ROI
 
+**Track analysis:**
+- `track_velocity` - Instantaneous velocity (units/second)
+- `track_speed` - Speed over time window
+- `track_distance` - Total distance traveled
+- `cumulative_distance` - Cumulative distance at each frame
+- `region_dwell_time` - Time spent in a region
+- `region_dwell_frames` - Boolean mask of frames inside region
+- `multi_region_dwell` - Dwell time for multiple regions
+
 ```python
-from vibing.pose import interpolate_gaps, body_hull, body_hull_coverage
+from vibing.pose import track_velocity, track_distance, region_dwell_time
 from shapely.geometry import box
 import numpy as np
 
-# Interpolate short gaps in tracking data
-track = np.array([[0, 0], [np.nan, np.nan], [2, 2], [3, 3]])
-result = interpolate_gaps(track, max_gap=7)  # Gap filled: [1, 1]
+track = np.array([[0, 0], [3, 4], [6, 8], [9, 12]])
 
-# Compute body hull from keypoints
-points = np.array([[0, 0], [10, 0], [10, 10], [0, 10]])
-hull = body_hull(points)  # Shapely Polygon
-print(hull.area)  # 100.0
+# Velocity in pixels/second
+velocity = track_velocity(track, fps=30)
 
-# Calculate coverage in region
-region = box(0, 0, 50, 50)
-pct = body_hull_coverage(points, region)  # 25.0%
+# Total distance traveled
+dist = track_distance(track)  # 15.0 pixels
+
+# Time in a region
+region = box(0, 0, 10, 10)
+dwell = region_dwell_time(track, region, fps=30)
+print(dwell['time_inside'])  # seconds in region
+```
+
+### Video (`vibing.video`)
+Video metadata extraction with robust fallback methods.
+
+- `get_video_info` - Get comprehensive video metadata (FPS, frames, dimensions)
+- `read_fps` - Robust FPS extraction with SLEAP/OpenCV fallbacks
+- `get_frame_count` - Frame count from video or associated .slp file
+- `get_duration` - Video duration in seconds
+- `count_total_frames` - Batch count frames across directory
+- `scan_videos` - Get VideoInfo for all videos in directory
+
+```python
+from vibing.video import get_video_info, count_total_frames
+
+# Single video info
+info = get_video_info("experiment.mp4")
+print(f"{info.fps} FPS, {info.frame_count} frames, {info.duration:.1f}s")
+
+# Batch count (pre-flight check for large processing jobs)
+total, n_videos = count_total_frames("/path/to/videos")
+print(f"{total:,} frames across {n_videos} videos")
 ```
 
 ## Quick Start

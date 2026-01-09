@@ -11,6 +11,12 @@ A collection of small but useful tools for scientific publications and projects.
 | `geometry` | Pixel↔cm conversion, depth from boundaries |
 | `pose` | Interpolate tracking gaps, body hulls, region checks |
 
+## Web Tools
+
+| Tool | Description | Link |
+|------|-------------|------|
+| **Pixel Scale Tool** | Draw a line on your video, enter real distance, get px↔cm conversion | [Launch](https://leomeow123.github.io/vibes/scale-tool/) |
+
 ## Standalone Tools
 
 These functions work independently for common tasks:

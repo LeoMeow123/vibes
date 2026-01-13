@@ -10,7 +10,7 @@ A collection of small but useful tools for scientific publications and projects.
 | `sleap_convert` | Convert SLEAP predictions to ROI polygons |
 | `geometry` | Pixel↔cm conversion, depth from boundaries |
 | `pose` | Interpolate gaps, body hulls, velocity, distance, dwell time |
-| `video` | FPS reader, frame counter, video info extraction |
+| `video` | FPS reader, frame counter, video info, parallel processing |
 
 ## Web Tools
 
@@ -34,6 +34,8 @@ These functions work independently for common tasks:
 | `pose.region_dwell_time` | Time spent in a region | "How long was the mouse in zone A?" |
 | `video.get_video_info` | FPS, frames, dimensions, duration | "What's the frame rate of this video?" |
 | `video.count_total_frames` | Batch frame counting | "How many frames across 500 videos?" |
+| `video.run_parallel` | Generic parallel processing | "Process 1000 videos with 8 workers" |
+| `video.process_videos` | Parallel video batch processing | "Run analysis on all videos in directory" |
 | `calibration.check_video` | Measure lens distortion | "Does this GoPro video need undistortion?" |
 
 ## Installation
@@ -206,14 +208,22 @@ print(dwell['time_inside'])  # seconds in region
 ```
 
 ### Video (`vibing.video`)
-Video metadata extraction with robust fallback methods.
+Video metadata extraction and parallel batch processing.
 
+**Metadata:**
 - `get_video_info` - Get comprehensive video metadata (FPS, frames, dimensions)
 - `read_fps` - Robust FPS extraction with SLEAP/OpenCV fallbacks
 - `get_frame_count` - Frame count from video or associated .slp file
 - `get_duration` - Video duration in seconds
 - `count_total_frames` - Batch count frames across directory
 - `scan_videos` - Get VideoInfo for all videos in directory
+
+**Parallel processing:**
+- `run_parallel` - Generic parallel processor for any items
+- `find_videos` - Find videos by extension or glob pattern
+- `process_videos` - Convenience wrapper: find + parallel
+- `make_worker` - Wrap simple functions into exception-handling workers
+- `ParallelResult` - Results dataclass with counts (ok/error/skip)
 
 ```python
 from vibing.video import get_video_info, count_total_frames
@@ -225,6 +235,32 @@ print(f"{info.fps} FPS, {info.frame_count} frames, {info.duration:.1f}s")
 # Batch count (pre-flight check for large processing jobs)
 total, n_videos = count_total_frames("/path/to/videos")
 print(f"{total:,} frames across {n_videos} videos")
+```
+
+**Parallel processing example:**
+```python
+from vibing.video import run_parallel, process_videos, find_videos
+
+# Define a worker function (must return dict with 'status' key)
+def analyze_video(path):
+    # Your analysis code here
+    return {"status": "ok", "path": str(path), "frames": 1000}
+
+# Option 1: Process all videos in a directory
+result = process_videos("/path/to/videos", analyze_video, n_workers=8)
+print(f"Processed {result.ok}/{result.total} successfully")
+
+# Option 2: Find videos first, then process
+videos = find_videos("/data", pattern="Day*_Trial*.mp4")
+result = run_parallel(videos, analyze_video, n_workers=8, desc="Analyzing")
+
+# Option 3: Use thread pool for I/O-bound tasks
+result = run_parallel(items, worker_fn, executor_type="thread")
+
+# Check results
+for r in result.results:
+    if r["status"] == "ok":
+        print(f"{r['path']}: {r['frames']} frames")
 ```
 
 ## Quick Start

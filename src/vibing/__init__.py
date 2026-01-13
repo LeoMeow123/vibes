@@ -18,37 +18,37 @@ __all__ = [
 
 # Optional modules - only import if dependencies are available
 try:
-    from vibing import calibration
+    from vibing import calibration  # noqa: F401
     __all__.append("calibration")
 except ImportError:
     pass
 
 try:
-    from vibing import geometry
+    from vibing import geometry  # noqa: F401
     __all__.append("geometry")
 except ImportError:
     pass
 
 try:
-    from vibing import pose
+    from vibing import pose  # noqa: F401
     __all__.append("pose")
 except ImportError:
     pass
 
 try:
-    from vibing import sleap_convert
+    from vibing import sleap_convert  # noqa: F401
     __all__.append("sleap_convert")
 except ImportError:
     pass
 
 try:
-    from vibing import undistortion
+    from vibing import undistortion  # noqa: F401
     __all__.append("undistortion")
 except ImportError:
     pass
 
 try:
-    from vibing import video
+    from vibing import video  # noqa: F401
     __all__.append("video")
 except ImportError:
     pass

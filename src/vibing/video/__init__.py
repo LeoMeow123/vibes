@@ -1,8 +1,9 @@
 """
-Video utilities for metadata extraction and analysis.
+Video utilities for metadata extraction, batch processing, and parallel analysis.
 
 This module provides tools for extracting video metadata like FPS, frame count,
-and dimensions with robust fallback methods.
+and dimensions with robust fallback methods, plus a generic parallel processing
+framework for batch operations.
 """
 
 from vibing.video.info import (
@@ -17,6 +18,13 @@ from vibing.video.batch import (
     count_total_frames,
     scan_videos,
 )
+from vibing.video.parallel import (
+    ParallelResult,
+    run_parallel,
+    find_videos,
+    process_videos,
+    make_worker,
+)
 
 __all__ = [
     # Info
@@ -29,4 +37,10 @@ __all__ = [
     # Batch
     "count_total_frames",
     "scan_videos",
+    # Parallel
+    "ParallelResult",
+    "run_parallel",
+    "find_videos",
+    "process_videos",
+    "make_worker",
 ]

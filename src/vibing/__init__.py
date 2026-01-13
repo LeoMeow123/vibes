@@ -1,6 +1,6 @@
 """Vibing: Small but useful tools for scientific publications and projects."""
 
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 
 # Core modules (always available)
 from vibing import (
@@ -44,5 +44,11 @@ except ImportError:
 try:
     from vibing import undistortion
     __all__.append("undistortion")
+except ImportError:
+    pass
+
+try:
+    from vibing import video
+    __all__.append("video")
 except ImportError:
     pass

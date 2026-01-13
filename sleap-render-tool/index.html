@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLEAP Render Tool - Preview Before Export</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        h1 { text-align: center; margin-bottom: 8px; }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 25px;
+        }
+
+        .subtitle a { color: #6c9fff; text-decoration: none; }
+
+        .load-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .load-section { grid-template-columns: 1fr; }
+        }
+
+        .drop-zone {
+            border: 2px dashed #444;
+            border-radius: 10px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #6c9fff;
+            background: rgba(108, 159, 255, 0.05);
+        }
+
+        .drop-zone.loaded {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.05);
+        }
+
+        .drop-zone-icon { font-size: 36px; margin-bottom: 10px; }
+        .drop-zone-title { font-weight: bold; margin-bottom: 5px; }
+        .drop-zone-text { color: #888; font-size: 14px; }
+        .drop-zone-file { color: #4ade80; font-size: 13px; margin-top: 8px; word-break: break-all; }
+
+        input[type="file"] { display: none; }
+
+        .preview-container {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .preview-container.visible { display: block; }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #111;
+        }
+
+        #previewCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-controls {
+            background: #252540;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .seekbar-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .seekbar {
+            flex: 1;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .seekbar-progress {
+            height: 100%;
+            background: #6c9fff;
+            border-radius: 3px;
+            width: 0%;
+            pointer-events: none;
+        }
+
+        .frame-counter {
+            font-family: monospace;
+            font-size: 13px;
+            color: #888;
+            min-width: 120px;
+            text-align: right;
+        }
+
+        .playback-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: #6c9fff;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: #5a8ae6; }
+        .btn:disabled { background: #444; cursor: not-allowed; }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-secondary { background: #444; }
+        .btn-secondary:hover { background: #555; }
+
+        .settings-panel {
+            background: #252540;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .settings-panel.visible { display: block; }
+
+        .settings-panel h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .setting-group h4 {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .setting-row label {
+            font-size: 14px;
+            min-width: 80px;
+        }
+
+        .setting-row input[type="range"] { flex: 1; max-width: 150px; }
+
+        .setting-row .value {
+            font-family: monospace;
+            font-size: 13px;
+            color: #6c9fff;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .setting-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .color-picker {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .palette-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .palette-option {
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .palette-option:hover { border-color: #6c9fff; }
+        .palette-option.active { border-color: #6c9fff; background: #6c9fff; color: #fff; }
+
+        .export-section {
+            background: #252540;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .export-section.visible { display: block; }
+
+        .export-section h3 { margin-bottom: 15px; }
+
+        .export-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .export-option {
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .export-option:hover { border-color: #6c9fff; }
+        .export-option.active { border-color: #6c9fff; background: rgba(108, 159, 255, 0.1); }
+        .export-option-icon { font-size: 24px; margin-bottom: 8px; }
+        .export-option-label { font-size: 14px; }
+
+        .export-progress {
+            background: #1a1a2e;
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .export-progress.visible { display: block; }
+
+        .export-progress-bar {
+            height: 100%;
+            background: #6c9fff;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .status-msg {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .status-msg.visible { display: block; }
+        .status-msg.info { background: rgba(108, 159, 255, 0.1); border: 1px solid #6c9fff; color: #6c9fff; }
+        .status-msg.success { background: rgba(74, 222, 128, 0.1); border: 1px solid #4ade80; color: #4ade80; }
+        .status-msg.error { background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; color: #ff6b6b; }
+        .status-msg.loading { background: rgba(251, 191, 36, 0.1); border: 1px solid #fbbf24; color: #fbbf24; }
+
+        .skeleton-info {
+            background: #252540;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .skeleton-info.visible { display: block; }
+
+        .skeleton-info h3 { margin-bottom: 15px; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .info-item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #6c9fff;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        footer a { color: #6c9fff; text-decoration: none; }
+
+        .track-colors {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .track-color-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+
+        .track-color-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SLEAP Render Tool</h1>
+        <p class="subtitle">
+            Preview skeleton overlay before export |
+            <a href="https://github.com/LeoMeow123/vibes">vibing</a>
+        </p>
+
+        <div id="statusMsg" class="status-msg"></div>
+
+        <div class="load-section">
+            <div class="drop-zone" id="slpDropZone">
+                <div class="drop-zone-icon">🦴</div>
+                <div class="drop-zone-title">Load .slp file</div>
+                <div class="drop-zone-text">SLEAP predictions or labels</div>
+                <div class="drop-zone-file" id="slpFileName"></div>
+                <input type="file" id="slpInput" accept=".slp">
+            </div>
+
+            <div class="drop-zone" id="videoDropZone">
+                <div class="drop-zone-icon">🎬</div>
+                <div class="drop-zone-title">Load video</div>
+                <div class="drop-zone-text">MP4, WebM, MOV</div>
+                <div class="drop-zone-file" id="videoFileName"></div>
+                <input type="file" id="videoInput" accept="video/*">
+            </div>
+        </div>
+
+        <div class="skeleton-info" id="skeletonInfo">
+            <h3>Skeleton Info</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Nodes</label>
+                    <div class="value" id="infoNodes">-</div>
+                </div>
+                <div class="info-item">
+                    <label>Edges</label>
+                    <div class="value" id="infoEdges">-</div>
+                </div>
+                <div class="info-item">
+                    <label>Tracks</label>
+                    <div class="value" id="infoTracks">-</div>
+                </div>
+                <div class="info-item">
+                    <label>Frames with Poses</label>
+                    <div class="value" id="infoFrames">-</div>
+                </div>
+            </div>
+            <div class="track-colors" id="trackColors"></div>
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <div class="canvas-wrapper">
+                <canvas id="previewCanvas"></canvas>
+            </div>
+            <div class="video-controls">
+                <div class="seekbar-row">
+                    <div class="seekbar" id="seekbar">
+                        <div class="seekbar-progress" id="seekbarProgress"></div>
+                    </div>
+                    <div class="frame-counter" id="frameCounter">0 / 0</div>
+                </div>
+                <div class="playback-row">
+                    <button class="btn btn-icon btn-secondary" id="prevFrameBtn" title="Previous frame">⏮</button>
+                    <button class="btn btn-icon btn-secondary" id="stepBackBtn" title="Step back 10">⏪</button>
+                    <button class="btn btn-icon" id="playPauseBtn" title="Play/Pause">▶</button>
+                    <button class="btn btn-icon btn-secondary" id="stepFwdBtn" title="Step forward 10">⏩</button>
+                    <button class="btn btn-icon btn-secondary" id="nextFrameBtn" title="Next frame">⏭</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-panel" id="settingsPanel">
+            <h3>Visualization Settings</h3>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <h4>Display</h4>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="showNodes" checked>
+                            Show nodes
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="showEdges" checked>
+                            Show edges
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <label>
+                            <input type="checkbox" id="showLabels">
+                            Show node labels
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h4>Sizes</h4>
+                    <div class="setting-row">
+                        <label>Node size</label>
+                        <input type="range" id="nodeSize" min="1" max="20" value="5">
+                        <span class="value" id="nodeSizeValue">5</span>
+                    </div>
+                    <div class="setting-row">
+                        <label>Edge width</label>
+                        <input type="range" id="edgeWidth" min="1" max="10" value="2">
+                        <span class="value" id="edgeWidthValue">2</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h4>Color Palette</h4>
+                    <div class="palette-options" id="paletteOptions">
+                        <div class="palette-option active" data-palette="default">Default</div>
+                        <div class="palette-option" data-palette="viridis">Viridis</div>
+                        <div class="palette-option" data-palette="rainbow">Rainbow</div>
+                        <div class="palette-option" data-palette="single">Single Color</div>
+                    </div>
+                    <div class="setting-row" id="singleColorRow" style="display: none; margin-top: 10px;">
+                        <label>Color</label>
+                        <input type="color" class="color-picker" id="singleColor" value="#00ff00">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="export-section" id="exportSection">
+            <h3>Export</h3>
+            <div class="export-options">
+                <div class="export-option active" data-format="png">
+                    <div class="export-option-icon">🖼</div>
+                    <div class="export-option-label">Current Frame (PNG)</div>
+                </div>
+                <div class="export-option" data-format="gif">
+                    <div class="export-option-icon">🎞</div>
+                    <div class="export-option-label">GIF (coming soon)</div>
+                </div>
+                <div class="export-option" data-format="webm">
+                    <div class="export-option-icon">🎥</div>
+                    <div class="export-option-label">WebM (coming soon)</div>
+                </div>
+            </div>
+            <div class="export-progress" id="exportProgress">
+                <div class="export-progress-bar" id="exportProgressBar"></div>
+            </div>
+            <button class="btn" id="exportBtn">Export Current Frame</button>
+        </div>
+
+        <footer>
+            <p>Part of <a href="https://github.com/LeoMeow123/vibes">vibing</a> - Tools for behavioral analysis</p>
+        </footer>
+    </div>
+
+    <script>
+        // ============================================
+        // Color Palettes
+        // ============================================
+        const PALETTES = {
+            default: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#fd79a8', '#a29bfe'],
+            viridis: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
+            rainbow: ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff'],
+            single: ['#00ff00']
+        };
+
+        let currentPalette = 'default';
+        let singleColor = '#00ff00';
+
+        function getTrackColor(trackIdx) {
+            if (currentPalette === 'single') {
+                return singleColor;
+            }
+            const palette = PALETTES[currentPalette] || PALETTES.default;
+            return palette[trackIdx % palette.length];
+        }
+
+        // ============================================
+        // State
+        // ============================================
+        let slpData = null;       // Parsed SLP data
+        let video = null;         // HTMLVideoElement
+        let canvas = null;
+        let ctx = null;
+        let isPlaying = false;
+        let currentFrame = 0;
+        let totalFrames = 0;
+        let fps = 30;
+        let animationId = null;
+
+        // Frame index map: frameIdx -> { instances: [...] }
+        let frameIndexMap = new Map();
+
+        // ============================================
+        // DOM Elements
+        // ============================================
+        const slpDropZone = document.getElementById('slpDropZone');
+        const videoDropZone = document.getElementById('videoDropZone');
+        const slpInput = document.getElementById('slpInput');
+        const videoInput = document.getElementById('videoInput');
+        const statusMsg = document.getElementById('statusMsg');
+        const previewContainer = document.getElementById('previewContainer');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const exportSection = document.getElementById('exportSection');
+        const skeletonInfo = document.getElementById('skeletonInfo');
+
+        canvas = document.getElementById('previewCanvas');
+        ctx = canvas.getContext('2d');
+
+        // ============================================
+        // Drop Zone Handlers
+        // ============================================
+        function setupDropZone(dropZone, inputEl, onFile, acceptTest) {
+            dropZone.addEventListener('click', () => inputEl.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && acceptTest(file)) {
+                    onFile(file);
+                }
+            });
+
+            inputEl.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) onFile(file);
+            });
+        }
+
+        setupDropZone(
+            slpDropZone, slpInput,
+            loadSlpFile,
+            (f) => f.name.endsWith('.slp')
+        );
+
+        setupDropZone(
+            videoDropZone, videoInput,
+            loadVideoFile,
+            (f) => f.type.startsWith('video/')
+        );
+
+        // ============================================
+        // Status Messages
+        // ============================================
+        function showStatus(msg, type = 'info') {
+            statusMsg.textContent = msg;
+            statusMsg.className = `status-msg visible ${type}`;
+        }
+
+        function hideStatus() {
+            statusMsg.classList.remove('visible');
+        }
+
+        // ============================================
+        // SLP Loading (Web Worker)
+        // ============================================
+        const workerCode = `
+importScripts('https://cdn.jsdelivr.net/npm/h5wasm@0.8.8/dist/iife/h5wasm.js');
+
+let h5wasmReady = false;
+
+(async () => {
+    await h5wasm.ready;
+    h5wasmReady = true;
+    postMessage({ type: 'ready' });
+})();
+
+onmessage = async function(e) {
+    if (!h5wasmReady) {
+        postMessage({ type: 'error', error: 'h5wasm not ready' });
+        return;
+    }
+
+    const { type, file } = e.data;
+
+    if (type === 'loadSlp') {
+        try {
+            // Mount file
+            try { h5wasm.FS.mkdir('/local'); } catch (e) {}
+            try { h5wasm.FS.unmount('/local'); } catch (e) {}
+            h5wasm.FS.mount(h5wasm.FS.filesystems.WORKERFS, { files: [file] }, '/local');
+
+            const h5file = new h5wasm.File('/local/' + file.name, 'r');
+            postMessage({ type: 'progress', msg: 'Reading metadata...' });
+
+            // Parse metadata
+            const metadataGroup = h5file.get('metadata');
+            const jsonAttr = metadataGroup.attrs['json'];
+            const jsonStr = typeof jsonAttr.value === 'string' ? jsonAttr.value :
+                           new TextDecoder().decode(jsonAttr.value);
+            const metadata = JSON.parse(jsonStr);
+
+            // Parse skeleton
+            const skeleton = { nodes: [], edges: [] };
+            if (metadata.skeletons && metadata.skeletons[0]) {
+                const skel = metadata.skeletons[0];
+                if (skel.nodes) {
+                    skeleton.nodes = skel.nodes.map(n => n.name || n);
+                }
+                if (skel.links || skel.edges) {
+                    const links = skel.links || skel.edges || [];
+                    for (const link of links) {
+                        if (link.source !== undefined && link.target !== undefined) {
+                            const srcName = link.source.name || link.source;
+                            const dstName = link.target.name || link.target;
+                            const srcIdx = skeleton.nodes.indexOf(srcName);
+                            const dstIdx = skeleton.nodes.indexOf(dstName);
+                            if (srcIdx >= 0 && dstIdx >= 0) {
+                                skeleton.edges.push([srcIdx, dstIdx]);
+                            }
+                        } else if (Array.isArray(link)) {
+                            skeleton.edges.push(link);
+                        }
+                    }
+                }
+            }
+
+            postMessage({ type: 'progress', msg: 'Reading tracks...' });
+
+            // Parse tracks
+            let tracks = [];
+            try {
+                const tracksDs = h5file.get('tracks_json');
+                if (tracksDs && tracksDs.shape[0] > 0) {
+                    tracks = Array.from(tracksDs.value).map(t => {
+                        if (typeof t === 'string') {
+                            try {
+                                const parsed = JSON.parse(t);
+                                return parsed.name || String(parsed);
+                            } catch { return t; }
+                        }
+                        return String(t);
+                    });
+                }
+            } catch (e) {}
+
+            postMessage({ type: 'progress', msg: 'Reading frames...' });
+
+            // Read frames
+            const framesDs = h5file.get('frames');
+            const framesRaw = framesDs.value;
+
+            let framesData;
+            const frameFields = ['frame_id', 'video', 'frame_idx', 'instance_id_start', 'instance_id_end'];
+            if (Array.isArray(framesRaw) && framesRaw.length > 0 && Array.isArray(framesRaw[0])) {
+                framesData = {};
+                for (let i = 0; i < frameFields.length; i++) {
+                    framesData[frameFields[i]] = framesRaw.map(row => row[i]);
+                }
+            } else {
+                framesData = framesRaw;
+            }
+
+            postMessage({ type: 'progress', msg: 'Reading instances...' });
+
+            // Read instances
+            const instancesDs = h5file.get('instances');
+            const instancesRaw = instancesDs.value;
+
+            let instancesData;
+            const instanceFields = ['instance_id', 'instance_type', 'frame_id', 'skeleton', 'track',
+                                   'from_predicted', 'score', 'point_id_start', 'point_id_end', 'tracking_score'];
+            if (Array.isArray(instancesRaw) && instancesRaw.length > 0 && Array.isArray(instancesRaw[0])) {
+                instancesData = {};
+                for (let i = 0; i < instanceFields.length; i++) {
+                    instancesData[instanceFields[i]] = instancesRaw.map(row => row[i]);
+                }
+            } else {
+                instancesData = instancesRaw;
+            }
+
+            postMessage({ type: 'progress', msg: 'Reading points...' });
+
+            // Read points (user or predicted)
+            let pointsData = null;
+            function normalizePoints(raw, fields) {
+                if (!raw || raw.length === 0) return null;
+                if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])) {
+                    const data = {};
+                    for (let i = 0; i < fields.length; i++) {
+                        data[fields[i]] = raw.map(row => row[i]);
+                    }
+                    return data;
+                } else if (raw && typeof raw === 'object' && raw.x !== undefined) {
+                    return raw;
+                }
+                return null;
+            }
+
+            try {
+                const pointsDs = h5file.get('pred_points');
+                if (pointsDs && pointsDs.shape[0] > 0) {
+                    pointsData = normalizePoints(pointsDs.value, ['x', 'y', 'visible', 'complete', 'score']);
+                }
+            } catch (e) {}
+
+            if (!pointsData) {
+                try {
+                    const pointsDs = h5file.get('points');
+                    if (pointsDs && pointsDs.shape[0] > 0) {
+                        pointsData = normalizePoints(pointsDs.value, ['x', 'y', 'visible', 'complete']);
+                    }
+                } catch (e) {}
+            }
+
+            if (!pointsData) {
+                throw new Error('No points data found in SLP file');
+            }
+
+            postMessage({ type: 'progress', msg: 'Building frame index...' });
+
+            // Build frame index map
+            const frameMap = new Map();
+            const numFrames = framesData.frame_id.length;
+
+            for (let f = 0; f < numFrames; f++) {
+                const frameIdx = framesData.frame_idx[f];
+                const instStart = framesData.instance_id_start[f];
+                const instEnd = framesData.instance_id_end[f];
+
+                const instances = [];
+                for (let i = instStart; i < instEnd; i++) {
+                    const ptStart = instancesData.point_id_start[i];
+                    const ptEnd = instancesData.point_id_end[i];
+                    const trackIdx = instancesData.track[i];
+
+                    const points = [];
+                    for (let p = ptStart; p < ptEnd; p++) {
+                        const x = pointsData.x[p];
+                        const y = pointsData.y[p];
+                        if (isNaN(x) || isNaN(y)) {
+                            points.push(null);
+                        } else {
+                            points.push([x, y]);
+                        }
+                    }
+
+                    instances.push({ trackIdx, points });
+                }
+
+                if (instances.length > 0) {
+                    frameMap.set(frameIdx, { instances });
+                }
+            }
+
+            h5file.close();
+
+            // Convert Map to array for postMessage
+            const frameMapArray = Array.from(frameMap.entries());
+
+            postMessage({
+                type: 'loaded',
+                data: {
+                    skeleton,
+                    tracks,
+                    frameMap: frameMapArray,
+                    numFramesWithPoses: frameMap.size
+                }
+            });
+
+        } catch (err) {
+            postMessage({ type: 'error', error: err.message });
+        }
+    }
+};
+        `;
+
+        const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+        let slpWorker = null;
+
+        function loadSlpFile(file) {
+            showStatus('Loading SLP file...', 'loading');
+
+            if (slpWorker) {
+                slpWorker.terminate();
+            }
+
+            slpWorker = new Worker(workerUrl);
+
+            slpWorker.onmessage = (e) => {
+                const { type, data, msg, error } = e.data;
+
+                if (type === 'ready') {
+                    slpWorker.postMessage({ type: 'loadSlp', file });
+                } else if (type === 'progress') {
+                    showStatus(msg, 'loading');
+                } else if (type === 'loaded') {
+                    slpData = {
+                        skeleton: data.skeleton,
+                        tracks: data.tracks
+                    };
+
+                    // Rebuild frameIndexMap from array
+                    frameIndexMap = new Map(data.frameMap);
+
+                    slpDropZone.classList.add('loaded');
+                    document.getElementById('slpFileName').textContent = file.name;
+
+                    // Update info
+                    document.getElementById('infoNodes').textContent = slpData.skeleton.nodes.length;
+                    document.getElementById('infoEdges').textContent = slpData.skeleton.edges.length;
+                    document.getElementById('infoTracks').textContent = slpData.tracks.length;
+                    document.getElementById('infoFrames').textContent = data.numFramesWithPoses.toLocaleString();
+
+                    // Show track colors
+                    updateTrackColors();
+
+                    skeletonInfo.classList.add('visible');
+                    showStatus(`Loaded ${data.numFramesWithPoses.toLocaleString()} frames with poses`, 'success');
+
+                    checkReadyToPreview();
+                } else if (type === 'error') {
+                    showStatus(`Error: ${error}`, 'error');
+                }
+            };
+
+            slpWorker.onerror = (e) => {
+                showStatus(`Worker error: ${e.message}`, 'error');
+            };
+        }
+
+        function updateTrackColors() {
+            const container = document.getElementById('trackColors');
+            container.innerHTML = '';
+
+            const numTracks = slpData?.tracks?.length || 0;
+            for (let i = 0; i < Math.min(numTracks, 10); i++) {
+                const item = document.createElement('div');
+                item.className = 'track-color-item';
+
+                const swatch = document.createElement('div');
+                swatch.className = 'track-color-swatch';
+                swatch.style.background = getTrackColor(i);
+
+                const label = document.createElement('span');
+                label.textContent = slpData.tracks[i] || `Track ${i}`;
+
+                item.appendChild(swatch);
+                item.appendChild(label);
+                container.appendChild(item);
+            }
+
+            if (numTracks > 10) {
+                const more = document.createElement('span');
+                more.textContent = `+${numTracks - 10} more`;
+                more.style.color = '#888';
+                more.style.fontSize = '12px';
+                container.appendChild(more);
+            }
+        }
+
+        // ============================================
+        // Video Loading
+        // ============================================
+        function loadVideoFile(file) {
+            showStatus('Loading video...', 'loading');
+
+            if (video) {
+                video.pause();
+                URL.revokeObjectURL(video.src);
+            }
+
+            video = document.createElement('video');
+            video.src = URL.createObjectURL(file);
+            video.muted = true;
+
+            video.onloadedmetadata = () => {
+                totalFrames = Math.round(video.duration * fps);
+
+                videoDropZone.classList.add('loaded');
+                document.getElementById('videoFileName').textContent =
+                    `${file.name} (${video.videoWidth}x${video.videoHeight}, ${video.duration.toFixed(1)}s)`;
+
+                showStatus('Video loaded', 'success');
+                checkReadyToPreview();
+            };
+
+            video.onerror = () => {
+                showStatus('Failed to load video', 'error');
+            };
+        }
+
+        // ============================================
+        // Preview
+        // ============================================
+        function checkReadyToPreview() {
+            if (slpData && video && video.readyState >= 1) {
+                previewContainer.classList.add('visible');
+                settingsPanel.classList.add('visible');
+                exportSection.classList.add('visible');
+
+                // Set canvas size
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+
+                // Go to first frame
+                seekToFrame(0);
+            }
+        }
+
+        function resizeCanvas() {
+            if (!video) return;
+
+            const wrapper = canvas.parentElement;
+            const rect = wrapper.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            // Maintain video aspect ratio
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const wrapperAspect = rect.width / rect.height;
+
+            let drawWidth, drawHeight;
+            if (videoAspect > wrapperAspect) {
+                drawWidth = rect.width;
+                drawHeight = rect.width / videoAspect;
+            } else {
+                drawHeight = rect.height;
+                drawWidth = rect.height * videoAspect;
+            }
+
+            canvas.width = drawWidth * dpr;
+            canvas.height = drawHeight * dpr;
+            canvas.style.width = drawWidth + 'px';
+            canvas.style.height = drawHeight + 'px';
+            canvas.style.left = ((rect.width - drawWidth) / 2) + 'px';
+            canvas.style.top = ((rect.height - drawHeight) / 2) + 'px';
+
+            renderFrame();
+        }
+
+        function seekToFrame(frame) {
+            if (!video) return;
+
+            currentFrame = Math.max(0, Math.min(frame, totalFrames - 1));
+            video.currentTime = currentFrame / fps;
+
+            video.onseeked = () => {
+                renderFrame();
+                updateUI();
+            };
+        }
+
+        function renderFrame() {
+            if (!video || !ctx) return;
+
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Clear
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw video frame
+            ctx.drawImage(video, 0, 0, w, h);
+
+            // Draw skeleton overlay
+            if (slpData && frameIndexMap.has(currentFrame)) {
+                renderPoseOverlay();
+            }
+        }
+
+        function renderPoseOverlay() {
+            const frameData = frameIndexMap.get(currentFrame);
+            if (!frameData) return;
+
+            const showNodes = document.getElementById('showNodes').checked;
+            const showEdges = document.getElementById('showEdges').checked;
+            const showLabels = document.getElementById('showLabels').checked;
+            const nodeSize = parseInt(document.getElementById('nodeSize').value);
+            const edgeWidth = parseInt(document.getElementById('edgeWidth').value);
+
+            const dpr = window.devicePixelRatio || 1;
+            const scaleX = canvas.width / video.videoWidth;
+            const scaleY = canvas.height / video.videoHeight;
+
+            ctx.save();
+
+            for (const inst of frameData.instances) {
+                const color = getTrackColor(inst.trackIdx);
+                const points = inst.points;
+
+                // Draw edges
+                if (showEdges && slpData.skeleton.edges) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = edgeWidth * dpr;
+                    ctx.lineCap = 'round';
+
+                    for (const [srcIdx, dstIdx] of slpData.skeleton.edges) {
+                        const srcPt = points[srcIdx];
+                        const dstPt = points[dstIdx];
+                        if (!srcPt || !dstPt) continue;
+
+                        ctx.beginPath();
+                        ctx.moveTo(srcPt[0] * scaleX, srcPt[1] * scaleY);
+                        ctx.lineTo(dstPt[0] * scaleX, dstPt[1] * scaleY);
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw nodes
+                if (showNodes) {
+                    ctx.fillStyle = color;
+
+                    for (let i = 0; i < points.length; i++) {
+                        const pt = points[i];
+                        if (!pt) continue;
+
+                        const cx = pt[0] * scaleX;
+                        const cy = pt[1] * scaleY;
+
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, nodeSize * dpr, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Draw labels
+                        if (showLabels && slpData.skeleton.nodes[i]) {
+                            ctx.font = `${10 * dpr}px sans-serif`;
+                            ctx.fillStyle = '#fff';
+                            ctx.fillText(slpData.skeleton.nodes[i], cx + nodeSize * dpr + 2, cy + 3);
+                            ctx.fillStyle = color;
+                        }
+                    }
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function updateUI() {
+            document.getElementById('frameCounter').textContent =
+                `${currentFrame + 1} / ${totalFrames}`;
+
+            const progress = totalFrames > 0 ? (currentFrame / (totalFrames - 1)) * 100 : 0;
+            document.getElementById('seekbarProgress').style.width = progress + '%';
+        }
+
+        // ============================================
+        // Playback Controls
+        // ============================================
+        document.getElementById('playPauseBtn').addEventListener('click', togglePlay);
+        document.getElementById('prevFrameBtn').addEventListener('click', () => seekToFrame(currentFrame - 1));
+        document.getElementById('nextFrameBtn').addEventListener('click', () => seekToFrame(currentFrame + 1));
+        document.getElementById('stepBackBtn').addEventListener('click', () => seekToFrame(currentFrame - 10));
+        document.getElementById('stepFwdBtn').addEventListener('click', () => seekToFrame(currentFrame + 10));
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        function startPlayback() {
+            isPlaying = true;
+            document.getElementById('playPauseBtn').textContent = '⏸';
+
+            let lastTime = performance.now();
+            const frameDuration = 1000 / fps;
+
+            function animate(now) {
+                if (!isPlaying) return;
+
+                const delta = now - lastTime;
+                if (delta >= frameDuration) {
+                    lastTime = now - (delta % frameDuration);
+
+                    currentFrame++;
+                    if (currentFrame >= totalFrames) {
+                        currentFrame = 0;
+                    }
+
+                    video.currentTime = currentFrame / fps;
+                    renderFrame();
+                    updateUI();
+                }
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').textContent = '▶';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        // Seekbar
+        const seekbar = document.getElementById('seekbar');
+        seekbar.addEventListener('click', (e) => {
+            const rect = seekbar.getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            const frame = Math.round(ratio * (totalFrames - 1));
+            seekToFrame(frame);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    seekToFrame(currentFrame - (e.shiftKey ? 10 : 1));
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    seekToFrame(currentFrame + (e.shiftKey ? 10 : 1));
+                    break;
+            }
+        });
+
+        // ============================================
+        // Settings
+        // ============================================
+        document.getElementById('nodeSize').addEventListener('input', (e) => {
+            document.getElementById('nodeSizeValue').textContent = e.target.value;
+            renderFrame();
+        });
+
+        document.getElementById('edgeWidth').addEventListener('input', (e) => {
+            document.getElementById('edgeWidthValue').textContent = e.target.value;
+            renderFrame();
+        });
+
+        ['showNodes', 'showEdges', 'showLabels'].forEach(id => {
+            document.getElementById(id).addEventListener('change', renderFrame);
+        });
+
+        // Palette selection
+        document.querySelectorAll('.palette-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.palette-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                currentPalette = opt.dataset.palette;
+
+                document.getElementById('singleColorRow').style.display =
+                    currentPalette === 'single' ? 'flex' : 'none';
+
+                updateTrackColors();
+                renderFrame();
+            });
+        });
+
+        document.getElementById('singleColor').addEventListener('input', (e) => {
+            singleColor = e.target.value;
+            PALETTES.single = [singleColor];
+            updateTrackColors();
+            renderFrame();
+        });
+
+        // ============================================
+        // Export
+        // ============================================
+        document.querySelectorAll('.export-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.export-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+
+                const format = opt.dataset.format;
+                const btn = document.getElementById('exportBtn');
+
+                if (format === 'png') {
+                    btn.textContent = 'Export Current Frame';
+                    btn.disabled = false;
+                } else {
+                    btn.textContent = `Export ${format.toUpperCase()} (Coming Soon)`;
+                    btn.disabled = true;
+                }
+            });
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const activeOpt = document.querySelector('.export-option.active');
+            const format = activeOpt?.dataset.format || 'png';
+
+            if (format === 'png') {
+                exportCurrentFrame();
+            }
+        });
+
+        function exportCurrentFrame() {
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `frame_${currentFrame.toString().padStart(6, '0')}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+    </script>
+</body>
+</html>

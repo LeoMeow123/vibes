@@ -17,6 +17,7 @@ A collection of small but useful tools for scientific publications and projects.
 | Tool | Description | Link |
 |------|-------------|------|
 | **Pixel Scale Tool** | Draw a line on your video, enter real distance, get px↔cm conversion | [Launch](https://leomeow123.github.io/vibes/scale-tool/) |
+| **SLEAP Render Tool** | Preview skeleton overlay before export, adjust settings in real-time | [Launch](https://leomeow123.github.io/vibes/sleap-render-tool/) |
 
 ## Standalone Tools
 

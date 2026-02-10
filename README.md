@@ -9,7 +9,7 @@ A collection of small but useful tools for scientific publications and projects.
 | `calibration` | Detect lens distortion using charuco boards |
 | `sleap_convert` | Convert SLEAP predictions to ROI polygons |
 | `geometry` | Pixel↔cm conversion, depth from boundaries |
-| `pose` | Interpolate gaps, body hulls, velocity, distance, dwell time |
+| `pose` | Quality checks, interpolation, body hulls, velocity, distance, dwell |
 | `video` | FPS reader, frame counter, video info, parallel processing |
 
 ## Web Tools
@@ -18,6 +18,7 @@ A collection of small but useful tools for scientific publications and projects.
 |------|-------------|------|
 | **Pixel Scale Tool** | Draw a line on your video, enter real distance, get px↔cm conversion | [Launch](https://leomeow123.github.io/vibes/scale-tool/) |
 | **SLEAP Render Tool** | Preview skeleton overlay before export, adjust settings in real-time | [Launch](https://leomeow123.github.io/vibes/sleap-render-tool/) |
+| **Quality Review Tool** | Batch scan results viewer with embedded SLP proofreading | [Docs](quality-review-tool/) |
 
 ## Standalone Tools
 
@@ -38,6 +39,8 @@ These functions work independently for common tasks:
 | `video.run_parallel` | Generic parallel processing | "Process 1000 videos with 8 workers" |
 | `video.process_videos` | Parallel video batch processing | "Run analysis on all videos in directory" |
 | `calibration.check_video` | Measure lens distortion | "Does this GoPro video need undistortion?" |
+| `pose.check_slp_quality` | Check single .slp file for labeling anomalies | "Flag frames where keypoints look geometrically wrong" |
+| `pose.scan_slp_quality` | Batch scan directory of .slp files | "Which of my 500 .slp files need relabeling?" |
 
 ## Installation
 
@@ -188,6 +191,25 @@ Tools for analyzing pose estimation data from SLEAP or similar trackers.
 - `region_dwell_time` - Time spent in a region
 - `region_dwell_frames` - Boolean mask of frames inside region
 - `multi_region_dwell` - Dwell time for multiple regions
+
+**Quality checking:**
+- `check_slp_quality` - Check single .slp file for geometric anomalies
+- `check_pose_quality` - Check raw (T, J, 2) tracking array
+- `scan_slp_quality` - Batch scan directory, output JSON manifest
+- `QualityConfig` - Customise thresholds (scale-invariant defaults)
+
+```python
+from vibing.pose import check_slp_quality, scan_slp_quality
+
+# Check single file
+report = check_slp_quality("predictions.slp")
+print(report.recommendation)  # "GOOD", "REVIEW", or "POOR"
+print(report.summary())
+
+# Batch scan entire directory
+manifest = scan_slp_quality("/path/to/slp/files")
+# Writes quality_manifest.json → open in Quality Review Tool
+```
 
 ```python
 from vibing.pose import track_velocity, track_distance, region_dwell_time

@@ -6,6 +6,7 @@ This module provides tools for analyzing pose estimation data:
 - Interpolation: Fill short gaps in tracking data
 - Hull calculation: Compute convex hulls for spatial analysis
 - Track analysis: Velocity, distance, and dwell time
+- Quality assessment: Body-relative keypoint anomaly detection
 """
 
 from vibing.pose.region import (
@@ -36,6 +37,15 @@ from vibing.pose.analysis import (
     track_speed,
     track_velocity,
 )
+from vibing.pose.quality import (
+    QualityConfig,
+    QualityReport,
+    SkeletonMap,
+    check_pose_quality,
+    check_slp_quality,
+    detect_skeleton,
+)
+from vibing.pose.scan import scan_slp_quality
 
 __all__ = [
     # Region checking
@@ -62,4 +72,13 @@ __all__ = [
     "track_distance",
     "track_speed",
     "track_velocity",
+    # Quality assessment
+    "QualityConfig",
+    "QualityReport",
+    "SkeletonMap",
+    "check_pose_quality",
+    "check_slp_quality",
+    "detect_skeleton",
+    # Batch scanning
+    "scan_slp_quality",
 ]

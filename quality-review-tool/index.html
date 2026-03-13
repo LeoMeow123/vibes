@@ -230,7 +230,7 @@
     <input type="file" id="folderInput" webkitdirectory style="display:none">
     <span class="folder-status" id="folderStatus">No folder selected &mdash; click to pick the folder containing your .slp and video files</span>
     <label for="slpViewerPath">Viewer path</label>
-    <input type="text" id="slpViewerPath" placeholder="../../talmolab-vibes/slp-viewer">
+    <input type="text" id="slpViewerPath" placeholder="../sleap-render-tool">
   </div>
 
   <!-- Summary cards -->
@@ -342,7 +342,7 @@
 
   // ── Settings ───────────────────────────────────────────────────
   function initSettings() {
-    $slpViewerPath.value = localStorage.getItem("qrt_slpViewerPath") || "../../talmolab-vibes/slp-viewer";
+    $slpViewerPath.value = localStorage.getItem("qrt_slpViewerPath") || "../sleap-render-tool";
     $slpViewerPath.addEventListener("input", function () {
       localStorage.setItem("qrt_slpViewerPath", $slpViewerPath.value.trim());
     });

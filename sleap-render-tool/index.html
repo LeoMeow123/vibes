@@ -1323,6 +1323,36 @@ onmessage = async function(e) {
                 URL.revokeObjectURL(url);
             }, 'image/png');
         });
+
+        // ============================================
+        // postMessage API (for embedding in quality-review-tool)
+        // ============================================
+        let pendingSeekFrame = null;
+
+        window.addEventListener('message', (e) => {
+            if (!e.data || e.data.type !== 'loadFiles') return;
+
+            const { slpFile, videoFile, frame } = e.data;
+            pendingSeekFrame = frame || 0;
+
+            if (slpFile) loadSlpFile(slpFile);
+            if (videoFile) loadVideoFile(videoFile);
+        });
+
+        // Override checkReadyToPreview to seek to the pending frame
+        const _origCheckReady = checkReadyToPreview;
+        checkReadyToPreview = function () {
+            _origCheckReady();
+            if (pendingSeekFrame !== null && slpData && videoElement.readyState >= 1) {
+                seekToFrame(pendingSeekFrame);
+                pendingSeekFrame = null;
+            }
+        };
+
+        // Signal readiness to parent window
+        if (window.parent !== window) {
+            window.parent.postMessage({ type: 'slp-viewer-ready' }, '*');
+        }
     </script>
 </body>
 </html>

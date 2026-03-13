@@ -78,16 +78,22 @@
         .canvas-wrapper {
             position: relative;
             width: 100%;
-            aspect-ratio: 16/9;
             background: #111;
         }
 
-        #previewCanvas {
+        #videoElement {
+            display: block;
+            width: 100%;
+            max-height: 70vh;
+        }
+
+        #overlayCanvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none;
         }
 
         .video-controls {
@@ -125,13 +131,14 @@
             font-family: monospace;
             font-size: 13px;
             color: #888;
-            min-width: 120px;
+            min-width: 140px;
             text-align: right;
         }
 
         .playback-row {
             display: flex;
             justify-content: center;
+            align-items: center;
             gap: 8px;
         }
 
@@ -161,6 +168,23 @@
 
         .btn-secondary { background: #444; }
         .btn-secondary:hover { background: #555; }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 15px;
+        }
+
+        .speed-control label { font-size: 12px; color: #888; }
+        .speed-control select {
+            background: #1a1a2e;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
 
         .settings-panel {
             background: #252540;
@@ -260,47 +284,6 @@
 
         .export-section h3 { margin-bottom: 15px; }
 
-        .export-options {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-
-        .export-option {
-            background: #1a1a2e;
-            border: 1px solid #444;
-            border-radius: 8px;
-            padding: 15px 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-            min-width: 120px;
-        }
-
-        .export-option:hover { border-color: #6c9fff; }
-        .export-option.active { border-color: #6c9fff; background: rgba(108, 159, 255, 0.1); }
-        .export-option-icon { font-size: 24px; margin-bottom: 8px; }
-        .export-option-label { font-size: 14px; }
-
-        .export-progress {
-            background: #1a1a2e;
-            border-radius: 4px;
-            height: 8px;
-            overflow: hidden;
-            margin: 15px 0;
-            display: none;
-        }
-
-        .export-progress.visible { display: block; }
-
-        .export-progress-bar {
-            height: 100%;
-            background: #6c9fff;
-            width: 0%;
-            transition: width 0.1s;
-        }
-
         .status-msg {
             padding: 12px 16px;
             border-radius: 6px;
@@ -329,7 +312,7 @@
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 15px;
         }
 
@@ -348,7 +331,7 @@
         }
 
         .info-item .value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #6c9fff;
         }
@@ -381,6 +364,21 @@
             height: 16px;
             border-radius: 3px;
         }
+
+        .debug-panel {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+        }
+
+        .debug-panel.visible { display: block; }
+        .debug-panel h4 { margin-bottom: 10px; color: #fbbf24; }
+        .debug-info { color: #888; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -427,30 +425,49 @@
                     <div class="value" id="infoTracks">-</div>
                 </div>
                 <div class="info-item">
-                    <label>Frames with Poses</label>
+                    <label>Labeled Frames</label>
                     <div class="value" id="infoFrames">-</div>
+                </div>
+                <div class="info-item">
+                    <label>Frame Range</label>
+                    <div class="value" id="infoFrameRange">-</div>
                 </div>
             </div>
             <div class="track-colors" id="trackColors"></div>
         </div>
 
+        <div class="debug-panel" id="debugPanel">
+            <h4>Debug Info</h4>
+            <div class="debug-info" id="debugInfo"></div>
+        </div>
+
         <div class="preview-container" id="previewContainer">
             <div class="canvas-wrapper">
-                <canvas id="previewCanvas"></canvas>
+                <video id="videoElement" muted playsinline></video>
+                <canvas id="overlayCanvas"></canvas>
             </div>
             <div class="video-controls">
                 <div class="seekbar-row">
                     <div class="seekbar" id="seekbar">
                         <div class="seekbar-progress" id="seekbarProgress"></div>
                     </div>
-                    <div class="frame-counter" id="frameCounter">0 / 0</div>
+                    <div class="frame-counter" id="frameCounter">Frame 0 / 0</div>
                 </div>
                 <div class="playback-row">
-                    <button class="btn btn-icon btn-secondary" id="prevFrameBtn" title="Previous frame">⏮</button>
-                    <button class="btn btn-icon btn-secondary" id="stepBackBtn" title="Step back 10">⏪</button>
-                    <button class="btn btn-icon" id="playPauseBtn" title="Play/Pause">▶</button>
-                    <button class="btn btn-icon btn-secondary" id="stepFwdBtn" title="Step forward 10">⏩</button>
-                    <button class="btn btn-icon btn-secondary" id="nextFrameBtn" title="Next frame">⏭</button>
+                    <button class="btn btn-icon btn-secondary" id="prevFrameBtn" title="Previous frame (←)">⏮</button>
+                    <button class="btn btn-icon btn-secondary" id="stepBackBtn" title="Back 10 frames (Shift+←)">⏪</button>
+                    <button class="btn btn-icon" id="playPauseBtn" title="Play/Pause (Space)">▶</button>
+                    <button class="btn btn-icon btn-secondary" id="stepFwdBtn" title="Forward 10 frames (Shift+→)">⏩</button>
+                    <button class="btn btn-icon btn-secondary" id="nextFrameBtn" title="Next frame (→)">⏭</button>
+                    <div class="speed-control">
+                        <label>Speed:</label>
+                        <select id="playbackSpeed">
+                            <option value="0.25">0.25x</option>
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="2">2x</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -474,8 +491,8 @@
                     </div>
                     <div class="setting-row">
                         <label>
-                            <input type="checkbox" id="showLabels">
-                            Show node labels
+                            <input type="checkbox" id="showDebug">
+                            Show debug info
                         </label>
                     </div>
                 </div>
@@ -484,13 +501,13 @@
                     <h4>Sizes</h4>
                     <div class="setting-row">
                         <label>Node size</label>
-                        <input type="range" id="nodeSize" min="1" max="20" value="5">
-                        <span class="value" id="nodeSizeValue">5</span>
+                        <input type="range" id="nodeSize" min="2" max="30" value="8">
+                        <span class="value" id="nodeSizeValue">8</span>
                     </div>
                     <div class="setting-row">
                         <label>Edge width</label>
-                        <input type="range" id="edgeWidth" min="1" max="10" value="2">
-                        <span class="value" id="edgeWidthValue">2</span>
+                        <input type="range" id="edgeWidth" min="1" max="15" value="3">
+                        <span class="value" id="edgeWidthValue">3</span>
                     </div>
                 </div>
 
@@ -511,25 +528,8 @@
         </div>
 
         <div class="export-section" id="exportSection">
-            <h3>Export</h3>
-            <div class="export-options">
-                <div class="export-option active" data-format="png">
-                    <div class="export-option-icon">🖼</div>
-                    <div class="export-option-label">Current Frame (PNG)</div>
-                </div>
-                <div class="export-option" data-format="gif">
-                    <div class="export-option-icon">🎞</div>
-                    <div class="export-option-label">GIF (coming soon)</div>
-                </div>
-                <div class="export-option" data-format="webm">
-                    <div class="export-option-icon">🎥</div>
-                    <div class="export-option-label">WebM (coming soon)</div>
-                </div>
-            </div>
-            <div class="export-progress" id="exportProgress">
-                <div class="export-progress-bar" id="exportProgressBar"></div>
-            </div>
-            <button class="btn" id="exportBtn">Export Current Frame</button>
+            <h3>Export Current Frame</h3>
+            <button class="btn" id="exportBtn">Save as PNG</button>
         </div>
 
         <footer>
@@ -556,24 +556,21 @@
                 return singleColor;
             }
             const palette = PALETTES[currentPalette] || PALETTES.default;
-            return palette[trackIdx % palette.length];
+            return palette[Math.abs(trackIdx) % palette.length];
         }
 
         // ============================================
         // State
         // ============================================
-        let slpData = null;       // Parsed SLP data
-        let video = null;         // HTMLVideoElement
-        let canvas = null;
-        let ctx = null;
-        let isPlaying = false;
-        let currentFrame = 0;
+        let slpData = null;
+        let videoElement = null;
+        let overlayCanvas = null;
+        let overlayCtx = null;
+        let fps = 30;  // Will be updated from video if possible
         let totalFrames = 0;
-        let fps = 30;
-        let animationId = null;
-
-        // Frame index map: frameIdx -> { instances: [...] }
         let frameIndexMap = new Map();
+        let minFrameIdx = Infinity;
+        let maxFrameIdx = -Infinity;
 
         // ============================================
         // DOM Elements
@@ -587,9 +584,30 @@
         const settingsPanel = document.getElementById('settingsPanel');
         const exportSection = document.getElementById('exportSection');
         const skeletonInfo = document.getElementById('skeletonInfo');
+        const debugPanel = document.getElementById('debugPanel');
 
-        canvas = document.getElementById('previewCanvas');
-        ctx = canvas.getContext('2d');
+        videoElement = document.getElementById('videoElement');
+        overlayCanvas = document.getElementById('overlayCanvas');
+        overlayCtx = overlayCanvas.getContext('2d');
+
+        // ============================================
+        // Status Messages
+        // ============================================
+        function showStatus(msg, type = 'info') {
+            statusMsg.textContent = msg;
+            statusMsg.className = `status-msg visible ${type}`;
+        }
+
+        function hideStatus() {
+            statusMsg.classList.remove('visible');
+        }
+
+        function updateDebug(info) {
+            document.getElementById('debugInfo').innerHTML = info;
+            if (document.getElementById('showDebug').checked) {
+                debugPanel.classList.add('visible');
+            }
+        }
 
         // ============================================
         // Drop Zone Handlers
@@ -621,29 +639,8 @@
             });
         }
 
-        setupDropZone(
-            slpDropZone, slpInput,
-            loadSlpFile,
-            (f) => f.name.endsWith('.slp')
-        );
-
-        setupDropZone(
-            videoDropZone, videoInput,
-            loadVideoFile,
-            (f) => f.type.startsWith('video/')
-        );
-
-        // ============================================
-        // Status Messages
-        // ============================================
-        function showStatus(msg, type = 'info') {
-            statusMsg.textContent = msg;
-            statusMsg.className = `status-msg visible ${type}`;
-        }
-
-        function hideStatus() {
-            statusMsg.classList.remove('visible');
-        }
+        setupDropZone(slpDropZone, slpInput, loadSlpFile, (f) => f.name.endsWith('.slp'));
+        setupDropZone(videoDropZone, videoInput, loadVideoFile, (f) => f.type.startsWith('video/'));
 
         // ============================================
         // SLP Loading (Web Worker)
@@ -658,6 +655,12 @@ let h5wasmReady = false;
     h5wasmReady = true;
     postMessage({ type: 'ready' });
 })();
+
+// Helper to convert BigInt to Number
+function toNum(val) {
+    if (typeof val === 'bigint') return Number(val);
+    return val;
+}
 
 onmessage = async function(e) {
     if (!h5wasmReady) {
@@ -685,11 +688,15 @@ onmessage = async function(e) {
             const metadata = JSON.parse(jsonStr);
 
             // Parse skeleton
-            const skeleton = { nodes: [], edges: [] };
+            const skeleton = { nodes: [], edges: [], nodeNames: [] };
             if (metadata.skeletons && metadata.skeletons[0]) {
                 const skel = metadata.skeletons[0];
                 if (skel.nodes) {
-                    skeleton.nodes = skel.nodes.map(n => n.name || n);
+                    skeleton.nodes = skel.nodes.map((n, i) => {
+                        const name = n.name || n;
+                        skeleton.nodeNames.push(name);
+                        return i;
+                    });
                 }
                 if (skel.links || skel.edges) {
                     const links = skel.links || skel.edges || [];
@@ -697,12 +704,12 @@ onmessage = async function(e) {
                         if (link.source !== undefined && link.target !== undefined) {
                             const srcName = link.source.name || link.source;
                             const dstName = link.target.name || link.target;
-                            const srcIdx = skeleton.nodes.indexOf(srcName);
-                            const dstIdx = skeleton.nodes.indexOf(dstName);
+                            const srcIdx = skeleton.nodeNames.indexOf(srcName);
+                            const dstIdx = skeleton.nodeNames.indexOf(dstName);
                             if (srcIdx >= 0 && dstIdx >= 0) {
                                 skeleton.edges.push([srcIdx, dstIdx]);
                             }
-                        } else if (Array.isArray(link)) {
+                        } else if (Array.isArray(link) && link.length === 2) {
                             skeleton.edges.push(link);
                         }
                     }
@@ -765,8 +772,10 @@ onmessage = async function(e) {
 
             postMessage({ type: 'progress', msg: 'Reading points...' });
 
-            // Read points (user or predicted)
+            // Read points (predicted first, then user)
             let pointsData = null;
+            let pointsSource = '';
+
             function normalizePoints(raw, fields) {
                 if (!raw || raw.length === 0) return null;
                 if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])) {
@@ -785,6 +794,7 @@ onmessage = async function(e) {
                 const pointsDs = h5file.get('pred_points');
                 if (pointsDs && pointsDs.shape[0] > 0) {
                     pointsData = normalizePoints(pointsDs.value, ['x', 'y', 'visible', 'complete', 'score']);
+                    pointsSource = 'pred_points';
                 }
             } catch (e) {}
 
@@ -793,6 +803,7 @@ onmessage = async function(e) {
                     const pointsDs = h5file.get('points');
                     if (pointsDs && pointsDs.shape[0] > 0) {
                         pointsData = normalizePoints(pointsDs.value, ['x', 'y', 'visible', 'complete']);
+                        pointsSource = 'points';
                     }
                 } catch (e) {}
             }
@@ -804,25 +815,29 @@ onmessage = async function(e) {
             postMessage({ type: 'progress', msg: 'Building frame index...' });
 
             // Build frame index map
-            const frameMap = new Map();
+            const frameMap = {};  // Use object for JSON serialization
             const numFrames = framesData.frame_id.length;
+            let minIdx = Infinity, maxIdx = -Infinity;
 
             for (let f = 0; f < numFrames; f++) {
-                const frameIdx = framesData.frame_idx[f];
-                const instStart = framesData.instance_id_start[f];
-                const instEnd = framesData.instance_id_end[f];
+                const frameIdx = toNum(framesData.frame_idx[f]);
+                const instStart = toNum(framesData.instance_id_start[f]);
+                const instEnd = toNum(framesData.instance_id_end[f]);
+
+                minIdx = Math.min(minIdx, frameIdx);
+                maxIdx = Math.max(maxIdx, frameIdx);
 
                 const instances = [];
                 for (let i = instStart; i < instEnd; i++) {
-                    const ptStart = instancesData.point_id_start[i];
-                    const ptEnd = instancesData.point_id_end[i];
-                    const trackIdx = instancesData.track[i];
+                    const ptStart = toNum(instancesData.point_id_start[i]);
+                    const ptEnd = toNum(instancesData.point_id_end[i]);
+                    const trackIdx = toNum(instancesData.track[i]);
 
                     const points = [];
                     for (let p = ptStart; p < ptEnd; p++) {
-                        const x = pointsData.x[p];
-                        const y = pointsData.y[p];
-                        if (isNaN(x) || isNaN(y)) {
+                        const x = toNum(pointsData.x[p]);
+                        const y = toNum(pointsData.y[p]);
+                        if (isNaN(x) || isNaN(y) || x === null || y === null) {
                             points.push(null);
                         } else {
                             points.push([x, y]);
@@ -833,22 +848,23 @@ onmessage = async function(e) {
                 }
 
                 if (instances.length > 0) {
-                    frameMap.set(frameIdx, { instances });
+                    frameMap[frameIdx] = { instances };
                 }
             }
 
             h5file.close();
-
-            // Convert Map to array for postMessage
-            const frameMapArray = Array.from(frameMap.entries());
 
             postMessage({
                 type: 'loaded',
                 data: {
                     skeleton,
                     tracks,
-                    frameMap: frameMapArray,
-                    numFramesWithPoses: frameMap.size
+                    frameMap,
+                    numFramesWithPoses: Object.keys(frameMap).length,
+                    minFrameIdx: minIdx,
+                    maxFrameIdx: maxIdx,
+                    pointsSource,
+                    numPoints: pointsData.x.length
                 }
             });
 
@@ -866,10 +882,7 @@ onmessage = async function(e) {
         function loadSlpFile(file) {
             showStatus('Loading SLP file...', 'loading');
 
-            if (slpWorker) {
-                slpWorker.terminate();
-            }
-
+            if (slpWorker) slpWorker.terminate();
             slpWorker = new Worker(workerUrl);
 
             slpWorker.onmessage = (e) => {
@@ -885,25 +898,41 @@ onmessage = async function(e) {
                         tracks: data.tracks
                     };
 
-                    // Rebuild frameIndexMap from array
-                    frameIndexMap = new Map(data.frameMap);
+                    // Rebuild frameIndexMap
+                    frameIndexMap = new Map();
+                    for (const [key, value] of Object.entries(data.frameMap)) {
+                        frameIndexMap.set(parseInt(key), value);
+                    }
+
+                    minFrameIdx = data.minFrameIdx;
+                    maxFrameIdx = data.maxFrameIdx;
 
                     slpDropZone.classList.add('loaded');
                     document.getElementById('slpFileName').textContent = file.name;
 
                     // Update info
-                    document.getElementById('infoNodes').textContent = slpData.skeleton.nodes.length;
+                    document.getElementById('infoNodes').textContent = slpData.skeleton.nodeNames.length;
                     document.getElementById('infoEdges').textContent = slpData.skeleton.edges.length;
-                    document.getElementById('infoTracks').textContent = slpData.tracks.length;
+                    document.getElementById('infoTracks').textContent = slpData.tracks.length || 1;
                     document.getElementById('infoFrames').textContent = data.numFramesWithPoses.toLocaleString();
+                    document.getElementById('infoFrameRange').textContent = `${minFrameIdx} - ${maxFrameIdx}`;
 
-                    // Show track colors
                     updateTrackColors();
-
                     skeletonInfo.classList.add('visible');
-                    showStatus(`Loaded ${data.numFramesWithPoses.toLocaleString()} frames with poses`, 'success');
 
+                    // Debug info
+                    updateDebug(`
+                        Points source: ${data.pointsSource}<br>
+                        Total points: ${data.numPoints.toLocaleString()}<br>
+                        Frame range: ${minFrameIdx} - ${maxFrameIdx}<br>
+                        Frames with poses: ${data.numFramesWithPoses}<br>
+                        Nodes: ${slpData.skeleton.nodeNames.join(', ')}<br>
+                        Edges: ${slpData.skeleton.edges.length}
+                    `);
+
+                    showStatus(`Loaded ${data.numFramesWithPoses.toLocaleString()} labeled frames (${minFrameIdx}-${maxFrameIdx})`, 'success');
                     checkReadyToPreview();
+
                 } else if (type === 'error') {
                     showStatus(`Error: ${error}`, 'error');
                 }
@@ -918,7 +947,7 @@ onmessage = async function(e) {
             const container = document.getElementById('trackColors');
             container.innerHTML = '';
 
-            const numTracks = slpData?.tracks?.length || 0;
+            const numTracks = Math.max(slpData?.tracks?.length || 0, 1);
             for (let i = 0; i < Math.min(numTracks, 10); i++) {
                 const item = document.createElement('div');
                 item.className = 'track-color-item';
@@ -928,19 +957,11 @@ onmessage = async function(e) {
                 swatch.style.background = getTrackColor(i);
 
                 const label = document.createElement('span');
-                label.textContent = slpData.tracks[i] || `Track ${i}`;
+                label.textContent = slpData?.tracks?.[i] || `Track ${i}`;
 
                 item.appendChild(swatch);
                 item.appendChild(label);
                 container.appendChild(item);
-            }
-
-            if (numTracks > 10) {
-                const more = document.createElement('span');
-                more.textContent = `+${numTracks - 10} more`;
-                more.style.color = '#888';
-                more.style.fontSize = '12px';
-                container.appendChild(more);
             }
         }
 
@@ -950,27 +971,23 @@ onmessage = async function(e) {
         function loadVideoFile(file) {
             showStatus('Loading video...', 'loading');
 
-            if (video) {
-                video.pause();
-                URL.revokeObjectURL(video.src);
-            }
+            videoElement.src = URL.createObjectURL(file);
 
-            video = document.createElement('video');
-            video.src = URL.createObjectURL(file);
-            video.muted = true;
+            videoElement.onloadedmetadata = () => {
+                // Try to detect FPS
+                fps = 30;  // Default
 
-            video.onloadedmetadata = () => {
-                totalFrames = Math.round(video.duration * fps);
+                totalFrames = Math.round(videoElement.duration * fps);
 
                 videoDropZone.classList.add('loaded');
                 document.getElementById('videoFileName').textContent =
-                    `${file.name} (${video.videoWidth}x${video.videoHeight}, ${video.duration.toFixed(1)}s)`;
+                    `${file.name} (${videoElement.videoWidth}x${videoElement.videoHeight}, ${videoElement.duration.toFixed(1)}s, ~${fps}fps)`;
 
                 showStatus('Video loaded', 'success');
                 checkReadyToPreview();
             };
 
-            video.onerror = () => {
+            videoElement.onerror = () => {
                 showStatus('Failed to load video', 'error');
             };
         }
@@ -979,106 +996,118 @@ onmessage = async function(e) {
         // Preview
         // ============================================
         function checkReadyToPreview() {
-            if (slpData && video && video.readyState >= 1) {
+            if (slpData && videoElement.readyState >= 1) {
                 previewContainer.classList.add('visible');
                 settingsPanel.classList.add('visible');
                 exportSection.classList.add('visible');
 
-                // Set canvas size
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
+                // Set up overlay canvas
+                resizeOverlay();
+                window.addEventListener('resize', resizeOverlay);
 
-                // Go to first frame
-                seekToFrame(0);
+                // Set up rendering loop
+                startRenderLoop();
+
+                // Go to first labeled frame
+                if (minFrameIdx !== Infinity) {
+                    seekToFrame(minFrameIdx);
+                }
             }
         }
 
-        function resizeCanvas() {
-            if (!video) return;
-
-            const wrapper = canvas.parentElement;
-            const rect = wrapper.getBoundingClientRect();
+        function resizeOverlay() {
+            const rect = videoElement.getBoundingClientRect();
             const dpr = window.devicePixelRatio || 1;
-
-            // Maintain video aspect ratio
-            const videoAspect = video.videoWidth / video.videoHeight;
-            const wrapperAspect = rect.width / rect.height;
-
-            let drawWidth, drawHeight;
-            if (videoAspect > wrapperAspect) {
-                drawWidth = rect.width;
-                drawHeight = rect.width / videoAspect;
-            } else {
-                drawHeight = rect.height;
-                drawWidth = rect.height * videoAspect;
-            }
-
-            canvas.width = drawWidth * dpr;
-            canvas.height = drawHeight * dpr;
-            canvas.style.width = drawWidth + 'px';
-            canvas.style.height = drawHeight + 'px';
-            canvas.style.left = ((rect.width - drawWidth) / 2) + 'px';
-            canvas.style.top = ((rect.height - drawHeight) / 2) + 'px';
-
-            renderFrame();
+            const w = Math.round(rect.width * dpr);
+            const h = Math.round(rect.height * dpr);
+            if (w === overlayCanvas.width && h === overlayCanvas.height) return;
+            overlayCanvas.width = w;
+            overlayCanvas.height = h;
+            overlayCanvas.style.width = rect.width + 'px';
+            overlayCanvas.style.height = rect.height + 'px';
         }
 
-        function seekToFrame(frame) {
-            if (!video) return;
+        let renderLoopId = null;
 
-            currentFrame = Math.max(0, Math.min(frame, totalFrames - 1));
-            video.currentTime = currentFrame / fps;
-
-            video.onseeked = () => {
-                renderFrame();
+        function startRenderLoop() {
+            function render() {
+                renderOverlay();
                 updateUI();
-            };
-        }
-
-        function renderFrame() {
-            if (!video || !ctx) return;
-
-            const dpr = window.devicePixelRatio || 1;
-            const w = canvas.width;
-            const h = canvas.height;
-
-            // Clear
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, w, h);
-
-            // Draw video frame
-            ctx.drawImage(video, 0, 0, w, h);
-
-            // Draw skeleton overlay
-            if (slpData && frameIndexMap.has(currentFrame)) {
-                renderPoseOverlay();
+                renderLoopId = requestAnimationFrame(render);
             }
+            renderLoopId = requestAnimationFrame(render);
         }
 
-        function renderPoseOverlay() {
-            const frameData = frameIndexMap.get(currentFrame);
+        function findNearestFrame(targetFrame) {
+            if (frameIndexMap.has(targetFrame)) return targetFrame;
+            let best = null;
+            let bestDist = Infinity;
+            for (const key of frameIndexMap.keys()) {
+                const dist = Math.abs(key - targetFrame);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = key;
+                }
+            }
+            // Only snap if within 2 frames
+            return (best !== null && bestDist <= 2) ? best : null;
+        }
+
+        function renderOverlay() {
+            if (!slpData || !videoElement) return;
+
+            // Re-check canvas size each frame (handles late layout)
+            resizeOverlay();
+
+            const ctx = overlayCtx;
+            const dpr = window.devicePixelRatio || 1;
+
+            // Get the displayed size of the video element (CSS pixels)
+            const rect = videoElement.getBoundingClientRect();
+            const displayWidth = rect.width;
+            const displayHeight = rect.height;
+
+            // Get the native video dimensions
+            const videoWidth = videoElement.videoWidth;
+            const videoHeight = videoElement.videoHeight;
+
+            if (!videoWidth || !videoHeight || !displayWidth || !displayHeight) return;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            // Calculate current frame from video time
+            const currentFrame = Math.round(videoElement.currentTime * fps);
+
+            // Get pose data for this frame (with nearest-frame fallback)
+            const matchedFrame = findNearestFrame(currentFrame);
+            const frameData = matchedFrame !== null ? frameIndexMap.get(matchedFrame) : null;
+
             if (!frameData) return;
 
             const showNodes = document.getElementById('showNodes').checked;
             const showEdges = document.getElementById('showEdges').checked;
-            const showLabels = document.getElementById('showLabels').checked;
             const nodeSize = parseInt(document.getElementById('nodeSize').value);
             const edgeWidth = parseInt(document.getElementById('edgeWidth').value);
 
-            const dpr = window.devicePixelRatio || 1;
-            const scaleX = canvas.width / video.videoWidth;
-            const scaleY = canvas.height / video.videoHeight;
+            // Calculate uniform scale to fit video in display (maintains aspect ratio)
+            const scale = Math.min(displayWidth / videoWidth, displayHeight / videoHeight);
+
+            // Calculate offset to center the video
+            const offsetX = (displayWidth - videoWidth * scale) / 2;
+            const offsetY = (displayHeight - videoHeight * scale) / 2;
 
             ctx.save();
+            ctx.scale(dpr, dpr);  // Handle high-DPI displays
 
             for (const inst of frameData.instances) {
                 const color = getTrackColor(inst.trackIdx);
                 const points = inst.points;
 
-                // Draw edges
-                if (showEdges && slpData.skeleton.edges) {
+                // Draw edges first
+                if (showEdges && slpData.skeleton.edges.length > 0) {
                     ctx.strokeStyle = color;
-                    ctx.lineWidth = edgeWidth * dpr;
+                    ctx.lineWidth = edgeWidth;
                     ctx.lineCap = 'round';
 
                     for (const [srcIdx, dstIdx] of slpData.skeleton.edges) {
@@ -1086,9 +1115,14 @@ onmessage = async function(e) {
                         const dstPt = points[dstIdx];
                         if (!srcPt || !dstPt) continue;
 
+                        const x1 = offsetX + srcPt[0] * scale;
+                        const y1 = offsetY + srcPt[1] * scale;
+                        const x2 = offsetX + dstPt[0] * scale;
+                        const y2 = offsetY + dstPt[1] * scale;
+
                         ctx.beginPath();
-                        ctx.moveTo(srcPt[0] * scaleX, srcPt[1] * scaleY);
-                        ctx.lineTo(dstPt[0] * scaleX, dstPt[1] * scaleY);
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
                         ctx.stroke();
                     }
                 }
@@ -1097,24 +1131,15 @@ onmessage = async function(e) {
                 if (showNodes) {
                     ctx.fillStyle = color;
 
-                    for (let i = 0; i < points.length; i++) {
-                        const pt = points[i];
+                    for (const pt of points) {
                         if (!pt) continue;
 
-                        const cx = pt[0] * scaleX;
-                        const cy = pt[1] * scaleY;
+                        const cx = offsetX + pt[0] * scale;
+                        const cy = offsetY + pt[1] * scale;
 
                         ctx.beginPath();
-                        ctx.arc(cx, cy, nodeSize * dpr, 0, Math.PI * 2);
+                        ctx.arc(cx, cy, nodeSize, 0, Math.PI * 2);
                         ctx.fill();
-
-                        // Draw labels
-                        if (showLabels && slpData.skeleton.nodes[i]) {
-                            ctx.font = `${10 * dpr}px sans-serif`;
-                            ctx.fillStyle = '#fff';
-                            ctx.fillText(slpData.skeleton.nodes[i], cx + nodeSize * dpr + 2, cy + 3);
-                            ctx.fillStyle = color;
-                        }
                     }
                 }
             }
@@ -1123,67 +1148,50 @@ onmessage = async function(e) {
         }
 
         function updateUI() {
-            document.getElementById('frameCounter').textContent =
-                `${currentFrame + 1} / ${totalFrames}`;
+            const currentFrame = Math.round(videoElement.currentTime * fps);
+            const hasData = frameIndexMap.has(currentFrame);
 
-            const progress = totalFrames > 0 ? (currentFrame / (totalFrames - 1)) * 100 : 0;
+            document.getElementById('frameCounter').textContent =
+                `Frame ${currentFrame} / ${totalFrames}` + (hasData ? ' ✓' : '');
+
+            const progress = videoElement.duration > 0 ?
+                (videoElement.currentTime / videoElement.duration) * 100 : 0;
             document.getElementById('seekbarProgress').style.width = progress + '%';
+        }
+
+        function seekToFrame(frame) {
+            const time = frame / fps;
+            videoElement.currentTime = Math.min(time, videoElement.duration);
         }
 
         // ============================================
         // Playback Controls
         // ============================================
         document.getElementById('playPauseBtn').addEventListener('click', togglePlay);
-        document.getElementById('prevFrameBtn').addEventListener('click', () => seekToFrame(currentFrame - 1));
-        document.getElementById('nextFrameBtn').addEventListener('click', () => seekToFrame(currentFrame + 1));
-        document.getElementById('stepBackBtn').addEventListener('click', () => seekToFrame(currentFrame - 10));
-        document.getElementById('stepFwdBtn').addEventListener('click', () => seekToFrame(currentFrame + 10));
+        document.getElementById('prevFrameBtn').addEventListener('click', () => stepFrames(-1));
+        document.getElementById('nextFrameBtn').addEventListener('click', () => stepFrames(1));
+        document.getElementById('stepBackBtn').addEventListener('click', () => stepFrames(-10));
+        document.getElementById('stepFwdBtn').addEventListener('click', () => stepFrames(10));
+
+        document.getElementById('playbackSpeed').addEventListener('change', (e) => {
+            videoElement.playbackRate = parseFloat(e.target.value);
+        });
 
         function togglePlay() {
-            if (isPlaying) {
-                stopPlayback();
+            if (videoElement.paused) {
+                videoElement.play();
+                document.getElementById('playPauseBtn').textContent = '⏸';
             } else {
-                startPlayback();
+                videoElement.pause();
+                document.getElementById('playPauseBtn').textContent = '▶';
             }
         }
 
-        function startPlayback() {
-            isPlaying = true;
-            document.getElementById('playPauseBtn').textContent = '⏸';
-
-            let lastTime = performance.now();
-            const frameDuration = 1000 / fps;
-
-            function animate(now) {
-                if (!isPlaying) return;
-
-                const delta = now - lastTime;
-                if (delta >= frameDuration) {
-                    lastTime = now - (delta % frameDuration);
-
-                    currentFrame++;
-                    if (currentFrame >= totalFrames) {
-                        currentFrame = 0;
-                    }
-
-                    video.currentTime = currentFrame / fps;
-                    renderFrame();
-                    updateUI();
-                }
-
-                animationId = requestAnimationFrame(animate);
-            }
-
-            animationId = requestAnimationFrame(animate);
-        }
-
-        function stopPlayback() {
-            isPlaying = false;
+        function stepFrames(n) {
+            videoElement.pause();
             document.getElementById('playPauseBtn').textContent = '▶';
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
-            }
+            const currentFrame = Math.round(videoElement.currentTime * fps);
+            seekToFrame(currentFrame + n);
         }
 
         // Seekbar
@@ -1191,13 +1199,12 @@ onmessage = async function(e) {
         seekbar.addEventListener('click', (e) => {
             const rect = seekbar.getBoundingClientRect();
             const ratio = (e.clientX - rect.left) / rect.width;
-            const frame = Math.round(ratio * (totalFrames - 1));
-            seekToFrame(frame);
+            videoElement.currentTime = ratio * videoElement.duration;
         });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
             switch (e.key) {
                 case ' ':
@@ -1206,11 +1213,11 @@ onmessage = async function(e) {
                     break;
                 case 'ArrowLeft':
                     e.preventDefault();
-                    seekToFrame(currentFrame - (e.shiftKey ? 10 : 1));
+                    stepFrames(e.shiftKey ? -10 : -1);
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
-                    seekToFrame(currentFrame + (e.shiftKey ? 10 : 1));
+                    stepFrames(e.shiftKey ? 10 : 1);
                     break;
             }
         });
@@ -1220,16 +1227,14 @@ onmessage = async function(e) {
         // ============================================
         document.getElementById('nodeSize').addEventListener('input', (e) => {
             document.getElementById('nodeSizeValue').textContent = e.target.value;
-            renderFrame();
         });
 
         document.getElementById('edgeWidth').addEventListener('input', (e) => {
             document.getElementById('edgeWidthValue').textContent = e.target.value;
-            renderFrame();
         });
 
-        ['showNodes', 'showEdges', 'showLabels'].forEach(id => {
-            document.getElementById(id).addEventListener('change', renderFrame);
+        document.getElementById('showDebug').addEventListener('change', (e) => {
+            debugPanel.classList.toggle('visible', e.target.checked);
         });
 
         // Palette selection
@@ -1243,7 +1248,6 @@ onmessage = async function(e) {
                     currentPalette === 'single' ? 'flex' : 'none';
 
                 updateTrackColors();
-                renderFrame();
             });
         });
 
@@ -1251,41 +1255,66 @@ onmessage = async function(e) {
             singleColor = e.target.value;
             PALETTES.single = [singleColor];
             updateTrackColors();
-            renderFrame();
         });
 
         // ============================================
         // Export
         // ============================================
-        document.querySelectorAll('.export-option').forEach(opt => {
-            opt.addEventListener('click', () => {
-                document.querySelectorAll('.export-option').forEach(o => o.classList.remove('active'));
-                opt.classList.add('active');
-
-                const format = opt.dataset.format;
-                const btn = document.getElementById('exportBtn');
-
-                if (format === 'png') {
-                    btn.textContent = 'Export Current Frame';
-                    btn.disabled = false;
-                } else {
-                    btn.textContent = `Export ${format.toUpperCase()} (Coming Soon)`;
-                    btn.disabled = true;
-                }
-            });
-        });
-
         document.getElementById('exportBtn').addEventListener('click', () => {
-            const activeOpt = document.querySelector('.export-option.active');
-            const format = activeOpt?.dataset.format || 'png';
+            // Create a combined canvas with video + overlay
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = videoElement.videoWidth;
+            exportCanvas.height = videoElement.videoHeight;
+            const ctx = exportCanvas.getContext('2d');
 
-            if (format === 'png') {
-                exportCurrentFrame();
+            // Draw video frame
+            ctx.drawImage(videoElement, 0, 0);
+
+            // Draw overlay (need to re-render at native resolution)
+            const currentFrame = Math.round(videoElement.currentTime * fps);
+            const frameData = frameIndexMap.get(currentFrame);
+
+            if (frameData && slpData) {
+                const showNodes = document.getElementById('showNodes').checked;
+                const showEdges = document.getElementById('showEdges').checked;
+                const nodeSize = parseInt(document.getElementById('nodeSize').value);
+                const edgeWidth = parseInt(document.getElementById('edgeWidth').value);
+
+                for (const inst of frameData.instances) {
+                    const color = getTrackColor(inst.trackIdx);
+                    const points = inst.points;
+
+                    if (showEdges) {
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = edgeWidth;
+                        ctx.lineCap = 'round';
+
+                        for (const [srcIdx, dstIdx] of slpData.skeleton.edges) {
+                            const srcPt = points[srcIdx];
+                            const dstPt = points[dstIdx];
+                            if (!srcPt || !dstPt) continue;
+
+                            ctx.beginPath();
+                            ctx.moveTo(srcPt[0], srcPt[1]);
+                            ctx.lineTo(dstPt[0], dstPt[1]);
+                            ctx.stroke();
+                        }
+                    }
+
+                    if (showNodes) {
+                        ctx.fillStyle = color;
+                        for (const pt of points) {
+                            if (!pt) continue;
+                            ctx.beginPath();
+                            ctx.arc(pt[0], pt[1], nodeSize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
             }
-        });
 
-        function exportCurrentFrame() {
-            canvas.toBlob((blob) => {
+            // Download
+            exportCanvas.toBlob((blob) => {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1293,7 +1322,7 @@ onmessage = async function(e) {
                 a.click();
                 URL.revokeObjectURL(url);
             }, 'image/png');
-        }
+        });
     </script>
 </body>
 </html>

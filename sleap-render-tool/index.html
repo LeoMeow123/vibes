@@ -1028,8 +1028,23 @@ onmessage = async function(e) {
         }
 
         let renderLoopId = null;
+        let syncedMediaTime = null;
+
+        // Use ResizeObserver instead of per-frame getBoundingClientRect
+        const resizeObs = new ResizeObserver(() => resizeOverlay());
+        resizeObs.observe(videoElement);
 
         function startRenderLoop() {
+            // Frame-accurate sync: requestVideoFrameCallback gives exact
+            // mediaTime of the frame the browser is painting right now.
+            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+                function onVideoFrame(now, metadata) {
+                    syncedMediaTime = metadata.mediaTime;
+                    videoElement.requestVideoFrameCallback(onVideoFrame);
+                }
+                videoElement.requestVideoFrameCallback(onVideoFrame);
+            }
+
             function render() {
                 renderOverlay();
                 updateUI();
@@ -1056,28 +1071,28 @@ onmessage = async function(e) {
         function renderOverlay() {
             if (!slpData || !videoElement) return;
 
-            // Re-check canvas size each frame (handles late layout)
-            resizeOverlay();
-
             const ctx = overlayCtx;
             const dpr = window.devicePixelRatio || 1;
 
-            // Get the displayed size of the video element (CSS pixels)
-            const rect = videoElement.getBoundingClientRect();
-            const displayWidth = rect.width;
-            const displayHeight = rect.height;
+            const cw = overlayCanvas.width;
+            const ch = overlayCanvas.height;
 
             // Get the native video dimensions
             const videoWidth = videoElement.videoWidth;
             const videoHeight = videoElement.videoHeight;
 
-            if (!videoWidth || !videoHeight || !displayWidth || !displayHeight) return;
+            if (!videoWidth || !videoHeight || !cw || !ch) return;
+
+            // Display size in CSS pixels
+            const displayWidth = cw / dpr;
+            const displayHeight = ch / dpr;
 
             // Clear canvas
-            ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            ctx.clearRect(0, 0, cw, ch);
 
-            // Calculate current frame from video time
-            const currentFrame = Math.round(videoElement.currentTime * fps);
+            // Use frame-synced time when available, fall back to currentTime
+            const mediaTime = syncedMediaTime !== null ? syncedMediaTime : videoElement.currentTime;
+            const currentFrame = Math.round(mediaTime * fps);
 
             // Get pose data for this frame (with nearest-frame fallback)
             const matchedFrame = findNearestFrame(currentFrame);
@@ -1148,7 +1163,8 @@ onmessage = async function(e) {
         }
 
         function updateUI() {
-            const currentFrame = Math.round(videoElement.currentTime * fps);
+            const mediaTime = syncedMediaTime !== null ? syncedMediaTime : videoElement.currentTime;
+            const currentFrame = Math.round(mediaTime * fps);
             const hasData = frameIndexMap.has(currentFrame);
 
             document.getElementById('frameCounter').textContent =

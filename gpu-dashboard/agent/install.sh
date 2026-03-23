@@ -6,22 +6,59 @@ set -euo pipefail
 echo "=== GPU Dashboard Agent Setup ==="
 echo ""
 
-# ── Prompt for config ─────────────────────────────────────────────────────────
-
-read -rp "GitHub Gist ID: " GIST_ID
-read -rp "GitHub Personal Access Token (gist scope): " -s GITHUB_TOKEN
-echo ""
-read -rp "Machine label (e.g. 'Workstation 1'): " LABEL
-read -rp "Machine type (workstation/runai) [workstation]: " TYPE
-TYPE=${TYPE:-workstation}
-read -rp "Poll interval in seconds [30]: " INTERVAL
-INTERVAL=${INTERVAL:-30}
-
-# ── Write config ──────────────────────────────────────────────────────────────
-
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_DIR="$HOME/.config/gpu-dashboard"
-mkdir -p "$CONFIG_DIR"
-cat > "$CONFIG_DIR/config.json" <<EOF
+CONFIG_FILE="$CONFIG_DIR/config.json"
+
+# ── Config: load existing or prompt ──────────────────────────────────────────
+
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Found existing config at $CONFIG_FILE"
+    cat "$CONFIG_FILE"
+    echo ""
+    read -rp "Use this config? [Y/n]: " USE_EXISTING
+    USE_EXISTING=${USE_EXISTING:-Y}
+else
+    USE_EXISTING="n"
+fi
+
+if [[ "$USE_EXISTING" =~ ^[Nn] ]]; then
+    # Check for template in repo
+    TEMPLATE="$SCRIPT_DIR/config.json"
+    if [ -f "$TEMPLATE" ]; then
+        echo "Found template config, loading defaults..."
+        # Parse defaults from template
+        DEFAULT_GIST=$(python3 -c "import json; print(json.load(open('$TEMPLATE'))['gist_id'])" 2>/dev/null || echo "")
+        DEFAULT_TOKEN=$(python3 -c "import json; print(json.load(open('$TEMPLATE'))['github_token'])" 2>/dev/null || echo "")
+    else
+        DEFAULT_GIST=""
+        DEFAULT_TOKEN=""
+    fi
+
+    if [ -n "$DEFAULT_GIST" ]; then
+        read -rp "GitHub Gist ID [$DEFAULT_GIST]: " GIST_ID
+        GIST_ID=${GIST_ID:-$DEFAULT_GIST}
+    else
+        read -rp "GitHub Gist ID: " GIST_ID
+    fi
+
+    if [ -n "$DEFAULT_TOKEN" ]; then
+        read -rp "GitHub Token [****saved****] (enter to keep): " -s NEW_TOKEN
+        echo ""
+        GITHUB_TOKEN=${NEW_TOKEN:-$DEFAULT_TOKEN}
+    else
+        read -rp "GitHub Personal Access Token (gist scope): " -s GITHUB_TOKEN
+        echo ""
+    fi
+
+    read -rp "Machine label (e.g. 'Blackwell Workstation'): " LABEL
+    read -rp "Machine type (workstation/runai) [workstation]: " TYPE
+    TYPE=${TYPE:-workstation}
+    read -rp "Poll interval in seconds [30]: " INTERVAL
+    INTERVAL=${INTERVAL:-30}
+
+    mkdir -p "$CONFIG_DIR"
+    cat > "$CONFIG_FILE" <<EOF
 {
     "gist_id": "$GIST_ID",
     "github_token": "$GITHUB_TOKEN",
@@ -30,23 +67,43 @@ cat > "$CONFIG_DIR/config.json" <<EOF
     "interval_seconds": $INTERVAL
 }
 EOF
-chmod 600 "$CONFIG_DIR/config.json"
-echo "Config written to $CONFIG_DIR/config.json"
+    chmod 600 "$CONFIG_FILE"
+    echo "Config written to $CONFIG_FILE"
+fi
 
 # ── Install agent script ─────────────────────────────────────────────────────
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AGENT_SRC="$SCRIPT_DIR/gpu_agent.py"
-
 mkdir -p "$HOME/.local/bin"
 cp "$AGENT_SRC" "$HOME/.local/bin/gpu-agent"
 chmod +x "$HOME/.local/bin/gpu-agent"
 echo "Agent installed to $HOME/.local/bin/gpu-agent"
 
-# ── Install deps ──────────────────────────────────────────────────────────────
+# ── Check deps ───────────────────────────────────────────────────────────────
 
-echo "Installing Python dependencies..."
-pip install --quiet psutil requests 2>/dev/null || pip3 install --quiet psutil requests
+echo ""
+echo "Checking Python dependencies..."
+MISSING=""
+python3 -c "import psutil" 2>/dev/null || MISSING="$MISSING psutil"
+python3 -c "import requests" 2>/dev/null || MISSING="$MISSING requests"
+
+if [ -n "$MISSING" ]; then
+    echo "Missing:$MISSING"
+    echo "Trying to install..."
+    if command -v pip3 &>/dev/null; then
+        pip3 install --quiet $MISSING
+    elif command -v pip &>/dev/null; then
+        pip install --quiet $MISSING
+    elif command -v apt &>/dev/null; then
+        echo "No pip found. Installing via apt..."
+        sudo apt install -y $(echo $MISSING | sed 's/psutil/python3-psutil/g; s/requests/python3-requests/g')
+    else
+        echo "ERROR: Cannot install$MISSING — please install manually."
+        exit 1
+    fi
+else
+    echo "All dependencies found."
+fi
 
 # ── Dry run test ──────────────────────────────────────────────────────────────
 
@@ -62,7 +119,6 @@ if command -v systemctl &>/dev/null && systemctl --user status >/dev/null 2>&1; 
     echo "Installing systemd user service..."
     mkdir -p "$HOME/.config/systemd/user"
 
-    # Write service file with correct python path
     PYTHON_PATH="$(command -v python3)"
     cat > "$HOME/.config/systemd/user/gpu-agent.service" <<SVCEOF
 [Unit]
@@ -82,7 +138,7 @@ SVCEOF
 
     systemctl --user daemon-reload
     systemctl --user enable gpu-agent
-    systemctl --user start gpu-agent
+    systemctl --user restart gpu-agent
     echo ""
     echo "Service installed and started!"
     echo "  Check status:  systemctl --user status gpu-agent"

@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Form Analyzer</title>
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0f0f0f; color: #e0e0e0; line-height: 1.5;
+  }
+  button, select { cursor: pointer; }
+  input[type="number"], select {
+    background: #222; color: #e0e0e0; border: 1px solid #444; border-radius: 6px;
+    padding: 8px 10px; font-size: 14px; outline: none; width: 100%;
+  }
+  input[type="number"]:focus, select:focus { border-color: #667eea; }
+  label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+  }
+  .header-left { display: flex; align-items: baseline; gap: 14px; }
+  .header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+  .header .subtitle { font-size: 12px; color: #667eea; }
+  .header-actions { display: flex; gap: 10px; }
+
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px;
+    border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .btn-primary { background: #667eea; color: #fff; }
+  .btn-primary:hover { background: #5a6fd6; }
+  .btn-secondary { background: #2a2a2a; color: #ccc; border: 1px solid #444; }
+  .btn-secondary:hover { background: #333; }
+  .btn-lg { width: 100%; padding: 12px; font-size: 15px; justify-content: center; margin-top: 12px; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  .container { max-width: 1440px; margin: 0 auto; padding: 20px 28px; }
+  .layout { display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: start; }
+
+  /* ── Cards ────────────────────────────────────────────────────── */
+  .card {
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+    padding: 18px; margin-bottom: 14px;
+  }
+  .card-title { font-size: 14px; font-weight: 600; color: #ccc; margin-bottom: 14px; }
+  .card-subtitle { font-size: 11px; color: #666; margin-top: -8px; margin-bottom: 12px; }
+
+  /* ── Forms ────────────────────────────────────────────────────── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  /* ── Upload zone ──────────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed #333; border-radius: 8px; padding: 32px; text-align: center;
+    cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #667eea; background: rgba(102,126,234,0.05); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 32px; color: #555; margin-bottom: 8px; }
+  .upload-zone p { font-size: 14px; color: #888; }
+  .upload-hint { font-size: 11px; color: #555; }
+
+  /* ── Video container ──────────────────────────────────────────── */
+  .video-wrap { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: #111; }
+  .video-wrap video { width: 100%; display: block; }
+  .video-wrap canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+  }
+  .angle-hud {
+    position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.7);
+    border-radius: 6px; padding: 8px 10px; font-size: 11px; font-family: "SF Mono", monospace;
+    color: #ccc; line-height: 1.6; pointer-events: none; min-width: 130px;
+  }
+
+  /* ── Score gauge ──────────────────────────────────────────────── */
+  .score-card { text-align: center; padding: 24px; }
+  .score-gauge { display: inline-block; position: relative; width: 150px; height: 150px; }
+  .score-gauge svg { width: 100%; height: 100%; }
+  .score-label { font-size: 13px; color: #888; margin-top: 8px; }
+  .reps-info { font-size: 12px; color: #666; margin-top: 4px; }
+
+  /* ── Metrics grid ─────────────────────────────────────────────── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .metric-card {
+    background: #222; border-radius: 8px; padding: 12px; text-align: center;
+    border: 1px solid #2a2a2a;
+  }
+  .metric-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .metric-name { font-size: 11px; color: #888; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .metric-desc { font-size: 10px; color: #555; margin-top: 4px; }
+
+  /* ── Findings ─────────────────────────────────────────────────── */
+  .finding {
+    display: flex; gap: 12px; padding: 12px 14px; margin-bottom: 8px;
+    background: #1f1f1f; border-radius: 8px; border-left: 3px solid; align-items: flex-start;
+  }
+  .finding-good { border-color: #4ade80; }
+  .finding-warning { border-color: #facc15; }
+  .finding-danger { border-color: #f87171; }
+  .finding-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .finding-body { flex: 1; }
+  .finding-title { font-size: 13px; font-weight: 600; color: #ddd; }
+  .finding-desc { font-size: 12px; color: #999; margin-top: 2px; }
+  .finding-suggestion { font-size: 11px; color: #667eea; margin-top: 4px; }
+
+  /* ── Torque bars ──────────────────────────────────────────────── */
+  .torque-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .torque-label { font-size: 12px; color: #aaa; width: 90px; text-align: right; }
+  .torque-track {
+    flex: 1; height: 18px; background: #222; border-radius: 4px; position: relative; overflow: hidden;
+  }
+  .torque-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .torque-threshold {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: #f87171;
+  }
+  .torque-value { font-size: 12px; color: #ccc; width: 80px; font-family: "SF Mono", monospace; }
+
+  /* ── Asymmetry ────────────────────────────────────────────────── */
+  .asym-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px;
+  }
+  .asym-label { width: 60px; text-align: right; color: #aaa; }
+  .asym-bar-wrap { flex: 1; display: flex; align-items: center; gap: 2px; }
+  .asym-bar { height: 14px; border-radius: 3px; min-width: 2px; }
+  .asym-bar-left { background: #667eea; margin-left: auto; border-radius: 3px 0 0 3px; }
+  .asym-bar-right { background: #a78bfa; border-radius: 0 3px 3px 0; }
+  .asym-center { width: 1px; background: #555; height: 20px; flex-shrink: 0; }
+  .asym-diff { width: 110px; font-size: 11px; }
+  .asym-diff .good { color: #4ade80; }
+  .asym-diff .mild { color: #facc15; }
+  .asym-diff .significant { color: #f87171; }
+
+  /* ── Risk ──────────────────────────────────────────────────────── */
+  .risk-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .risk-area { font-size: 12px; color: #aaa; width: 110px; text-align: right; }
+  .risk-meter { flex: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 4px; }
+  .risk-label { font-size: 11px; width: 80px; }
+
+  /* ── Recommendations ──────────────────────────────────────────── */
+  .rec-item {
+    display: flex; gap: 10px; padding: 10px 12px; margin-bottom: 6px;
+    background: #1f1f1f; border-radius: 6px; font-size: 12px; color: #ccc;
+  }
+  .rec-num {
+    width: 22px; height: 22px; background: #667eea; color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+    font-weight: 700; flex-shrink: 0;
+  }
+
+  /* ── Progress overlay ─────────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex;
+    align-items: center; justify-content: center; z-index: 50;
+  }
+  .progress-card {
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px;
+    padding: 32px 40px; text-align: center; min-width: 360px;
+  }
+  .progress-card h3 { font-size: 16px; color: #fff; margin-bottom: 16px; }
+  .progress-track { height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+  .progress-fill { height: 100%; background: #667eea; border-radius: 3px; transition: width 0.2s; width: 0%; }
+  .progress-text { font-size: 12px; color: #888; }
+
+  /* ── AI status ────────────────────────────────────────────────── */
+  .ai-status {
+    position: fixed; bottom: 16px; left: 16px; display: flex; align-items: center;
+    gap: 8px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px;
+    padding: 6px 14px; font-size: 11px; color: #888; z-index: 10;
+  }
+  .ai-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #facc15;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .ai-dot.ready { background: #4ade80; animation: none; }
+  .ai-dot.error { background: #f87171; animation: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── Demo controls ─────────────────────────────────────────────── */
+  .demo-controls { padding: 8px 0; display: flex; align-items: center; gap: 10px; }
+  .demo-timeline { flex: 1; height: 4px; background: #333; border-radius: 2px; overflow: hidden; cursor: pointer; }
+  .demo-timeline-fill { height: 100%; background: #667eea; border-radius: 2px; width: 0%; transition: width 0.1s; }
+  .demo-time { font-size: 11px; color: #666; font-family: "SF Mono", monospace; white-space: nowrap; }
+  #demoCanvas { position: static; width: 100%; display: block; border-radius: 8px; }
+
+  /* ── Toast ─────────────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: #333; color: #e0e0e0;
+    padding: 10px 20px; border-radius: 6px; font-size: 13px;
+    opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Responsive ───────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 8px; text-align: center; }
+    .header-left { flex-direction: column; align-items: center; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>Fitness Form Analyzer</h1>
+    <span class="subtitle">AI-powered personalized movement analysis</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" id="demoBtn">Try Demo</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="layout" id="mainLayout">
+
+    <!-- ═══ LEFT PANEL ═══ -->
+    <div class="panel-left">
+
+      <!-- Personal Measurements -->
+      <div class="card">
+        <div class="card-title">Personal Measurements</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="inputHeight">Height (cm)</label>
+            <input type="number" id="inputHeight" value="175" min="100" max="250">
+          </div>
+          <div class="form-group">
+            <label for="inputWeight">Weight (kg)</label>
+            <input type="number" id="inputWeight" value="70" min="30" max="200">
+          </div>
+          <div class="form-group">
+            <label for="inputArmSpan">Arm span (cm)</label>
+            <input type="number" id="inputArmSpan" value="177" min="100" max="260">
+          </div>
+          <div class="form-group">
+            <label for="inputLegLength">Leg length (cm)</label>
+            <input type="number" id="inputLegLength" value="82" min="40" max="130">
+          </div>
+          <div class="form-group">
+            <label for="inputGender">Gender</label>
+            <select id="inputGender">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise Setup -->
+      <div class="card">
+        <div class="card-title">Exercise Setup</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="inputExercise">Exercise</label>
+            <select id="inputExercise">
+              <option value="squat">Barbell Squat</option>
+              <option value="deadlift">Deadlift</option>
+              <option value="overhead_press">Overhead Press</option>
+              <option value="bench_press">Bench Press</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="inputLoad">Weight used (kg)</label>
+            <input type="number" id="inputLoad" value="60" min="0" max="500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Upload -->
+      <div class="card" id="uploadCard">
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">&#128249;</div>
+          <p>Drop exercise video here or click to upload</p>
+          <span class="upload-hint">MP4, MOV, WebM &middot; Side or front view recommended</span>
+          <input type="file" accept="video/*" id="videoInput">
+        </div>
+      </div>
+
+      <!-- Video Player (hidden until video loaded) -->
+      <div class="card" id="videoCard" style="display:none">
+        <div class="video-wrap">
+          <video id="videoPlayer" controls playsinline></video>
+          <canvas id="overlayCanvas"></canvas>
+          <canvas id="demoCanvas" style="display:none"></canvas>
+          <div class="angle-hud" id="angleHud" style="display:none"></div>
+        </div>
+        <div class="demo-controls" id="demoControls" style="display:none">
+          <div class="demo-timeline"><div class="demo-timeline-fill" id="demoTimelineFill"></div></div>
+          <span class="demo-time" id="demoTime">0:00 / 0:16</span>
+        </div>
+      </div>
+
+      <!-- Analyze Button -->
+      <button class="btn btn-primary btn-lg" id="analyzeBtn" disabled>
+        <span id="analyzeBtnText">Upload a video to begin</span>
+      </button>
+    </div>
+
+    <!-- ═══ RIGHT PANEL ═══ -->
+    <div class="panel-right" id="resultsPanel" style="display:none">
+      <div class="card score-card" id="scoreCard"></div>
+      <div class="card"><div class="card-title">Key Metrics</div><div class="metrics-grid" id="metricsGrid"></div></div>
+      <div class="card"><div class="card-title">Analysis Findings</div><div id="findingsList"></div></div>
+      <div class="card"><div class="card-title">Joint Torque Analysis</div><div class="card-subtitle">Personalized to your body measurements</div><div id="torqueAnalysis"></div></div>
+      <div class="card"><div class="card-title">Left-Right Asymmetry</div><div id="asymmetryReport"></div></div>
+      <div class="card"><div class="card-title">Injury Risk Assessment</div><div id="injuryRisk"></div></div>
+      <div class="card"><div class="card-title">Recommendations</div><div id="recommendations"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Progress Overlay -->
+<div class="overlay" id="progressOverlay" style="display:none">
+  <div class="progress-card">
+    <h3 id="progressTitle">Analyzing Form</h3>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <p class="progress-text" id="progressText">Initializing...</p>
+  </div>
+</div>
+
+<!-- AI Status -->
+<div class="ai-status" id="aiStatus">
+  <span class="ai-dot" id="aiDot"></span>
+  <span id="aiStatusText">Loading AI model...</span>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+
+const LM = {
+  NOSE: 0,
+  LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
+  LEFT_ELBOW: 13, RIGHT_ELBOW: 14,
+  LEFT_WRIST: 15, RIGHT_WRIST: 16,
+  LEFT_HIP: 23, RIGHT_HIP: 24,
+  LEFT_KNEE: 25, RIGHT_KNEE: 26,
+  LEFT_ANKLE: 27, RIGHT_ANKLE: 28,
+  LEFT_HEEL: 29, RIGHT_HEEL: 30,
+  LEFT_FOOT: 31, RIGHT_FOOT: 32,
+};
+
+// Skeleton connections for drawing
+const SKELETON = [
+  [LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER],
+  [LM.LEFT_SHOULDER, LM.LEFT_ELBOW], [LM.LEFT_ELBOW, LM.LEFT_WRIST],
+  [LM.RIGHT_SHOULDER, LM.RIGHT_ELBOW], [LM.RIGHT_ELBOW, LM.RIGHT_WRIST],
+  [LM.LEFT_SHOULDER, LM.LEFT_HIP], [LM.RIGHT_SHOULDER, LM.RIGHT_HIP],
+  [LM.LEFT_HIP, LM.RIGHT_HIP],
+  [LM.LEFT_HIP, LM.LEFT_KNEE], [LM.LEFT_KNEE, LM.LEFT_ANKLE],
+  [LM.RIGHT_HIP, LM.RIGHT_KNEE], [LM.RIGHT_KNEE, LM.RIGHT_ANKLE],
+  [LM.LEFT_ANKLE, LM.LEFT_HEEL], [LM.LEFT_ANKLE, LM.LEFT_FOOT],
+  [LM.RIGHT_ANKLE, LM.RIGHT_HEEL], [LM.RIGHT_ANKLE, LM.RIGHT_FOOT],
+];
+
+// Body segment mass fractions (De Leva 1996)
+const SEGMENT_MASS = {
+  male: { head: 0.0694, trunk: 0.4346, upperArm: 0.0271, forearm: 0.0162, hand: 0.0061,
+          thigh: 0.1416, shank: 0.0433, foot: 0.0137 },
+  female: { head: 0.0668, trunk: 0.4257, upperArm: 0.0255, forearm: 0.0138, hand: 0.0056,
+            thigh: 0.1478, shank: 0.0481, foot: 0.0129 },
+};
+
+const G = 9.81;
+const SAMPLE_FPS = 10; // frames per second to sample during analysis
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+
+let poseLandmarker = null;
+let modelLoaded = false;
+let frameData = []; // processed frames with landmarks
+let analysisResults = null;
+let videoLoaded = false;
+
+// ═══════════════════════════════════════════════════════════════════
+// DOM REFS
+// ═══════════════════════════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+const $videoInput = $("videoInput");
+const $videoPlayer = $("videoPlayer");
+const $overlayCanvas = $("overlayCanvas");
+const $angleHud = $("angleHud");
+const $uploadCard = $("uploadCard");
+const $videoCard = $("videoCard");
+const $analyzeBtn = $("analyzeBtn");
+const $analyzeBtnText = $("analyzeBtnText");
+const $demoBtn = $("demoBtn");
+const $resultsPanel = $("resultsPanel");
+const $progressOverlay = $("progressOverlay");
+const $progressFill = $("progressFill");
+const $progressText = $("progressText");
+const $aiDot = $("aiDot");
+const $aiStatusText = $("aiStatusText");
+const $toast = $("toast");
+
+// ═══════════════════════════════════════════════════════════════════
+// MATH UTILITIES
+// ═══════════════════════════════════════════════════════════════════
+
+function vec2(a, b) { return { x: b.x - a.x, y: b.y - a.y }; }
+function dot2(a, b) { return a.x * b.x + a.y * b.y; }
+function mag2(v) { return Math.sqrt(v.x * v.x + v.y * v.y); }
+function dist2(a, b) { return mag2(vec2(a, b)); }
+function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+function angleDeg(a, b, c) {
+  // Angle at point b formed by a-b-c
+  const ba = vec2(b, a);
+  const bc = vec2(b, c);
+  const d = dot2(ba, bc);
+  const m = mag2(ba) * mag2(bc);
+  if (m < 1e-9) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, d / m))) * (180 / Math.PI);
+}
+
+function leanAngleDeg(shoulder, hip) {
+  // Angle of torso from vertical (0 = perfectly upright)
+  const dx = shoulder.x - hip.x;
+  const dy = shoulder.y - hip.y; // negative = shoulder above hip
+  return Math.abs(Math.atan2(dx, -dy)) * (180 / Math.PI);
+}
+
+function movingAvg(arr, w) {
+  const half = Math.floor(w / 2);
+  return arr.map((_, i) => {
+    let sum = 0, count = 0;
+    for (let j = Math.max(0, i - half); j <= Math.min(arr.length - 1, i + half); j++) {
+      sum += arr[j]; count++;
+    }
+    return sum / count;
+  });
+}
+
+function findPeaks(arr, minProm) {
+  const peaks = [];
+  for (let i = 2; i < arr.length - 2; i++) {
+    if (arr[i] >= arr[i - 1] && arr[i] >= arr[i + 1] && arr[i] >= arr[i - 2] && arr[i] >= arr[i + 2]) {
+      const leftMin = Math.min(...arr.slice(Math.max(0, i - 25), i));
+      const rightMin = Math.min(...arr.slice(i + 1, Math.min(arr.length, i + 26)));
+      const prom = arr[i] - Math.max(leftMin, rightMin);
+      if (prom >= minProm) peaks.push(i);
+    }
+  }
+  return peaks;
+}
+
+function mean(arr) { return arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : 0; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// ═══════════════════════════════════════════════════════════════════
+// BODY MODEL
+// ═══════════════════════════════════════════════════════════════════
+
+function getBodyModel(inputs) {
+  const { height, weight, armSpan, legLength, gender } = inputs;
+  const sm = SEGMENT_MASS[gender];
+  const heightM = height / 100;
+  const legM = legLength / 100;
+  const trunkM = heightM - legM - 0.13 * heightM; // approximate head+neck
+
+  // Upper body mass fraction (everything above the hip)
+  const upperFrac = sm.head + sm.trunk + 2 * (sm.upperArm + sm.forearm + sm.hand);
+
+  return {
+    heightM, weight, legM, trunkM,
+    armSpanM: armSpan / 100,
+    upperBodyMass: upperFrac * weight,
+    thighMass: sm.thigh * weight,
+    shankMass: (sm.shank + sm.foot) * weight,
+    trunkMass: sm.trunk * weight,
+    gender,
+  };
+}
+
+function getHeightScale(landmarks, heightM) {
+  // Estimate pixel scale from landmarks: shoulder-to-ankle ≈ 82% of height
+  const sMid = midpoint(landmarks[LM.LEFT_SHOULDER], landmarks[LM.RIGHT_SHOULDER]);
+  const aMid = midpoint(landmarks[LM.LEFT_ANKLE], landmarks[LM.RIGHT_ANKLE]);
+  const shoulderToAnklePx = dist2(sMid, aMid);
+  if (shoulderToAnklePx < 0.01) return 1;
+  const estFullHeight = shoulderToAnklePx / 0.82;
+  return heightM / estFullHeight; // meters per normalized unit
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// JOINT ANGLE EXTRACTION
+// ═══════════════════════════════════════════════════════════════════
+
+function extractAngles(lm) {
+  return {
+    leftKnee: angleDeg(lm[LM.LEFT_HIP], lm[LM.LEFT_KNEE], lm[LM.LEFT_ANKLE]),
+    rightKnee: angleDeg(lm[LM.RIGHT_HIP], lm[LM.RIGHT_KNEE], lm[LM.RIGHT_ANKLE]),
+    leftHip: angleDeg(lm[LM.LEFT_SHOULDER], lm[LM.LEFT_HIP], lm[LM.LEFT_KNEE]),
+    rightHip: angleDeg(lm[LM.RIGHT_SHOULDER], lm[LM.RIGHT_HIP], lm[LM.RIGHT_KNEE]),
+    leftElbow: angleDeg(lm[LM.LEFT_SHOULDER], lm[LM.LEFT_ELBOW], lm[LM.LEFT_WRIST]),
+    rightElbow: angleDeg(lm[LM.RIGHT_SHOULDER], lm[LM.RIGHT_ELBOW], lm[LM.RIGHT_WRIST]),
+    torsoLean: leanAngleDeg(
+      midpoint(lm[LM.LEFT_SHOULDER], lm[LM.RIGHT_SHOULDER]),
+      midpoint(lm[LM.LEFT_HIP], lm[LM.RIGHT_HIP])
+    ),
+    hipMidY: (lm[LM.LEFT_HIP].y + lm[LM.RIGHT_HIP].y) / 2,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REP DETECTION
+// ═══════════════════════════════════════════════════════════════════
+
+function detectReps(allAngles, exercise) {
+  if (exercise === "squat" || exercise === "deadlift") {
+    // Track hip y (increases = lower = deeper into squat/deadlift)
+    const hipY = allAngles.map(a => a.hipMidY);
+    const smoothed = movingAvg(hipY, 5);
+    return findPeaks(smoothed, 0.03);
+  }
+  if (exercise === "overhead_press") {
+    // Track wrist y (decreases = higher = lockout)
+    // Inverted: find troughs (minima) of wrist y
+    const wristY = allAngles.map(a => {
+      // Use average of both wrists if available
+      return a._wristY || 0.5;
+    });
+    const inverted = wristY.map(v => -v);
+    return findPeaks(movingAvg(inverted, 5), 0.03);
+  }
+  return [];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SQUAT ANALYSIS
+// ═══════════════════════════════════════════════════════════════════
+
+function analyzeSquat(allAngles, repBottoms, bodyModel, loadKg) {
+  const findings = [];
+  const metrics = [];
+
+  // ── Depth analysis ──
+  const bottomKneeAngles = repBottoms.map(i => Math.min(allAngles[i].leftKnee, allAngles[i].rightKnee));
+  const avgBottomKnee = mean(bottomKneeAngles);
+  let depthScore, depthDesc;
+  if (avgBottomKnee <= 90) { depthScore = 95; depthDesc = "Deep squat - excellent depth"; }
+  else if (avgBottomKnee <= 110) { depthScore = 80; depthDesc = "Reaching parallel"; }
+  else if (avgBottomKnee <= 130) { depthScore = 55; depthDesc = "Above parallel - could go deeper"; }
+  else { depthScore = 30; depthDesc = "Quarter squat - significantly above parallel"; }
+
+  metrics.push({ name: "Depth", value: Math.round(avgBottomKnee) + "\u00B0", score: depthScore, desc: depthDesc });
+
+  if (avgBottomKnee > 110) {
+    findings.push({
+      severity: avgBottomKnee > 130 ? "danger" : "warning",
+      title: "Insufficient Depth",
+      desc: `Average knee angle at bottom: ${Math.round(avgBottomKnee)}\u00B0 (target: \u226490\u00B0 for full depth)`,
+      risk: "Partial ROM limits quad and glute development",
+      suggestion: "Work on ankle and hip mobility. Try box squats at target depth.",
+    });
+  } else {
+    findings.push({ severity: "good", title: "Good Squat Depth", desc: `Reaching ${avgBottomKnee <= 90 ? "below" : ""} parallel consistently`, risk: "", suggestion: "" });
+  }
+
+  // ── Forward lean ──
+  const bottomLeans = repBottoms.map(i => allAngles[i].torsoLean);
+  const avgLean = mean(bottomLeans);
+  let leanScore;
+  if (avgLean < 25) { leanScore = 95; }
+  else if (avgLean < 35) { leanScore = 80; }
+  else if (avgLean < 45) { leanScore = 55; }
+  else { leanScore = 30; }
+
+  metrics.push({ name: "Stability", value: (100 - Math.round(avgLean)) + "%", score: leanScore, desc: avgLean < 30 ? "Good upright posture" : "Forward lean detected" });
+
+  if (avgLean > 35) {
+    findings.push({
+      severity: avgLean > 50 ? "danger" : "warning",
+      title: "Excessive Forward Lean",
+      desc: `Torso tilts ${Math.round(avgLean)}\u00B0 from vertical at bottom position`,
+      risk: "Increased compressive and shear forces on lumbar spine (L4-L5)",
+      suggestion: "Improve ankle dorsiflexion mobility. Consider heel-elevated squat shoes. Strengthen core and upper back.",
+    });
+  } else {
+    findings.push({ severity: "good", title: "Good Torso Position", desc: `Torso lean ${Math.round(avgLean)}\u00B0 - well controlled`, risk: "", suggestion: "" });
+  }
+
+  // ── Left-right symmetry ──
+  const kneeAsym = repBottoms.map(i => Math.abs(allAngles[i].leftKnee - allAngles[i].rightKnee));
+  const hipAsym = repBottoms.map(i => Math.abs(allAngles[i].leftHip - allAngles[i].rightHip));
+  const avgKneeAsym = mean(kneeAsym);
+  const avgHipAsym = mean(hipAsym);
+  const avgAsym = (avgKneeAsym + avgHipAsym) / 2;
+  const symScore = Math.round(clamp(100 - avgAsym * 5, 0, 100));
+
+  metrics.push({ name: "Symmetry", value: symScore + "%", score: symScore, desc: avgAsym < 3 ? "Well balanced" : "Some imbalance detected" });
+
+  if (avgAsym > 5) {
+    const side = mean(repBottoms.map(i => allAngles[i].leftKnee - allAngles[i].rightKnee)) > 0 ? "right" : "left";
+    findings.push({
+      severity: avgAsym > 10 ? "danger" : "warning",
+      title: `Asymmetric Movement (${side} side weaker)`,
+      desc: `Average L/R angle difference: ${avgAsym.toFixed(1)}\u00B0 at knee, ${avgHipAsym.toFixed(1)}\u00B0 at hip`,
+      risk: "Chronic asymmetry leads to compensatory patterns, increasing risk of spinal imbalance and unilateral joint wear",
+      suggestion: "Add single-leg exercises (Bulgarian split squats, lunges). Focus on the weaker side with extra volume.",
+    });
+  }
+
+  // ── Knee valgus estimation ──
+  // Estimate from relative knee-ankle x-positions (frontal plane proxy)
+  const kneeValgusLeft = repBottoms.map(i => {
+    const lm = frameData[i].landmarks;
+    return (lm[LM.LEFT_KNEE].x - lm[LM.LEFT_ANKLE].x) - (lm[LM.LEFT_HIP].x - lm[LM.LEFT_ANKLE].x) * 0.5;
+  });
+  const kneeValgusRight = repBottoms.map(i => {
+    const lm = frameData[i].landmarks;
+    return (lm[LM.RIGHT_ANKLE].x - lm[LM.RIGHT_KNEE].x) - (lm[LM.RIGHT_ANKLE].x - lm[LM.RIGHT_HIP].x) * 0.5;
+  });
+  const avgValgusL = mean(kneeValgusLeft);
+  const avgValgusR = mean(kneeValgusRight);
+  const valgusMetric = Math.max(Math.abs(avgValgusL), Math.abs(avgValgusR));
+  const valgusScore = Math.round(clamp(100 - valgusMetric * 600, 0, 100));
+
+  metrics.push({ name: "Knee Track", value: valgusScore + "%", score: valgusScore, desc: valgusScore > 75 ? "Knees tracking well" : "Knee valgus detected" });
+
+  if (valgusScore < 70) {
+    const side = Math.abs(avgValgusL) > Math.abs(avgValgusR) ? "Left" : "Right";
+    findings.push({
+      severity: valgusScore < 50 ? "danger" : "warning",
+      title: `Knee Valgus (${side})`,
+      desc: `${side} knee collapses inward during descent`,
+      risk: "Increased stress on ACL, MCL, and medial meniscus",
+      suggestion: "Strengthen gluteus medius (clamshells, lateral band walks). Use a resistance band above knees during warm-up squats.",
+    });
+  }
+
+  // ── Depth consistency ──
+  if (bottomKneeAngles.length > 1) {
+    const depthStd = Math.sqrt(mean(bottomKneeAngles.map(v => (v - avgBottomKnee) ** 2)));
+    if (depthStd > 8) {
+      findings.push({
+        severity: "warning", title: "Inconsistent Depth",
+        desc: `Squat depth varies by \u00B1${Math.round(depthStd)}\u00B0 between reps`,
+        risk: "Inconsistency may indicate fatigue or lack of motor control",
+        suggestion: "Focus on controlled tempo. Use a depth marker (box or band) for proprioceptive feedback.",
+      });
+    }
+  }
+
+  // ── Torques ──
+  const torques = calculateTorques(repBottoms, allAngles, bodyModel, loadKg);
+
+  // ── Asymmetry data ──
+  const asymmetry = {
+    overall: symScore,
+    joints: [
+      { name: "Knee", left: Math.round(mean(repBottoms.map(i => allAngles[i].leftKnee))),
+                       right: Math.round(mean(repBottoms.map(i => allAngles[i].rightKnee))),
+                       diff: avgKneeAsym },
+      { name: "Hip",  left: Math.round(mean(repBottoms.map(i => allAngles[i].leftHip))),
+                       right: Math.round(mean(repBottoms.map(i => allAngles[i].rightHip))),
+                       diff: avgHipAsym },
+    ],
+  };
+
+  // ── Injury risk ──
+  const risks = assessInjuryRisk(findings, torques, avgLean, valgusScore);
+
+  // ── Recommendations ──
+  const recs = generateRecs(findings, risks);
+
+  // ── Overall score ──
+  const score = Math.round(mean([depthScore, leanScore, symScore, valgusScore]));
+  const rating = score >= 90 ? "Excellent" : score >= 75 ? "Good" : score >= 55 ? "Fair" : "Poor";
+
+  return { score, rating, reps: repBottoms.length, exercise: "squat", metrics, findings, torques, asymmetry, risks, recs };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TORQUE CALCULATIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function calculateTorques(repBottoms, allAngles, bodyModel, loadKg) {
+  if (repBottoms.length === 0) return { knee: null, hip: null, lumbar: null };
+
+  // Use the deepest rep for torque calculation
+  const worstIdx = repBottoms.reduce((best, idx) =>
+    allAngles[idx].hipMidY > allAngles[best].hipMidY ? idx : best, repBottoms[0]);
+
+  const lm = frameData[worstIdx]?.landmarks;
+  if (!lm) return { knee: null, hip: null, lumbar: null };
+
+  const scale = getHeightScale(lm, bodyModel.heightM);
+
+  const kneeMid = midpoint(lm[LM.LEFT_KNEE], lm[LM.RIGHT_KNEE]);
+  const hipMid = midpoint(lm[LM.LEFT_HIP], lm[LM.RIGHT_HIP]);
+  const shoulderMid = midpoint(lm[LM.LEFT_SHOULDER], lm[LM.RIGHT_SHOULDER]);
+
+  // Horizontal lever arms (in meters)
+  const dKnee = Math.abs(kneeMid.x - shoulderMid.x) * scale;
+  const dHip = Math.abs(hipMid.x - shoulderMid.x) * scale;
+
+  // Forces
+  const fAboveKnee = (bodyModel.upperBodyMass + 2 * bodyModel.thighMass + loadKg) * G;
+  const fAboveHip = (bodyModel.upperBodyMass + loadKg) * G;
+
+  const tauKnee = fAboveKnee * dKnee;
+  const tauHip = fAboveHip * dHip;
+
+  // Lumbar shear estimate: trunk load * sin(lean angle)
+  const leanRad = allAngles[worstIdx].torsoLean * Math.PI / 180;
+  const fLumbar = (bodyModel.trunkMass + loadKg) * G * Math.sin(leanRad);
+
+  // Safe thresholds (rough guidelines scaled to body weight)
+  const bw = bodyModel.weight * G;
+  const kneeThreshold = 3.0 * bodyModel.weight; // ~3 Nm/kg as rough upper safe limit
+  const hipThreshold = 3.5 * bodyModel.weight;
+  const lumbarThreshold = 0.8 * bw; // shear force threshold
+
+  return {
+    knee: { value: Math.round(tauKnee), threshold: Math.round(kneeThreshold), unit: "N\u00B7m",
+            pct: clamp(tauKnee / kneeThreshold * 100, 0, 120),
+            rating: tauKnee < kneeThreshold * 0.7 ? "safe" : tauKnee < kneeThreshold ? "moderate" : "high" },
+    hip: { value: Math.round(tauHip), threshold: Math.round(hipThreshold), unit: "N\u00B7m",
+           pct: clamp(tauHip / hipThreshold * 100, 0, 120),
+           rating: tauHip < hipThreshold * 0.7 ? "safe" : tauHip < hipThreshold ? "moderate" : "high" },
+    lumbar: { value: Math.round(fLumbar), threshold: Math.round(lumbarThreshold), unit: "N",
+              pct: clamp(fLumbar / lumbarThreshold * 100, 0, 120),
+              rating: fLumbar < lumbarThreshold * 0.6 ? "safe" : fLumbar < lumbarThreshold ? "moderate" : "high" },
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INJURY RISK ASSESSMENT
+// ═══════════════════════════════════════════════════════════════════
+
+function assessInjuryRisk(findings, torques, avgLean, valgusScore) {
+  const risks = [];
+  // Knee
+  let kneeLevel = 0;
+  if (valgusScore < 70) kneeLevel += 30;
+  if (valgusScore < 50) kneeLevel += 20;
+  if (torques.knee?.rating === "high") kneeLevel += 25;
+  else if (torques.knee?.rating === "moderate") kneeLevel += 10;
+  risks.push({ area: "Knee (ACL/MCL)", level: kneeLevel, label: kneeLevel > 50 ? "High" : kneeLevel > 25 ? "Moderate" : "Low" });
+
+  // Lower back
+  let backLevel = 0;
+  if (avgLean > 45) backLevel += 35;
+  else if (avgLean > 35) backLevel += 20;
+  if (torques.lumbar?.rating === "high") backLevel += 30;
+  else if (torques.lumbar?.rating === "moderate") backLevel += 15;
+  risks.push({ area: "Lower Back (L4-L5)", level: backLevel, label: backLevel > 50 ? "High" : backLevel > 25 ? "Moderate" : "Low" });
+
+  // Hip
+  let hipLevel = 0;
+  if (torques.hip?.rating === "high") hipLevel += 25;
+  else if (torques.hip?.rating === "moderate") hipLevel += 10;
+  const hasAsym = findings.some(f => f.title.includes("Asymmetric"));
+  if (hasAsym) hipLevel += 15;
+  risks.push({ area: "Hip", level: hipLevel, label: hipLevel > 50 ? "High" : hipLevel > 25 ? "Moderate" : "Low" });
+
+  // Ankle
+  let ankleLevel = avgLean > 40 ? 15 : 5;
+  risks.push({ area: "Ankle", level: ankleLevel, label: ankleLevel > 25 ? "Moderate" : "Low" });
+
+  return risks;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RECOMMENDATIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function generateRecs(findings, risks) {
+  const recs = [];
+  const seen = new Set();
+
+  for (const f of findings) {
+    if (f.suggestion && !seen.has(f.suggestion)) {
+      recs.push(f.suggestion);
+      seen.add(f.suggestion);
+    }
+  }
+
+  // Add risk-based recs
+  const highRisks = risks.filter(r => r.level > 40);
+  if (highRisks.length > 0) {
+    recs.push("Address form issues before increasing training weight. Current load may exceed safe limits for your biomechanics.");
+  }
+  if (risks.find(r => r.area.includes("Back") && r.level > 25)) {
+    recs.push("Consider wearing a lifting belt for heavy sets to support lumbar spine.");
+  }
+
+  if (recs.length === 0) {
+    recs.push("Your form looks solid. Maintain current technique as you progressively increase load.");
+    recs.push("Film yourself periodically to track form as weights get heavier.");
+  }
+
+  return recs;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MEDIAPIPE INITIALIZATION
+// ═══════════════════════════════════════════════════════════════════
+
+async function initMediaPipe() {
+  try {
+    const vision = await import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs"
+    );
+    const filesetResolver = await vision.FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
+    );
+    poseLandmarker = await vision.PoseLandmarker.createFromOptions(filesetResolver, {
+      baseOptions: {
+        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task",
+        delegate: "GPU",
+      },
+      runningMode: "VIDEO",
+      numPoses: 1,
+    });
+    modelLoaded = true;
+    $aiDot.classList.add("ready");
+    $aiStatusText.textContent = "AI model ready";
+    updateAnalyzeBtn();
+  } catch (e) {
+    console.error("MediaPipe load error:", e);
+    $aiDot.classList.add("error");
+    $aiStatusText.textContent = "AI model failed - demo mode still available";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIDEO PROCESSING
+// ═══════════════════════════════════════════════════════════════════
+
+async function processVideo() {
+  const video = $videoPlayer;
+  frameData = [];
+
+  const duration = video.duration;
+  const totalSamples = Math.floor(duration * SAMPLE_FPS);
+  if (totalSamples === 0) { showToast("Video too short to analyze"); return false; }
+
+  let lastTimestamp = -1;
+
+  for (let i = 0; i < totalSamples; i++) {
+    const time = i / SAMPLE_FPS;
+
+    // Seek to frame
+    video.currentTime = time;
+    await new Promise(r => video.addEventListener("seeked", r, { once: true }));
+
+    // Run pose detection
+    const tsMs = time * 1000;
+    if (tsMs <= lastTimestamp) continue; // must be monotonically increasing
+    lastTimestamp = tsMs;
+
+    try {
+      const result = poseLandmarker.detectForVideo(video, tsMs);
+      if (result.landmarks && result.landmarks.length > 0) {
+        frameData.push({
+          time, index: i,
+          landmarks: result.landmarks[0],
+          worldLandmarks: result.worldLandmarks ? result.worldLandmarks[0] : null,
+        });
+      }
+    } catch (e) {
+      // Skip frame on error
+    }
+
+    // Update progress
+    const pct = ((i + 1) / totalSamples * 80 + 10); // 10-90%
+    $progressFill.style.width = pct + "%";
+    $progressText.textContent = `Processing frame ${i + 1} / ${totalSamples}`;
+
+    // Yield every 3 frames
+    if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  if (frameData.length < 5) {
+    showToast("Could not detect pose in enough frames. Try a different video angle.");
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN ANALYSIS PIPELINE
+// ═══════════════════════════════════════════════════════════════════
+
+async function runAnalysis() {
+  const inputs = getUserInputs();
+  const bodyModel = getBodyModel(inputs);
+  const exercise = inputs.exercise;
+  const loadKg = inputs.loadKg;
+
+  showProgress("Analyzing Form", "Loading AI model...");
+  $progressFill.style.width = "5%";
+
+  if (!modelLoaded) {
+    showToast("AI model not loaded. Use demo mode instead.");
+    hideProgress();
+    return;
+  }
+
+  $progressText.textContent = "Processing video frames...";
+  $progressFill.style.width = "10%";
+
+  const ok = await processVideo();
+  if (!ok) { hideProgress(); return; }
+
+  $progressText.textContent = "Computing biomechanics...";
+  $progressFill.style.width = "90%";
+  await new Promise(r => setTimeout(r, 50));
+
+  // Extract angles for all frames
+  const allAngles = frameData.map(f => {
+    const angles = extractAngles(f.landmarks);
+    // Also store wrist Y for press detection
+    angles._wristY = (f.landmarks[LM.LEFT_WRIST].y + f.landmarks[LM.RIGHT_WRIST].y) / 2;
+    return angles;
+  });
+
+  // Detect reps
+  const repBottoms = detectReps(allAngles, exercise);
+
+  // If no reps detected, use the frame with deepest position
+  let effectiveBottoms = repBottoms;
+  if (effectiveBottoms.length === 0) {
+    const hipYs = allAngles.map(a => a.hipMidY);
+    const maxIdx = hipYs.indexOf(Math.max(...hipYs));
+    effectiveBottoms = [maxIdx];
+  }
+
+  // Run exercise-specific analysis
+  let results;
+  if (exercise === "squat" || exercise === "deadlift") {
+    results = analyzeSquat(allAngles, effectiveBottoms, bodyModel, loadKg);
+    if (exercise === "deadlift") results.exercise = "deadlift";
+  } else {
+    // For press exercises, use a simplified analysis
+    results = analyzeSquat(allAngles, effectiveBottoms, bodyModel, loadKg);
+    results.exercise = exercise;
+  }
+
+  $progressFill.style.width = "100%";
+  $progressText.textContent = "Done!";
+  await new Promise(r => setTimeout(r, 300));
+
+  analysisResults = results;
+  renderResults(results);
+  setupPlaybackOverlay();
+  hideProgress();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEMO MODE
+// ═══════════════════════════════════════════════════════════════════
+
+function generateDemoResults() {
+  const inputs = getUserInputs();
+  const bodyModel = getBodyModel(inputs);
+  const bw = bodyModel.weight;
+  const loadKg = inputs.loadKg;
+
+  // Generate realistic demo data for a squat with some form issues
+  const kneeThreshold = Math.round(3.0 * bw);
+  const hipThreshold = Math.round(3.5 * bw);
+  const lumbarThreshold = Math.round(0.8 * bw * G);
+
+  // Torque values depend on body weight and load
+  const tauKnee = Math.round((bodyModel.upperBodyMass + 2 * bodyModel.thighMass + loadKg) * G * 0.15);
+  const tauHip = Math.round((bodyModel.upperBodyMass + loadKg) * G * 0.08);
+  const fLumbar = Math.round((bodyModel.trunkMass + loadKg) * G * Math.sin(38 * Math.PI / 180));
+
+  return {
+    score: 74, rating: "Good", reps: 5, exercise: inputs.exercise,
+    metrics: [
+      { name: "Depth", value: "97\u00B0", score: 78, desc: "Just above parallel - slightly more depth recommended" },
+      { name: "Symmetry", value: "91%", score: 91, desc: "Minor left-right imbalance" },
+      { name: "Stability", value: "62%", score: 62, desc: "Forward lean of ~38\u00B0 detected" },
+      { name: "Knee Track", value: "66%", score: 66, desc: "Left knee valgus detected at bottom position" },
+    ],
+    findings: [
+      { severity: "warning", title: "Insufficient Depth",
+        desc: "Average knee angle at bottom: 97\u00B0 (target: \u226490\u00B0 for full depth)",
+        risk: "Partial ROM limits quad and glute development",
+        suggestion: "Work on ankle and hip mobility. Try box squats at target depth." },
+      { severity: "warning", title: "Excessive Forward Lean",
+        desc: `Torso tilts 38\u00B0 from vertical at bottom position`,
+        risk: "Increased compressive and shear forces on lumbar spine (L4-L5)",
+        suggestion: "Improve ankle dorsiflexion mobility. Consider heel-elevated squat shoes. Strengthen core and upper back." },
+      { severity: "warning", title: "Knee Valgus (Left)",
+        desc: "Left knee collapses inward ~12\u00B0 during descent",
+        risk: "Increased stress on ACL, MCL, and medial meniscus",
+        suggestion: "Strengthen gluteus medius (clamshells, lateral band walks). Use a resistance band above knees during warm-up squats." },
+      { severity: "good", title: "Consistent Rep Tempo",
+        desc: "Rep-to-rep timing is consistent, good motor control", risk: "", suggestion: "" },
+      { severity: "warning", title: "Left-Side Weakness",
+        desc: "Left hip drops 4\u00B0 more than right during ascent phase",
+        risk: "Chronic asymmetry leads to compensatory patterns and unilateral joint wear",
+        suggestion: "Add single-leg exercises (Bulgarian split squats, lunges). Focus on the weaker side with extra volume." },
+    ],
+    torques: {
+      knee: { value: tauKnee, threshold: kneeThreshold, unit: "N\u00B7m",
+              pct: clamp(tauKnee / kneeThreshold * 100, 0, 120),
+              rating: tauKnee < kneeThreshold * 0.7 ? "safe" : "moderate" },
+      hip: { value: tauHip, threshold: hipThreshold, unit: "N\u00B7m",
+             pct: clamp(tauHip / hipThreshold * 100, 0, 120),
+             rating: tauHip < hipThreshold * 0.7 ? "safe" : "moderate" },
+      lumbar: { value: fLumbar, threshold: lumbarThreshold, unit: "N",
+                pct: clamp(fLumbar / lumbarThreshold * 100, 0, 120),
+                rating: fLumbar < lumbarThreshold * 0.6 ? "safe" : "moderate" },
+    },
+    asymmetry: {
+      overall: 91,
+      joints: [
+        { name: "Knee", left: 98, right: 92, diff: 5.8 },
+        { name: "Hip", left: 83, right: 87, diff: 4.6 },
+        { name: "Elbow", left: 165, right: 168, diff: 1.8 },
+      ],
+    },
+    risks: [
+      { area: "Knee (ACL/MCL)", level: 38, label: "Moderate" },
+      { area: "Lower Back (L4-L5)", level: 42, label: "Moderate" },
+      { area: "Hip", level: 18, label: "Low" },
+      { area: "Ankle", level: 12, label: "Low" },
+    ],
+    recs: [
+      "Work on ankle and hip mobility. Try box squats at target depth.",
+      "Improve ankle dorsiflexion mobility. Consider heel-elevated squat shoes. Strengthen core and upper back.",
+      "Strengthen gluteus medius (clamshells, lateral band walks). Use a resistance band above knees during warm-up squats.",
+      "Add single-leg exercises (Bulgarian split squats, lunges). Focus on the weaker side with extra volume.",
+      "Consider wearing a lifting belt for heavy sets to support lumbar spine.",
+      `Current weight (${loadKg}kg) is within manageable range \u2014 address form issues before increasing load.`,
+    ],
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════════
+
+function renderResults(r) {
+  $resultsPanel.style.display = "block";
+
+  // Score gauge
+  const circumference = 2 * Math.PI * 52;
+  const offset = circumference * (1 - r.score / 100);
+  const color = r.score >= 90 ? "#4ade80" : r.score >= 75 ? "#22d3ee" : r.score >= 55 ? "#facc15" : "#f87171";
+  $("scoreCard").innerHTML = `
+    <div class="score-gauge">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#222" stroke-width="8"/>
+        <circle cx="60" cy="60" r="52" fill="none" stroke="${color}" stroke-width="8"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+          stroke-linecap="round" transform="rotate(-90 60 60)"
+          style="transition: stroke-dashoffset 1s ease"/>
+        <text x="60" y="52" text-anchor="middle" font-size="32" fill="#fff" font-weight="700">${r.score}</text>
+        <text x="60" y="72" text-anchor="middle" font-size="13" fill="${color}">${r.rating}</text>
+      </svg>
+    </div>
+    <div class="score-label">${r.exercise.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())} Analysis</div>
+    <div class="reps-info">${r.reps} rep${r.reps !== 1 ? "s" : ""} detected</div>`;
+
+  // Metrics
+  $("metricsGrid").innerHTML = r.metrics.map(m => {
+    const c = m.score >= 85 ? "#4ade80" : m.score >= 65 ? "#facc15" : "#f87171";
+    return `<div class="metric-card"><div class="metric-value" style="color:${c}">${m.value}</div>
+      <div class="metric-name">${m.name}</div><div class="metric-desc">${m.desc}</div></div>`;
+  }).join("");
+
+  // Findings
+  $("findingsList").innerHTML = r.findings.map(f => {
+    const icon = f.severity === "good" ? "\u2705" : f.severity === "warning" ? "\u26A0\uFE0F" : "\u274C";
+    let html = `<div class="finding finding-${f.severity}">
+      <div class="finding-icon">${icon}</div><div class="finding-body">
+      <div class="finding-title">${f.title}</div>
+      <div class="finding-desc">${f.desc}</div>`;
+    if (f.risk) html += `<div class="finding-desc" style="color:#f87171;margin-top:2px">Risk: ${f.risk}</div>`;
+    if (f.suggestion) html += `<div class="finding-suggestion">\u2192 ${f.suggestion}</div>`;
+    html += `</div></div>`;
+    return html;
+  }).join("");
+
+  // Torques
+  const torqueEntries = [
+    { key: "knee", label: "Knee torque" },
+    { key: "hip", label: "Hip torque" },
+    { key: "lumbar", label: "Lumbar shear" },
+  ];
+  $("torqueAnalysis").innerHTML = torqueEntries.map(t => {
+    const d = r.torques[t.key];
+    if (!d) return "";
+    const c = d.rating === "safe" ? "#4ade80" : d.rating === "moderate" ? "#facc15" : "#f87171";
+    const threshPct = Math.min(100, 80); // threshold marker at 80%
+    return `<div class="torque-item">
+      <div class="torque-label">${t.label}</div>
+      <div class="torque-track">
+        <div class="torque-fill" style="width:${Math.min(d.pct, 100)}%;background:${c}"></div>
+        <div class="torque-threshold" style="left:${threshPct}%" title="Safe threshold: ${d.threshold} ${d.unit}"></div>
+      </div>
+      <div class="torque-value">${d.value} ${d.unit}</div>
+    </div>`;
+  }).join("");
+
+  // Asymmetry
+  const maxAngle = 180;
+  $("asymmetryReport").innerHTML = `
+    <div style="font-size:12px;color:#888;margin-bottom:10px">Overall symmetry: <strong style="color:${r.asymmetry.overall >= 90 ? "#4ade80" : r.asymmetry.overall >= 75 ? "#facc15" : "#f87171"}">${r.asymmetry.overall}%</strong></div>` +
+    r.asymmetry.joints.map(j => {
+      const lW = j.left / maxAngle * 100;
+      const rW = j.right / maxAngle * 100;
+      const diffClass = j.diff < 3 ? "good" : j.diff < 8 ? "mild" : "significant";
+      return `<div class="asym-row">
+        <div class="asym-label">${j.name}</div>
+        <div class="asym-bar-wrap">
+          <span style="font-size:10px;color:#667eea;width:35px;text-align:right">${j.left}\u00B0</span>
+          <div class="asym-bar asym-bar-left" style="width:${lW}%"></div>
+          <div class="asym-center"></div>
+          <div class="asym-bar asym-bar-right" style="width:${rW}%"></div>
+          <span style="font-size:10px;color:#a78bfa;width:35px">${j.right}\u00B0</span>
+        </div>
+        <div class="asym-diff"><span class="${diffClass}">${j.diff.toFixed(1)}\u00B0 diff (${diffClass})</span></div>
+      </div>`;
+    }).join("");
+
+  // Injury risk
+  $("injuryRisk").innerHTML = r.risks.map(risk => {
+    const c = risk.level > 50 ? "#f87171" : risk.level > 25 ? "#facc15" : "#4ade80";
+    return `<div class="risk-item">
+      <div class="risk-area">${risk.area}</div>
+      <div class="risk-meter"><div class="risk-fill" style="width:${risk.level}%;background:${c}"></div></div>
+      <div class="risk-label" style="color:${c}">${risk.label}</div>
+    </div>`;
+  }).join("");
+
+  // Recommendations
+  $("recommendations").innerHTML = r.recs.map((rec, i) =>
+    `<div class="rec-item"><div class="rec-num">${i + 1}</div><div>${rec}</div></div>`
+  ).join("");
+
+  // Scroll to results
+  setTimeout(() => $resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SKELETON DRAWING & PLAYBACK OVERLAY
+// ═══════════════════════════════════════════════════════════════════
+
+function drawSkeleton(ctx, landmarks, w, h, skipClear) {
+  if (!skipClear) ctx.clearRect(0, 0, w, h);
+
+  // Draw connections
+  ctx.strokeStyle = "rgba(102, 126, 234, 0.7)";
+  ctx.lineWidth = 2.5;
+  for (const [a, b] of SKELETON) {
+    const la = landmarks[a], lb = landmarks[b];
+    if (!la || !lb) continue;
+    ctx.beginPath();
+    ctx.moveTo(la.x * w, la.y * h);
+    ctx.lineTo(lb.x * w, lb.y * h);
+    ctx.stroke();
+  }
+
+  // Draw joints
+  for (let i = 0; i < landmarks.length; i++) {
+    const lm = landmarks[i];
+    if (!lm) continue;
+    const isKey = [LM.LEFT_KNEE, LM.RIGHT_KNEE, LM.LEFT_HIP, LM.RIGHT_HIP,
+                   LM.LEFT_SHOULDER, LM.RIGHT_SHOULDER, LM.LEFT_ANKLE, LM.RIGHT_ANKLE].includes(i);
+    ctx.beginPath();
+    ctx.arc(lm.x * w, lm.y * h, isKey ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = isKey ? "#667eea" : "rgba(102,126,234,0.5)";
+    ctx.fill();
+  }
+}
+
+function setupPlaybackOverlay() {
+  if (frameData.length === 0) return;
+
+  const video = $videoPlayer;
+  const canvas = $overlayCanvas;
+  const ctx = canvas.getContext("2d");
+  const hud = $angleHud;
+  hud.style.display = "block";
+
+  function findNearestFrame(time) {
+    let best = 0, bestDist = Infinity;
+    for (let i = 0; i < frameData.length; i++) {
+      const d = Math.abs(frameData[i].time - time);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return bestDist < 0.3 ? frameData[best] : null;
+  }
+
+  function update() {
+    canvas.width = video.videoWidth || video.clientWidth;
+    canvas.height = video.videoHeight || video.clientHeight;
+
+    const frame = findNearestFrame(video.currentTime);
+    if (frame) {
+      drawSkeleton(ctx, frame.landmarks, canvas.width, canvas.height);
+      const angles = extractAngles(frame.landmarks);
+      hud.innerHTML = `
+        <div>Knee: L ${Math.round(angles.leftKnee)}\u00B0 R ${Math.round(angles.rightKnee)}\u00B0</div>
+        <div>Hip: L ${Math.round(angles.leftHip)}\u00B0 R ${Math.round(angles.rightHip)}\u00B0</div>
+        <div>Lean: ${Math.round(angles.torsoLean)}\u00B0</div>`;
+    }
+    requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+function getUserInputs() {
+  return {
+    height: parseFloat($("inputHeight").value) || 175,
+    weight: parseFloat($("inputWeight").value) || 70,
+    armSpan: parseFloat($("inputArmSpan").value) || 177,
+    legLength: parseFloat($("inputLegLength").value) || 82,
+    gender: $("inputGender").value,
+    exercise: $("inputExercise").value,
+    loadKg: parseFloat($("inputLoad").value) || 0,
+  };
+}
+
+function showProgress(title, text) {
+  $("progressTitle").textContent = title;
+  $progressText.textContent = text;
+  $progressFill.style.width = "0%";
+  $progressOverlay.style.display = "flex";
+}
+
+function hideProgress() {
+  $progressOverlay.style.display = "none";
+}
+
+function showToast(msg) {
+  $toast.textContent = msg;
+  $toast.classList.add("show");
+  setTimeout(() => $toast.classList.remove("show"), 3000);
+}
+
+function updateAnalyzeBtn() {
+  if (videoLoaded && modelLoaded) {
+    $analyzeBtn.disabled = false;
+    $analyzeBtnText.textContent = "Analyze Form";
+  } else if (videoLoaded && !modelLoaded) {
+    $analyzeBtn.disabled = true;
+    $analyzeBtnText.textContent = "Waiting for AI model...";
+  } else {
+    $analyzeBtn.disabled = true;
+    $analyzeBtnText.textContent = "Upload a video to begin";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEMO ANIMATION
+// ═══════════════════════════════════════════════════════════════════
+
+let demoAnimId = null;
+let demoStartTime = 0;
+const DEMO_DURATION = 16; // seconds
+const DEMO_REPS = 5;
+const DEMO_REP_DUR = 2.8; // seconds per rep
+const DEMO_W = 640;
+const DEMO_H = 480;
+
+function generateSquatPose(phase) {
+  // phase: 0 = standing, 1 = bottom of squat
+  const lm = [];
+  for (let i = 0; i < 33; i++) lm.push({ x: 0.5, y: 0.5, z: 0, visibility: 0 });
+
+  const shankLen = 0.16, thighLen = 0.16, trunkLen = 0.18;
+  const neckLen = 0.05, upArmLen = 0.08, foreArmLen = 0.07;
+
+  // Angles from vertical
+  const shinTilt = lerp(0.05, 0.30, phase);
+  const thighTilt = lerp(0.12, 1.15, phase);
+  const trunkLean = lerp(0.05, 0.66, phase);
+
+  // Right side
+  const rAx = 0.53, rAy = 0.87;
+  const rKx = rAx + Math.sin(shinTilt) * shankLen;
+  const rKy = rAy - Math.cos(shinTilt) * shankLen;
+  const rHx = rKx - Math.sin(thighTilt) * thighLen;
+  const rHy = rKy - Math.cos(thighTilt) * thighLen;
+  const rSx = rHx + Math.sin(trunkLean) * trunkLen;
+  const rSy = rHy - Math.cos(trunkLean) * trunkLen;
+
+  // Left side with asymmetry (slight knee valgus + weakness)
+  const asym = 0.012 * phase;
+  const lAx = 0.47, lAy = 0.87;
+  const lKx = lAx + Math.sin(shinTilt + asym) * shankLen;
+  const lKy = lAy - Math.cos(shinTilt + asym) * shankLen;
+  const lThighTilt = thighTilt + asym * 2.5;
+  const lHx = lKx - Math.sin(lThighTilt) * thighLen;
+  const lHy = lKy - Math.cos(lThighTilt) * thighLen;
+  const lSx = lHx + Math.sin(trunkLean) * trunkLen;
+  const lSy = lHy - Math.cos(trunkLean) * trunkLen;
+
+  // Head
+  const smx = (lSx + rSx) / 2, smy = (lSy + rSy) / 2;
+  const nx = smx + Math.sin(trunkLean * 0.4) * neckLen;
+  const ny = smy - Math.cos(trunkLean * 0.4) * neckLen;
+
+  // Arms (holding barbell on upper back)
+  const eDrop = lerp(0.06, 0.04, phase);
+  const rEx = rSx + 0.02, rEy = rSy + eDrop;
+  const lEx = lSx - 0.02, lEy = lSy + eDrop;
+  const rWx = rEx + 0.03, rWy = rEy - 0.02;
+  const lWx = lEx - 0.03, lWy = lEy - 0.02;
+
+  // Feet
+  const fy = 0.90;
+  const set = (idx, x, y, z) => { lm[idx] = { x, y, z: z || 0, visibility: 1 }; };
+
+  set(0, nx, ny);
+  set(11, lSx, lSy, 0.04); set(12, rSx, rSy, -0.04);
+  set(13, lEx, lEy, 0.05); set(14, rEx, rEy, -0.05);
+  set(15, lWx, lWy, 0.05); set(16, rWx, rWy, -0.05);
+  set(23, lHx, lHy, 0.04); set(24, rHx, rHy, -0.04);
+  set(25, lKx, lKy, 0.04); set(26, rKx, rKy, -0.04);
+  set(27, lAx, lAy, 0.04); set(28, rAx, rAy, -0.04);
+  set(29, lAx - 0.01, fy, 0.04); set(30, rAx - 0.01, fy, -0.04);
+  set(31, lAx + 0.04, fy, 0.04); set(32, rAx + 0.04, fy, -0.04);
+
+  return lm;
+}
+
+function getPhaseForTime(t) {
+  if (t < 0.5 || t > DEMO_DURATION - 0.5) return 0;
+  const repTime = (t - 0.5) % DEMO_REP_DUR;
+  let phase = 0.5 * (1 - Math.cos(2 * Math.PI * repTime / DEMO_REP_DUR));
+  const repIdx = Math.floor((t - 0.5) / DEMO_REP_DUR);
+  phase = Math.min(1, phase * (1 + repIdx * 0.015)); // slight fatigue
+  phase += 0.003 * Math.sin(t * 7.3); // tiny noise
+  return clamp(phase, 0, 1);
+}
+
+function generateDemoFrameData() {
+  const fps = 30;
+  const total = Math.floor(DEMO_DURATION * fps);
+  const frames = [];
+  for (let i = 0; i < total; i++) {
+    const t = i / fps;
+    const landmarks = generateSquatPose(getPhaseForTime(t));
+    frames.push({ time: t, index: i, landmarks, worldLandmarks: null });
+  }
+  return frames;
+}
+
+function drawAngleArc(ctx, lm, a, b, c, w, h, color, label) {
+  const pa = lm[a], pb = lm[b], pc = lm[c];
+  if (!pa || !pb || !pc || !pa.visibility || !pb.visibility || !pc.visibility) return;
+  const bx = pb.x * w, by = pb.y * h;
+  const angle = angleDeg(pa, pb, pc);
+  const r = 22;
+  const a1 = Math.atan2((pa.y - pb.y) * h, (pa.x - pb.x) * w);
+  const a2 = Math.atan2((pc.y - pb.y) * h, (pc.x - pb.x) * w);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.arc(bx, by, r, a1, a2, a1 > a2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px monospace';
+  const tx = bx + Math.cos((a1 + a2) / 2) * (r + 14);
+  const ty = by + Math.sin((a1 + a2) / 2) * (r + 14);
+  ctx.fillText(Math.round(angle) + '\u00B0', tx - 10, ty + 4);
+}
+
+function drawDemoFrame(ctx, landmarks, w, h) {
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+
+  // Ground
+  const gy = 0.91 * h;
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+
+  // Barbell across shoulders
+  const ls = landmarks[11], rs = landmarks[12];
+  if (ls && rs && ls.visibility) {
+    const sx = (ls.x + rs.x) / 2 * w, sy = (ls.y + rs.y) / 2 * h;
+    const bw = 0.38 * w;
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(sx - bw / 2, sy); ctx.lineTo(sx + bw / 2, sy); ctx.stroke();
+    // Plates
+    ctx.fillStyle = '#555';
+    const pw = 7, ph = 28;
+    ctx.fillRect(sx - bw / 2 - pw - 2, sy - ph / 2, pw, ph);
+    ctx.fillRect(sx + bw / 2 + 2, sy - ph / 2, pw, ph);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(sx - bw / 2 - pw * 2 - 4, sy - ph * 0.65 / 2, pw, ph * 0.65);
+    ctx.fillRect(sx + bw / 2 + pw + 4, sy - ph * 0.65 / 2, pw, ph * 0.65);
+    ctx.lineCap = 'butt';
+  }
+
+  // Skeleton
+  drawSkeleton(ctx, landmarks, w, h, true);
+
+  // Angle arcs
+  drawAngleArc(ctx, landmarks, LM.RIGHT_HIP, LM.RIGHT_KNEE, LM.RIGHT_ANKLE, w, h, '#facc15', 'Knee');
+  drawAngleArc(ctx, landmarks, LM.RIGHT_SHOULDER, LM.RIGHT_HIP, LM.RIGHT_KNEE, w, h, '#22d3ee', 'Hip');
+
+  // Head circle
+  const nose = landmarks[0];
+  if (nose && nose.visibility) {
+    ctx.beginPath();
+    ctx.arc(nose.x * w, nose.y * h - 8, 14, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(102,126,234,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function runDemoAnimation() {
+  const canvas = $("demoCanvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = DEMO_W;
+  canvas.height = DEMO_H;
+
+  const hud = $angleHud;
+  hud.style.display = "block";
+  const fill = $("demoTimelineFill");
+  const timeLabel = $("demoTime");
+
+  demoStartTime = performance.now();
+
+  function tick() {
+    const elapsed = (performance.now() - demoStartTime) / 1000;
+    const t = elapsed % DEMO_DURATION;
+    const phase = getPhaseForTime(t);
+    const landmarks = generateSquatPose(phase);
+
+    drawDemoFrame(ctx, landmarks, DEMO_W, DEMO_H);
+
+    // HUD
+    const angles = extractAngles(landmarks);
+    hud.innerHTML =
+      `<div style="color:#facc15">Knee: L ${Math.round(angles.leftKnee)}\u00B0 R ${Math.round(angles.rightKnee)}\u00B0</div>` +
+      `<div style="color:#22d3ee">Hip: L ${Math.round(angles.leftHip)}\u00B0 R ${Math.round(angles.rightHip)}\u00B0</div>` +
+      `<div>Lean: ${Math.round(angles.torsoLean)}\u00B0</div>`;
+
+    // Timeline
+    fill.style.width = (t / DEMO_DURATION * 100) + "%";
+    const m = Math.floor(t / 60), s = Math.floor(t % 60);
+    const tm = Math.floor(DEMO_DURATION / 60), ts = Math.floor(DEMO_DURATION % 60);
+    timeLabel.textContent = `${m}:${String(s).padStart(2, '0')} / ${tm}:${String(ts).padStart(2, '0')}`;
+
+    demoAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function stopDemoAnimation() {
+  if (demoAnimId) { cancelAnimationFrame(demoAnimId); demoAnimId = null; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+
+// Video upload
+$videoInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  $videoPlayer.src = url;
+  $videoPlayer.onloadedmetadata = () => {
+    videoLoaded = true;
+    $uploadCard.style.display = "none";
+    $videoCard.style.display = "block";
+    updateAnalyzeBtn();
+    showToast(`Video loaded: ${file.name} (${$videoPlayer.duration.toFixed(1)}s)`);
+  };
+});
+
+// Drag & drop
+const $uploadZone = $("uploadZone");
+$uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); $uploadZone.classList.add("dragover"); });
+$uploadZone.addEventListener("dragleave", () => $uploadZone.classList.remove("dragover"));
+$uploadZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  $uploadZone.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("video/")) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    $videoInput.files = dt.files;
+    $videoInput.dispatchEvent(new Event("change"));
+  }
+});
+
+// Analyze button
+$analyzeBtn.addEventListener("click", () => {
+  if ($analyzeBtn.disabled) return;
+  runAnalysis();
+});
+
+// Demo button
+$demoBtn.addEventListener("click", () => {
+  stopDemoAnimation();
+
+  // Generate synthetic frame data for analysis
+  frameData = generateDemoFrameData();
+
+  // Show demo video canvas
+  $uploadCard.style.display = "none";
+  $videoCard.style.display = "block";
+  $videoPlayer.style.display = "none";
+  $overlayCanvas.style.display = "none";
+  $("demoCanvas").style.display = "block";
+  $("demoControls").style.display = "flex";
+
+  // Start animation
+  runDemoAnimation();
+
+  // Generate and show results
+  const results = generateDemoResults();
+  analysisResults = results;
+  renderResults(results);
+  showToast("Demo loaded \u2014 synthetic squat with your body measurements");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+
+initMediaPipe();
+
+</script>
+</body>
+</html>

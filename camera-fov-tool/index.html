@@ -764,17 +764,20 @@ function drawDiagram(hfov,vfov,dist,covW,covH,objW,objH,isTop,rw,rh,cmp) {
   camY=Math.max(pad+12,Math.min(H-pad-12,camY));
   objY=Math.max(pad+12,Math.min(H-pad-12,objY));
   camIconPos.x=camX;camIconPos.y=camY;camIconPos.r=12;
-  var halfCovPx=covW/2*scale,halfObjPx=objW/2*scale;
+  // Use a separate horizontal scale so wide FOV cones fit in the left half
+  var sideW=midX-pad*2;
+  var maxHorizCm=Math.max(covW,objW,50)*1.3;
+  var hScale=sideW/maxHorizCm; // px per cm, horizontal
+  var halfCovPx=covW/2*hScale,halfObjPx=objW/2*hScale;
 
   // Comparison cone behind
-  if(cmp){var cmpRad=cmp.hfov*Math.PI/180,cL=camX-Math.tan(cmpRad/2)*dist*scale,cR=camX+Math.tan(cmpRad/2)*dist*scale;
-    ctx.fillStyle=cmp.color+"0A";ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(cL,objY);ctx.lineTo(cR,objY);ctx.closePath();ctx.fill();
-    ctx.strokeStyle=cmp.color+"44";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(cL,objY);ctx.moveTo(camX,camY);ctx.lineTo(cR,objY);ctx.stroke();}
+  if(cmp){var cmpCovW2=calcCov(cmp.hfov,dist)/2*hScale;
+    ctx.fillStyle=cmp.color+"0A";ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(camX-cmpCovW2,objY);ctx.lineTo(camX+cmpCovW2,objY);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=cmp.color+"44";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(camX-cmpCovW2,objY);ctx.moveTo(camX,camY);ctx.lineTo(camX+cmpCovW2,objY);ctx.stroke();}
 
   // Primary cone
-  var hR=hfov*Math.PI/180,coneL=camX-Math.tan(hR/2)*dist*scale,coneR=camX+Math.tan(hR/2)*dist*scale;
-  ctx.fillStyle="rgba(102,126,234,0.07)";ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(coneL,objY);ctx.lineTo(coneR,objY);ctx.closePath();ctx.fill();
-  ctx.strokeStyle="rgba(102,126,234,0.35)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(coneL,objY);ctx.moveTo(camX,camY);ctx.lineTo(coneR,objY);ctx.stroke();
+  ctx.fillStyle="rgba(102,126,234,0.07)";ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(camX-halfCovPx,objY);ctx.lineTo(camX+halfCovPx,objY);ctx.closePath();ctx.fill();
+  ctx.strokeStyle="rgba(102,126,234,0.35)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(camX,camY);ctx.lineTo(camX-halfCovPx,objY);ctx.moveTo(camX,camY);ctx.lineTo(camX+halfCovPx,objY);ctx.stroke();
 
   // Object & coverage
   ctx.fillStyle="rgba(74,222,128,0.15)";ctx.fillRect(camX-halfObjPx,objY-4,halfObjPx*2,8);ctx.strokeStyle="#4ade80";ctx.lineWidth=2;ctx.strokeRect(camX-halfObjPx,objY-4,halfObjPx*2,8);

@@ -152,9 +152,34 @@
   /* ── Diagram canvas ───────────────────────────────────────────── */
   .diagram-wrap {
     background: #111; border: 1px solid #2a2a2a; border-radius: 10px;
-    overflow: hidden;
+    overflow: hidden; position: relative;
   }
-  .diagram-wrap canvas { width: 100%; display: block; }
+  .diagram-wrap canvas { width: 100%; display: block; cursor: default; }
+  .diagram-wrap canvas.dragging { cursor: ns-resize; }
+  .diagram-wrap canvas.hoverable { cursor: grab; }
+  .diagram-tooltip {
+    position: absolute; background: rgba(0,0,0,0.85); color: #ddd; padding: 5px 10px;
+    border-radius: 4px; font-size: 11px; pointer-events: none; display: none;
+    font-family: "SF Mono", monospace; white-space: nowrap; z-index: 5;
+  }
+  .dist-slider-wrap { padding: 12px 16px; background: #151515; border-top: 1px solid #2a2a2a; }
+  .dist-slider-label { display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-bottom: 4px; }
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; background: #333; height: 4px;
+    border-radius: 2px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: #667eea; cursor: pointer;
+  }
+  .compare-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .compare-toggle input[type="checkbox"] { accent-color: #667eea; }
+  .compare-toggle label { font-size: 12px; color: #aaa; cursor: pointer; }
+  .feasibility-bar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    background: #151515; border-radius: 6px; margin-top: 10px; font-size: 12px;
+  }
+  .feasibility-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
   /* ── Theory section ───────────────────────────────────────────── */
   .theory-section { margin-bottom: 28px; }
@@ -453,11 +478,14 @@
           <div class="form-group full">
             <label for="calcCamera">Camera preset</label>
             <select id="calcCamera">
-              <option value="dji">DJI Action 5 Pro</option>
-              <option value="gopro">GoPro HERO 13</option>
-              <option value="basler">Basler a2A1920-165g5m (6mm)</option>
-              <option value="basler8">Basler a2A1920-165g5m (8mm)</option>
-              <option value="basler12">Basler a2A1920-165g5m (12mm)</option>
+              <option value="dji">DJI Action 5 Pro (4K)</option>
+              <option value="dji1080">DJI Action 5 Pro (1080p)</option>
+              <option value="gopro">GoPro HERO 13 (4K)</option>
+              <option value="gopro53">GoPro HERO 13 (5.3K)</option>
+              <option value="basler">Basler ace 2 + 6mm lens</option>
+              <option value="basler8">Basler ace 2 + 8mm lens</option>
+              <option value="basler12">Basler ace 2 + 12mm lens</option>
+              <option value="basler16">Basler ace 2 + 16mm lens</option>
               <option value="custom">Custom</option>
             </select>
           </div>
@@ -486,12 +514,41 @@
             <input type="number" id="calcResH" value="2160">
           </div>
         </div>
+        <!-- Compare mode -->
+        <div class="compare-toggle" style="margin-top:12px">
+          <input type="checkbox" id="compareOn">
+          <label for="compareOn">Compare with second camera</label>
+        </div>
+        <div id="compareSelect" style="display:none">
+          <select id="calcCamera2" style="width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px 10px;font-size:14px">
+            <option value="gopro">GoPro HERO 13 (4K)</option>
+            <option value="dji">DJI Action 5 Pro (4K)</option>
+            <option value="basler">Basler ace 2 + 6mm lens</option>
+            <option value="basler8">Basler ace 2 + 8mm lens</option>
+            <option value="basler12">Basler ace 2 + 12mm lens</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Object / Arena -->
+      <!-- Arena -->
       <div class="card">
-        <div class="card-title">Object / Arena</div>
+        <div class="card-title">Arena / Object</div>
         <div class="form-grid">
+          <div class="form-group full">
+            <label for="arenaPreset">Preset</label>
+            <select id="arenaPreset">
+              <option value="custom">Custom</option>
+              <option value="tmaze">T-Maze (120 &times; 80 cm)</option>
+              <option value="openfield40">Open Field 40 &times; 40 cm</option>
+              <option value="openfield60">Open Field 60 &times; 60 cm</option>
+              <option value="linear150">Linear Track (150 &times; 15 cm)</option>
+              <option value="homecage">Home Cage (30 &times; 20 cm)</option>
+              <option value="epm">Elevated Plus Maze (70 &times; 70 cm)</option>
+              <option value="barnes">Barnes Maze (90 &times; 90 cm)</option>
+              <option value="mwm">Morris Water Maze (120 &times; 120 cm)</option>
+              <option value="spacecage">SpaceCage (300 &times; 30 cm)</option>
+            </select>
+          </div>
           <div class="form-group">
             <label for="calcObjW">Width (cm)</label>
             <input type="number" id="calcObjW" value="120">
@@ -500,12 +557,16 @@
             <label for="calcObjH">Depth (cm)</label>
             <input type="number" id="calcObjH" value="80">
           </div>
-          <div class="form-group full">
+          <div class="form-group">
             <label for="calcMount">Mounting</label>
             <select id="calcMount">
-              <option value="topdown">Top-down (camera above)</option>
-              <option value="bottomup">Bottom-up (camera below)</option>
+              <option value="topdown">Top-down (above)</option>
+              <option value="bottomup">Bottom-up (below)</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label for="animalSize">Animal width (cm)</label>
+            <input type="number" id="animalSize" step="0.1" value="3" min="0.1" max="50">
           </div>
         </div>
       </div>
@@ -514,8 +575,20 @@
     <!-- Results + Diagram -->
     <div>
       <div class="result-grid" id="calcResults"></div>
+      <div id="feasibility"></div>
       <div class="diagram-wrap">
-        <canvas id="fovDiagram" width="800" height="500"></canvas>
+        <canvas id="fovDiagram" width="800" height="520"></canvas>
+        <div class="diagram-tooltip" id="diagramTooltip"></div>
+        <div class="dist-slider-wrap">
+          <div class="dist-slider-label">
+            <span>Distance</span>
+            <span id="sliderValue">115 cm</span>
+          </div>
+          <input type="range" id="distSlider" min="5" max="500" value="115" step="1">
+        </div>
+      </div>
+      <div style="font-size:10px;color:#555;margin-top:6px;text-align:center">
+        Drag the camera icon or use the slider to adjust distance &middot; Hover diagram for pixel density
       </div>
     </div>
   </div>
@@ -669,14 +742,26 @@
 
   // ── Camera presets ──────────────────────────────────────────────
   var PRESETS = {
-    dji:      { sw: 9.6, sh: 7.2, fl: 2.8, crop: 1.0, rw: 3840, rh: 2160, name: "DJI Action 5 Pro" },
-    gopro:    { sw: 6.2, sh: 4.6, fl: 2.92, crop: 1.0, rw: 3840, rh: 2160, name: "GoPro HERO 13 (4K)" },
-    basler:   { sw: 11.35, sh: 7.13, fl: 6.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 6mm" },
-    basler8:  { sw: 11.35, sh: 7.13, fl: 8.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 8mm" },
-    basler12: { sw: 11.35, sh: 7.13, fl: 12.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 12mm" },
+    dji:       { sw: 9.6, sh: 7.2, fl: 2.8, crop: 1.0, rw: 3840, rh: 2160, name: "DJI Action 5 Pro (4K)", color: "#667eea" },
+    dji1080:   { sw: 9.6, sh: 7.2, fl: 2.8, crop: 1.0, rw: 1920, rh: 1080, name: "DJI Action 5 Pro (1080p)", color: "#667eea" },
+    gopro:     { sw: 6.2, sh: 4.6, fl: 2.92, crop: 1.0, rw: 3840, rh: 2160, name: "GoPro HERO 13 (4K)", color: "#22d3ee" },
+    gopro53:   { sw: 6.2, sh: 4.6, fl: 2.92, crop: 1.0, rw: 5312, rh: 2988, name: "GoPro HERO 13 (5.3K)", color: "#22d3ee" },
+    basler:    { sw: 11.35, sh: 7.13, fl: 6.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 6mm", color: "#a78bfa" },
+    basler8:   { sw: 11.35, sh: 7.13, fl: 8.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 8mm", color: "#a78bfa" },
+    basler12:  { sw: 11.35, sh: 7.13, fl: 12.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 12mm", color: "#a78bfa" },
+    basler16:  { sw: 11.35, sh: 7.13, fl: 16.0, crop: 1.0, rw: 1920, rh: 1200, name: "Basler + 16mm", color: "#a78bfa" },
   };
 
+  var ARENA_PRESETS = {
+    custom: null,
+    tmaze: { w: 120, h: 80 }, openfield40: { w: 40, h: 40 }, openfield60: { w: 60, h: 60 },
+    linear150: { w: 150, h: 15 }, homecage: { w: 30, h: 20 }, epm: { w: 70, h: 70 },
+    barnes: { w: 90, h: 90 }, mwm: { w: 120, h: 120 }, spacecage: { w: 300, h: 30 },
+  };
+
+  // ── DOM refs ────────────────────────────────────────────────────
   var $cam = document.getElementById("calcCamera");
+  var $cam2 = document.getElementById("calcCamera2");
   var $sw = document.getElementById("calcSensorW");
   var $sh = document.getElementById("calcSensorH");
   var $fl = document.getElementById("calcFL");
@@ -686,80 +771,120 @@
   var $ow = document.getElementById("calcObjW");
   var $oh = document.getElementById("calcObjH");
   var $mount = document.getElementById("calcMount");
+  var $animal = document.getElementById("animalSize");
+  var $arenaPreset = document.getElementById("arenaPreset");
+  var $compareOn = document.getElementById("compareOn");
+  var $compareSelect = document.getElementById("compareSelect");
   var $results = document.getElementById("calcResults");
+  var $feasibility = document.getElementById("feasibility");
+  var $slider = document.getElementById("distSlider");
+  var $sliderVal = document.getElementById("sliderValue");
+  var $tooltip = document.getElementById("diagramTooltip");
   var canvas = document.getElementById("fovDiagram");
   var ctx = canvas.getContext("2d");
 
-  $cam.addEventListener("change", function() {
-    var p = PRESETS[$cam.value];
-    if (p) {
-      $sw.value = p.sw; $sh.value = p.sh; $fl.value = p.fl;
-      $crop.value = p.crop; $rw.value = p.rw; $rh.value = p.rh;
-    }
+  // ── Interaction state ───────────────────────────────────────────
+  var currentDist = 115; // cm, the live distance (driven by slider or drag)
+  var isDragging = false;
+  var lastCalc = {}; // store last calc result for hover queries
+  var sliderLocked = false; // true when user manually set distance
+
+  // ── Events: presets ─────────────────────────────────────────────
+  function applyPreset(key) {
+    var p = PRESETS[key];
+    if (p) { $sw.value = p.sw; $sh.value = p.sh; $fl.value = p.fl; $crop.value = p.crop; $rw.value = p.rw; $rh.value = p.rh; }
+  }
+  $cam.addEventListener("change", function() { applyPreset($cam.value); sliderLocked = false; updateCalculator(); });
+  $cam2.addEventListener("change", function() { updateCalculator(); });
+
+  $arenaPreset.addEventListener("change", function() {
+    var a = ARENA_PRESETS[$arenaPreset.value];
+    if (a) { $ow.value = a.w; $oh.value = a.h; sliderLocked = false; updateCalculator(); }
+  });
+
+  $compareOn.addEventListener("change", function() {
+    $compareSelect.style.display = $compareOn.checked ? "block" : "none";
     updateCalculator();
   });
 
-  [$sw, $sh, $fl, $crop, $rw, $rh, $ow, $oh, $mount].forEach(function(el) {
-    el.addEventListener("input", updateCalculator);
+  [$sw, $sh, $fl, $crop, $rw, $rh, $ow, $oh, $mount, $animal].forEach(function(el) {
+    el.addEventListener("input", function() { sliderLocked = false; updateCalculator(); });
   });
 
-  // ── Calculator logic ────────────────────────────────────────────
-  function calcFOV(sensorDim, fl) {
-    return 2 * Math.atan(sensorDim / (2 * fl)) * (180 / Math.PI);
+  $slider.addEventListener("input", function() {
+    currentDist = parseFloat($slider.value);
+    $sliderVal.textContent = Math.round(currentDist) + " cm";
+    sliderLocked = true;
+    updateCalculator();
+  });
+
+  // ── Core math ───────────────────────────────────────────────────
+  function calcFOV(sd, fl) { return 2 * Math.atan(sd / (2 * fl)) * (180 / Math.PI); }
+  function calcCov(fov, d) { return 2 * d * Math.tan(fov * Math.PI / 360); }
+  function calcDst(fov, c) { return c / (2 * Math.tan(fov * Math.PI / 360)); }
+
+  function computeCamera(key) {
+    var p = PRESETS[key];
+    if (!p) return null;
+    var esw = p.sw * p.crop, esh = p.sh * p.crop;
+    return { hfov: calcFOV(esw, p.fl), vfov: calcFOV(esh, p.fl), rw: p.rw, rh: p.rh, name: p.name, color: p.color };
   }
 
-  function calcCoverage(fovDeg, dist) {
-    return 2 * dist * Math.tan(fovDeg * Math.PI / 360);
-  }
-
-  function calcDist(fovDeg, coverage) {
-    return coverage / (2 * Math.tan(fovDeg * Math.PI / 360));
-  }
-
+  // ── Main update ─────────────────────────────────────────────────
   function updateCalculator() {
-    var sw = parseFloat($sw.value) || 9.6;
-    var sh = parseFloat($sh.value) || 7.2;
-    var fl = parseFloat($fl.value) || 2.8;
-    var crop = parseFloat($crop.value) || 1.0;
-    var rw = parseInt($rw.value) || 3840;
-    var rh = parseInt($rh.value) || 2160;
-    var objW = parseFloat($ow.value) || 120;
-    var objH = parseFloat($oh.value) || 80;
+    var sw = parseFloat($sw.value) || 9.6, sh = parseFloat($sh.value) || 7.2;
+    var fl = parseFloat($fl.value) || 2.8, crop = parseFloat($crop.value) || 1.0;
+    var rw = parseInt($rw.value) || 3840, rh = parseInt($rh.value) || 2160;
+    var objW = parseFloat($ow.value) || 120, objH = parseFloat($oh.value) || 80;
+    var animalW = parseFloat($animal.value) || 3;
     var isTopDown = $mount.value === "topdown";
 
-    // Effective sensor after crop
     var esw = sw * crop, esh = sh * crop;
+    var hfov = calcFOV(esw, fl), vfov = calcFOV(esh, fl);
 
-    var hfov = calcFOV(esw, fl);
-    var vfov = calcFOV(esh, fl);
+    // Recommended distance
+    var minDist = Math.max(calcDst(hfov, objW), calcDst(vfov, objH));
+    var recDist = minDist * 1.15;
 
-    // Minimum distance to cover object (use the more restrictive axis)
-    var distW = calcDist(hfov, objW); // cm
-    var distH = calcDist(vfov, objH);
-    var minDist = Math.max(distW, distH);
-    var recDist = minDist * 1.15; // 15% margin
+    // Use slider/drag distance if locked, else auto
+    if (!sliderLocked) {
+      currentDist = recDist;
+      $slider.value = Math.round(currentDist);
+      $sliderVal.textContent = Math.round(currentDist) + " cm";
+    }
+    var dist = currentDist;
+    $slider.max = Math.max(500, Math.round(dist * 2));
 
-    // Coverage at recommended distance
-    var covW = calcCoverage(hfov, recDist);
-    var covH = calcCoverage(vfov, recDist);
-
-    // Pixel density at recommended distance
-    var gsdH = covW / rw; // cm/px horizontal
-    var gsdV = covH / rh;
-    var pxPerCmH = rw / covW;
-    var pxPerCmV = rh / covH;
-
+    var covW = calcCov(hfov, dist), covH = calcCov(vfov, dist);
+    var pxH = rw / covW, pxV = rh / covH;
+    var gsdH = covW / rw * 10, gsdV = covH / rh * 10; // mm/px
     var fits = covW >= objW && covH >= objH;
 
-    $results.innerHTML =
-      rc(Math.round(recDist), "cm", "Recommended distance", isTopDown ? "mounting height" : "floor clearance", "#667eea") +
-      rc(Math.round(hfov) + "&deg;&times;" + Math.round(vfov) + "&deg;", "", "Field of view", "H &times; V", "#facc15") +
-      rc(Math.round(covW) + "&times;" + Math.round(covH), "cm", "Coverage area", "at rec. distance", "#22d3ee") +
-      rc(pxPerCmH.toFixed(1), "px/cm", "Pixel density (H)", gsdH.toFixed(2) + " mm/px", pxPerCmH > 7 ? "#4ade80" : pxPerCmH > 3 ? "#facc15" : "#f87171") +
-      rc(pxPerCmV.toFixed(1), "px/cm", "Pixel density (V)", gsdV.toFixed(2) + " mm/px", pxPerCmV > 7 ? "#4ade80" : pxPerCmV > 3 ? "#facc15" : "#f87171") +
-      rc(fits ? "YES" : "NO", "", "Object fits?", Math.round((covW - objW) / 2) + "cm margin each side", fits ? "#4ade80" : "#f87171");
+    // Animal tracking feasibility
+    var pxPerAnimal = Math.min(pxH, pxV) * animalW;
+    var trackOK = pxPerAnimal >= 15;
+    var trackLabel = pxPerAnimal >= 30 ? "Excellent" : pxPerAnimal >= 15 ? "Sufficient" : pxPerAnimal >= 8 ? "Marginal" : "Insufficient";
+    var trackColor = pxPerAnimal >= 30 ? "#4ade80" : pxPerAnimal >= 15 ? "#22d3ee" : pxPerAnimal >= 8 ? "#facc15" : "#f87171";
 
-    drawDiagram(hfov, vfov, recDist, covW, covH, objW, objH, isTopDown, rw, rh);
+    lastCalc = { hfov: hfov, vfov: vfov, dist: dist, covW: covW, covH: covH, objW: objW, objH: objH, isTopDown: isTopDown, rw: rw, rh: rh, pxH: pxH, pxV: pxV };
+
+    $results.innerHTML =
+      rc(Math.round(dist), "cm", sliderLocked ? "Current distance" : "Rec. distance", isTopDown ? "mounting height" : "floor clearance", "#667eea") +
+      rc(Math.round(hfov) + "&deg;&times;" + Math.round(vfov) + "&deg;", "", "Field of view", "H &times; V", "#facc15") +
+      rc(Math.round(covW) + "&times;" + Math.round(covH), "cm", "Coverage area", "at current distance", "#22d3ee") +
+      rc(pxH.toFixed(1), "px/cm", "Pixel density", gsdH.toFixed(1) + " mm/px", pxH > 7 ? "#4ade80" : pxH > 3 ? "#facc15" : "#f87171") +
+      rc(Math.round(pxPerAnimal), "px", "Pixels on animal", animalW + "cm &times; " + Math.min(pxH, pxV).toFixed(1) + " px/cm", trackColor) +
+      rc(fits ? "YES" : "NO", "", "Object fits?", fits ? Math.round((covW - objW) / 2) + "cm margin" : "Too close!", fits ? "#4ade80" : "#f87171");
+
+    $feasibility.innerHTML = '<div class="feasibility-bar"><div class="feasibility-dot" style="background:' + trackColor + '"></div>' +
+      '<span style="color:' + trackColor + ';font-weight:600">' + trackLabel + ' for SLEAP tracking</span>' +
+      '<span style="color:#666;margin-left:auto">' + Math.round(pxPerAnimal) + 'px across ' + animalW + 'cm animal (need &ge;15px)</span></div>';
+
+    // Comparison camera
+    var cmp = null;
+    if ($compareOn.checked) { cmp = computeCamera($cam2.value); }
+
+    drawDiagram(hfov, vfov, dist, covW, covH, objW, objH, isTopDown, rw, rh, cmp);
   }
 
   function rc(val, unit, label, sub, color) {
@@ -768,168 +893,263 @@
       (sub ? '<div class="result-sub">' + sub + '</div>' : '') + '</div>';
   }
 
+  // ── Draggable camera on canvas ──────────────────────────────────
+  var camIconPos = { x: 0, y: 0, r: 12 }; // set during draw
+
+  canvas.addEventListener("mousedown", function(e) {
+    var r = canvas.getBoundingClientRect();
+    var mx = (e.clientX - r.left) * (canvas.width / r.width);
+    var my = (e.clientY - r.top) * (canvas.height / r.height);
+    var dx = mx - camIconPos.x, dy = my - camIconPos.y;
+    if (Math.sqrt(dx * dx + dy * dy) < camIconPos.r + 8) {
+      isDragging = true;
+      canvas.classList.add("dragging");
+      e.preventDefault();
+    }
+  });
+
+  window.addEventListener("mousemove", function(e) {
+    if (!isDragging) return;
+    var r = canvas.getBoundingClientRect();
+    var my = (e.clientY - r.top) * (canvas.height / r.height);
+    // Convert pixel Y to distance
+    var isTopDown = $mount.value === "topdown";
+    var pad = 40;
+    var H = canvas.height;
+    var groundY = isTopDown ? H - pad - 40 : pad + 40;
+    var camBaseY = isTopDown ? pad + 20 : H - pad - 20;
+    var availH = Math.abs(groundY - camBaseY) - 20;
+    var maxDist = parseFloat($slider.max) || 500;
+    var pxPerCm = availH / maxDist;
+    var newDist;
+    if (isTopDown) {
+      newDist = Math.max(5, (my - pad - 20) / pxPerCm * -1);
+      newDist = Math.max(5, (groundY - my) / pxPerCm);
+    } else {
+      newDist = Math.max(5, (my - groundY) / pxPerCm);
+    }
+    newDist = Math.max(5, Math.min(maxDist, newDist));
+    currentDist = newDist;
+    $slider.value = Math.round(currentDist);
+    $sliderVal.textContent = Math.round(currentDist) + " cm";
+    sliderLocked = true;
+    updateCalculator();
+  });
+
+  window.addEventListener("mouseup", function() {
+    if (isDragging) { isDragging = false; canvas.classList.remove("dragging"); }
+  });
+
+  // ── Hover tooltip ───────────────────────────────────────────────
+  canvas.addEventListener("mousemove", function(e) {
+    if (isDragging) { $tooltip.style.display = "none"; return; }
+    var r = canvas.getBoundingClientRect();
+    var mx = (e.clientX - r.left) * (canvas.width / r.width);
+    var my = (e.clientY - r.top) * (canvas.height / r.height);
+
+    // Check if in top-view area (right half)
+    var W = canvas.width, midX = W / 2, pad = 40;
+    var c = lastCalc;
+    if (mx > midX && c.covW) {
+      var tvX0 = midX + pad, tvY0 = pad + 30;
+      var tvW2 = midX - pad * 2, tvH2 = canvas.height - pad * 2 - 30;
+      var maxDim = Math.max(c.covW, c.covH, c.objW, c.objH);
+      var tvScale = Math.min(tvW2, tvH2) / (maxDim * 1.2);
+      var tvCx = tvX0 + tvW2 / 2, tvCy = tvY0 + tvH2 / 2;
+      var cW2 = c.covW / 2 * tvScale, cH2 = c.covH / 2 * tvScale;
+      // Check if inside coverage rect
+      if (mx >= tvCx - cW2 && mx <= tvCx + cW2 && my >= tvCy - cH2 && my <= tvCy + cH2) {
+        // Position in coverage as fraction
+        var fx = (mx - (tvCx - cW2)) / (cW2 * 2);
+        var fy = (my - (tvCy - cH2)) / (cH2 * 2);
+        var realX = (fx * c.covW).toFixed(0);
+        var realY = (fy * c.covH).toFixed(0);
+        var px = Math.round(fx * c.rw);
+        var py = Math.round(fy * c.rh);
+        $tooltip.style.display = "block";
+        $tooltip.style.left = (e.clientX - r.left + 14) + "px";
+        $tooltip.style.top = (e.clientY - r.top - 10) + "px";
+        $tooltip.innerHTML = "Pos: " + realX + " &times; " + realY + " cm<br>" +
+          "Pixel: " + px + " &times; " + py + "<br>" +
+          "Density: " + c.pxH.toFixed(1) + " px/cm";
+        return;
+      }
+    }
+    // Check if hovering camera icon
+    var dx = mx - camIconPos.x, dy = my - camIconPos.y;
+    if (Math.sqrt(dx * dx + dy * dy) < camIconPos.r + 8) {
+      canvas.classList.add("hoverable");
+      $tooltip.style.display = "block";
+      $tooltip.style.left = (e.clientX - r.left + 14) + "px";
+      $tooltip.style.top = (e.clientY - r.top - 10) + "px";
+      $tooltip.textContent = "Drag to adjust distance";
+      return;
+    }
+    canvas.classList.remove("hoverable");
+    $tooltip.style.display = "none";
+  });
+
+  canvas.addEventListener("mouseleave", function() { $tooltip.style.display = "none"; canvas.classList.remove("hoverable"); });
+
   // ── FOV Diagram ─────────────────────────────────────────────────
-  function drawDiagram(hfov, vfov, dist, covW, covH, objW, objH, isTopDown, rw, rh) {
+  function drawDiagram(hfov, vfov, dist, covW, covH, objW, objH, isTopDown, rw, rh, cmp) {
     var W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#111";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H);
 
     // Grid
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 1;
     for (var x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (var y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
-    // Layout: side view on left, top-down view on right
-    var midX = W / 2;
-    var pad = 40;
+    var midX = W / 2, pad = 40;
 
     // ── Side view (left half) ──
-    var svW = midX - pad * 2, svH = H - pad * 2;
-    var camX = pad + svW / 2;
-    var camY = isTopDown ? pad + 20 : H - pad - 20;
+    var camX = pad + (midX - pad * 2) / 2;
+    var camBaseY = isTopDown ? pad + 20 : H - pad - 20;
     var groundY = isTopDown ? H - pad - 40 : pad + 40;
     var dir = isTopDown ? 1 : -1;
+    var maxSliderDist = parseFloat($slider.max) || 500;
+    var availH = Math.abs(groundY - camBaseY) - 20;
+    var scale = availH / maxSliderDist;
 
-    // Scale: fit the distance into the available space
-    var availH = Math.abs(groundY - camY) - 20;
-    var scale = availH / (dist > 0 ? dist : 100); // px per cm
+    var camY = isTopDown ? groundY - dist * scale : groundY + dist * scale;
+    camIconPos.x = camX; camIconPos.y = camY; camIconPos.r = 12;
 
-    var objGroundY = camY + dir * dist * scale;
+    var objY = groundY;
     var halfCovPx = covW / 2 * scale;
     var halfObjPx = objW / 2 * scale;
 
-    // FOV cone
-    var hfovRad = hfov * Math.PI / 180;
-    var coneLeft = camX - Math.tan(hfovRad / 2) * dist * scale;
-    var coneRight = camX + Math.tan(hfovRad / 2) * dist * scale;
+    // Comparison camera FOV cone (draw first, behind primary)
+    if (cmp) {
+      var cmpCovW = calcCov(cmp.hfov, dist);
+      var cmpHalfCov = cmpCovW / 2 * scale;
+      var cmpRad = cmp.hfov * Math.PI / 180;
+      var cmpCL = camX - Math.tan(cmpRad / 2) * dist * scale;
+      var cmpCR = camX + Math.tan(cmpRad / 2) * dist * scale;
+      ctx.fillStyle = "rgba(167,139,250,0.04)";
+      ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(cmpCL, objY); ctx.lineTo(cmpCR, objY); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = cmp.color + "55"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(cmpCL, objY); ctx.moveTo(camX, camY); ctx.lineTo(cmpCR, objY); ctx.stroke();
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = cmp.color + "66";
+      ctx.beginPath(); ctx.moveTo(camX - cmpHalfCov, objY); ctx.lineTo(camX + cmpHalfCov, objY); ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
-    ctx.fillStyle = "rgba(102,126,234,0.06)";
-    ctx.beginPath();
-    ctx.moveTo(camX, camY);
-    ctx.lineTo(coneLeft, objGroundY);
-    ctx.lineTo(coneRight, objGroundY);
-    ctx.closePath();
-    ctx.fill();
+    // Primary FOV cone
+    var hRad = hfov * Math.PI / 180;
+    var coneL = camX - Math.tan(hRad / 2) * dist * scale;
+    var coneR = camX + Math.tan(hRad / 2) * dist * scale;
 
-    ctx.strokeStyle = "rgba(102,126,234,0.3)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(camX, camY); ctx.lineTo(coneLeft, objGroundY);
-    ctx.moveTo(camX, camY); ctx.lineTo(coneRight, objGroundY);
-    ctx.stroke();
+    ctx.fillStyle = "rgba(102,126,234,0.07)";
+    ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(coneL, objY); ctx.lineTo(coneR, objY); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(102,126,234,0.35)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(camX, camY); ctx.lineTo(coneL, objY); ctx.moveTo(camX, camY); ctx.lineTo(coneR, objY); ctx.stroke();
 
-    // Object at ground level
-    var oLeft = camX - halfObjPx, oRight = camX + halfObjPx;
-    ctx.fillStyle = "rgba(74,222,128,0.12)";
-    ctx.fillRect(oLeft, objGroundY - 3, halfObjPx * 2, 6);
-    ctx.strokeStyle = "#4ade80";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(oLeft, objGroundY - 3, halfObjPx * 2, 6);
+    // Object
+    var oL = camX - halfObjPx, oR = camX + halfObjPx;
+    ctx.fillStyle = "rgba(74,222,128,0.15)";
+    ctx.fillRect(oL, objY - 4, halfObjPx * 2, 8);
+    ctx.strokeStyle = "#4ade80"; ctx.lineWidth = 2;
+    ctx.strokeRect(oL, objY - 4, halfObjPx * 2, 8);
 
     // Coverage line
-    ctx.strokeStyle = "#667eea";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(camX - halfCovPx, objGroundY); ctx.lineTo(camX + halfCovPx, objGroundY);
-    ctx.stroke();
+    ctx.strokeStyle = "#667eea"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(camX - halfCovPx, objY); ctx.lineTo(camX + halfCovPx, objY); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Distance line
-    ctx.strokeStyle = "#555";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(camX + halfCovPx + 20, camY);
-    ctx.lineTo(camX + halfCovPx + 20, objGroundY);
-    ctx.stroke();
-    // Arrow heads
-    ctx.fillStyle = "#888";
-    ctx.font = "11px -apple-system, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(Math.round(dist) + " cm", camX + halfCovPx + 42, (camY + objGroundY) / 2 + 4);
+    // Distance line with arrows
+    var dlX = Math.min(camX + halfCovPx + 24, midX - 20);
+    ctx.strokeStyle = "#555"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(dlX, camY); ctx.lineTo(dlX, objY); ctx.stroke();
+    // Arrows
+    ctx.fillStyle = "#555";
+    ctx.beginPath(); ctx.moveTo(dlX - 4, camY + (isTopDown ? 6 : -6)); ctx.lineTo(dlX + 4, camY + (isTopDown ? 6 : -6)); ctx.lineTo(dlX, camY); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(dlX - 4, objY + (isTopDown ? -6 : 6)); ctx.lineTo(dlX + 4, objY + (isTopDown ? -6 : 6)); ctx.lineTo(dlX, objY); ctx.fill();
 
-    // Camera icon
-    ctx.fillStyle = "#667eea";
-    ctx.beginPath();
-    ctx.arc(camX, camY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 9px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("C", camX, camY + 3);
+    ctx.fillStyle = "#888"; ctx.font = "11px -apple-system, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(Math.round(dist) + " cm", dlX + 24, (camY + objY) / 2 + 4);
 
-    // Labels
-    ctx.fillStyle = "#888";
-    ctx.font = "11px -apple-system, sans-serif";
-    ctx.fillText("Side View", pad + svW / 2, pad - 4);
+    // Camera icon (draggable)
+    ctx.save();
+    ctx.shadowColor = "#667eea"; ctx.shadowBlur = isDragging ? 16 : 8;
+    ctx.fillStyle = isDragging ? "#8899ff" : "#667eea";
+    ctx.beginPath(); ctx.arc(camX, camY, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("\u25A3", camX, camY + 4); // camera icon
 
-    ctx.fillStyle = "#4ade80";
-    ctx.fillText(objW + " cm", camX, objGroundY + (isTopDown ? 20 : -12));
+    // Side view labels
+    ctx.fillStyle = "#666"; ctx.font = "11px -apple-system, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Side View \u2014 drag camera to adjust", pad + (midX - pad * 2) / 2, pad - 4);
+    ctx.fillStyle = "#4ade80"; ctx.fillText(objW + " cm", camX, objY + (isTopDown ? 22 : -14));
+    ctx.fillStyle = "#667eea"; ctx.font = "10px sans-serif";
+    ctx.fillText(Math.round(covW) + " cm coverage", camX, objY + (isTopDown ? 36 : -28));
 
-    ctx.fillStyle = "#667eea";
-    ctx.fillText(Math.round(covW) + " cm coverage", camX, objGroundY + (isTopDown ? 34 : -26));
+    if (cmp) {
+      var cmpCovWVal = Math.round(calcCov(cmp.hfov, dist));
+      ctx.fillStyle = cmp.color; ctx.font = "10px sans-serif";
+      ctx.fillText(cmp.name + ": " + cmpCovWVal + " cm", camX, objY + (isTopDown ? 50 : -42));
+    }
 
     // ── Top-down view (right half) ──
     var tvX0 = midX + pad, tvY0 = pad + 30;
     var tvW2 = midX - pad * 2, tvH2 = H - pad * 2 - 30;
-
-    // Scale to fit the larger of coverage or object
     var maxDim = Math.max(covW, covH, objW, objH);
-    var tvScale = Math.min(tvW2, tvH2) / (maxDim * 1.2);
+    if (cmp) { var cmpCW = calcCov(cmp.hfov, dist), cmpCH = calcCov(cmp.vfov, dist); maxDim = Math.max(maxDim, cmpCW, cmpCH); }
+    var tvScale2 = Math.min(tvW2, tvH2) / (maxDim * 1.25);
     var tvCx = tvX0 + tvW2 / 2, tvCy = tvY0 + tvH2 / 2;
 
-    // Coverage rectangle
-    var cW2 = covW / 2 * tvScale, cH2 = covH / 2 * tvScale;
-    ctx.fillStyle = "rgba(102,126,234,0.08)";
-    ctx.fillRect(tvCx - cW2, tvCy - cH2, cW2 * 2, cH2 * 2);
-    ctx.strokeStyle = "rgba(102,126,234,0.4)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(tvCx - cW2, tvCy - cH2, cW2 * 2, cH2 * 2);
-
-    // Object rectangle
-    var ow2 = objW / 2 * tvScale, oh2 = objH / 2 * tvScale;
-    ctx.fillStyle = "rgba(74,222,128,0.12)";
-    ctx.fillRect(tvCx - ow2, tvCy - oh2, ow2 * 2, oh2 * 2);
-    ctx.strokeStyle = "#4ade80";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(tvCx - ow2, tvCy - oh2, ow2 * 2, oh2 * 2);
-
-    // Resolution grid hint (show a few pixel boundaries)
-    var pxSize = Math.max(2, covW / rw * tvScale);
-    if (pxSize > 3) {
-      ctx.strokeStyle = "rgba(255,255,255,0.05)";
-      ctx.lineWidth = 0.5;
-      var step = Math.ceil(4 / pxSize) * pxSize;
-      for (var gx = tvCx - ow2; gx <= tvCx + ow2; gx += step) {
-        ctx.beginPath(); ctx.moveTo(gx, tvCy - oh2); ctx.lineTo(gx, tvCy + oh2); ctx.stroke();
-      }
-      for (var gy = tvCy - oh2; gy <= tvCy + oh2; gy += step) {
-        ctx.beginPath(); ctx.moveTo(tvCx - ow2, gy); ctx.lineTo(tvCx + ow2, gy); ctx.stroke();
-      }
+    // Comparison coverage rect (behind)
+    if (cmp) {
+      var c2w = calcCov(cmp.hfov, dist) / 2 * tvScale2, c2h = calcCov(cmp.vfov, dist) / 2 * tvScale2;
+      ctx.fillStyle = cmp.color + "0D"; ctx.fillRect(tvCx - c2w, tvCy - c2h, c2w * 2, c2h * 2);
+      ctx.strokeStyle = cmp.color + "55"; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.strokeRect(tvCx - c2w, tvCy - c2h, c2w * 2, c2h * 2);
+      ctx.setLineDash([]);
     }
 
-    // Labels
-    ctx.fillStyle = "#888";
-    ctx.font = "11px -apple-system, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Top View (camera coverage vs object)", tvCx, tvY0 - 8);
+    // Primary coverage rect
+    var cW2 = covW / 2 * tvScale2, cH2 = covH / 2 * tvScale2;
+    ctx.fillStyle = "rgba(102,126,234,0.08)";
+    ctx.fillRect(tvCx - cW2, tvCy - cH2, cW2 * 2, cH2 * 2);
+    ctx.strokeStyle = "rgba(102,126,234,0.5)"; ctx.lineWidth = 1;
+    ctx.strokeRect(tvCx - cW2, tvCy - cH2, cW2 * 2, cH2 * 2);
 
-    ctx.fillStyle = "#4ade80";
-    ctx.font = "10px monospace";
+    // Object rect
+    var ow2 = objW / 2 * tvScale2, oh2 = objH / 2 * tvScale2;
+    ctx.fillStyle = "rgba(74,222,128,0.12)";
+    ctx.fillRect(tvCx - ow2, tvCy - oh2, ow2 * 2, oh2 * 2);
+    ctx.strokeStyle = "#4ade80"; ctx.lineWidth = 2;
+    ctx.strokeRect(tvCx - ow2, tvCy - oh2, ow2 * 2, oh2 * 2);
+
+    // Pixel grid hint
+    var pxSz = covW / rw * tvScale2;
+    if (pxSz > 3) {
+      ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 0.5;
+      var step = Math.ceil(4 / pxSz) * pxSz;
+      for (var gx = tvCx - ow2; gx <= tvCx + ow2; gx += step) { ctx.beginPath(); ctx.moveTo(gx, tvCy - oh2); ctx.lineTo(gx, tvCy + oh2); ctx.stroke(); }
+      for (var gy = tvCy - oh2; gy <= tvCy + oh2; gy += step) { ctx.beginPath(); ctx.moveTo(tvCx - ow2, gy); ctx.lineTo(tvCx + ow2, gy); ctx.stroke(); }
+    }
+
+    // Top-view labels
+    ctx.fillStyle = "#666"; ctx.font = "11px -apple-system, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Top View \u2014 hover for pixel density", tvCx, tvY0 - 8);
+    ctx.fillStyle = "#4ade80"; ctx.font = "10px monospace";
     ctx.fillText(objW + " \u00D7 " + objH + " cm", tvCx, tvCy + oh2 + 16);
-
     ctx.fillStyle = "#667eea";
     ctx.fillText(Math.round(covW) + " \u00D7 " + Math.round(covH) + " cm", tvCx, tvCy - cH2 - 6);
+    ctx.fillStyle = "#555"; ctx.font = "10px sans-serif";
+    ctx.fillText(rw + " \u00D7 " + rh + " px", tvCx, tvCy + Math.max(cH2, oh2) + 32);
 
-    // Resolution info
-    ctx.fillStyle = "#555";
-    ctx.font = "10px sans-serif";
-    ctx.fillText(rw + " \u00D7 " + rh + " px", tvCx, tvCy + cH2 + 30);
+    if (cmp) {
+      var cmpCWv = Math.round(calcCov(cmp.hfov, dist)), cmpCHv = Math.round(calcCov(cmp.vfov, dist));
+      ctx.fillStyle = cmp.color; ctx.font = "10px sans-serif";
+      ctx.fillText(cmp.name + ": " + cmpCWv + " \u00D7 " + cmpCHv + " cm", tvCx, tvCy + Math.max(cH2, oh2) + 46);
+    }
   }
 
-  // Initial render
+  // ── Initial render ──────────────────────────────────────────────
   setTimeout(updateCalculator, 100);
 })();
 </script>

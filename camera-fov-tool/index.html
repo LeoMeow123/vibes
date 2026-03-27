@@ -553,18 +553,92 @@
     <p><strong>Global</strong> (Basler): all pixels exposed simultaneously &mdash; no motion artifacts. <strong>Rolling</strong> (DJI, GoPro): row-by-row readout causes skew with fast motion.</p>
   </div>
   <div class="theory-section">
-    <h2>5. Lens Distortion Comparison</h2>
-    <p>Ultra-wide lenses cause barrel distortion. Here's how a straight grid appears through each camera:</p>
-    <div class="distortion-grid">
-      <div class="distortion-card"><canvas id="distDji" width="240" height="180"></canvas><div class="label" style="color:#667eea">DJI Action (strong barrel)</div></div>
-      <div class="distortion-card"><canvas id="distGopro" width="240" height="180"></canvas><div class="label" style="color:#22d3ee">GoPro HERO 13 (strong barrel)</div></div>
-      <div class="distortion-card"><canvas id="distBasler" width="240" height="180"></canvas><div class="label" style="color:#a78bfa">Basler + 6mm (minimal)</div></div>
-    </div>
-    <p>Distortion can be corrected with a charuco calibration board (see <code>vibing.calibration</code>). Our undistortion pipelines:</p>
+    <h2>5. Lens Distortion</h2>
     <p>
-      <a href="https://github.com/LeoMeow123/tmaze-undistort" target="_blank">tmaze-undistort</a> &mdash; T-maze lens distortion removal + perspective transformation to top-down views<br>
-      <a href="https://github.com/talmolab/spacecage-undistort" target="_blank">spacecage-undistort</a> &mdash; Fisheye correction for NASA SpaceCage with ROI calibration &amp; SLEAP coordinate transform
+      Distortion depends on your <strong>specific lens, FOV mode, and working distance</strong> &mdash; not just the camera brand.
+      Action cameras in <strong>Wide/SuperView mode</strong> have heavy barrel distortion, but <strong>Linear mode</strong>
+      applies in-camera correction and produces near-zero distortion. Basler distortion depends entirely on the C-mount lens
+      and can range from minimal (quality 12mm+) to significant (cheap wide-angle at close range).
     </p>
+    <p style="color:#facc15;font-size:12px">
+      The values below are estimates. For real distortion data, run <code>vibing.calibration.check_video()</code> with a charuco board
+      and enter your actual k1/k2 coefficients.
+    </p>
+
+    <!-- Interactive distortion cards -->
+    <div class="distortion-grid">
+      <div class="distortion-card">
+        <canvas id="distDji" width="260" height="200"></canvas>
+        <div style="padding:8px">
+          <label style="margin-bottom:2px">Mode</label>
+          <select id="distDjiMode" style="width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 6px;font-size:12px;margin-bottom:6px">
+            <option value="wide">Wide (155&deg;) &mdash; strong barrel</option>
+            <option value="standard">Standard &mdash; moderate</option>
+            <option value="linear">Linear &mdash; corrected</option>
+          </select>
+          <div class="label" id="distDjiLabel" style="color:#667eea">DJI Action 6 &middot; Wide</div>
+        </div>
+      </div>
+      <div class="distortion-card">
+        <canvas id="distGopro" width="260" height="200"></canvas>
+        <div style="padding:8px">
+          <label style="margin-bottom:2px">Mode</label>
+          <select id="distGoproMode" style="width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 6px;font-size:12px;margin-bottom:6px">
+            <option value="wide">Wide/SuperView &mdash; strong barrel</option>
+            <option value="linear" selected>Linear &mdash; corrected</option>
+            <option value="narrow">Narrow &mdash; minimal</option>
+          </select>
+          <div class="label" id="distGoproLabel" style="color:#22d3ee">GoPro HERO 13 &middot; Linear</div>
+        </div>
+      </div>
+      <div class="distortion-card">
+        <canvas id="distBasler" width="260" height="200"></canvas>
+        <div style="padding:8px">
+          <label style="margin-bottom:2px">Lens</label>
+          <select id="distBaslerMode" style="width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 6px;font-size:12px;margin-bottom:6px">
+            <option value="6mm">6mm &mdash; varies by lens quality</option>
+            <option value="8mm">8mm &mdash; less distortion</option>
+            <option value="12mm">12mm+ &mdash; minimal</option>
+            <option value="cheap">Cheap wide-angle &mdash; heavy</option>
+          </select>
+          <div class="label" id="distBaslerLabel" style="color:#a78bfa">Basler &middot; 6mm lens</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom k1/k2 input -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Custom Distortion Coefficients</div>
+      <div class="card-subtitle">From <code>vibing.calibration.check_video()</code> or OpenCV calibration</div>
+      <div class="form-grid" style="max-width:500px">
+        <div class="form-group">
+          <label>k1 (radial)</label>
+          <input type="number" id="customK1" step="0.01" value="0" style="font-size:12px">
+        </div>
+        <div class="form-group">
+          <label>k2 (radial)</label>
+          <input type="number" id="customK2" step="0.01" value="0" style="font-size:12px">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <canvas id="distCustom" width="300" height="230" style="border-radius:6px;border:1px solid #2a2a2a;background:#111"></canvas>
+        <div class="label" id="distCustomLabel" style="margin-top:4px">Your calibration &middot; k1=0, k2=0 (no distortion)</div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <p><strong>How to get real distortion data:</strong></p>
+      <div class="formula" style="font-size:12px;color:#ccc">
+from vibing.calibration import check_video<br>
+result = check_video("your_video.mp4")<br>
+print(result.reprojection_error) &nbsp;# lower = better calibration
+      </div>
+      <p style="margin-top:10px"><strong>Undistortion pipelines:</strong></p>
+      <p>
+        <a href="https://github.com/LeoMeow123/tmaze-undistort" target="_blank">tmaze-undistort</a> &mdash; T-maze lens distortion removal + perspective transformation to top-down views<br>
+        <a href="https://github.com/talmolab/spacecage-undistort" target="_blank">spacecage-undistort</a> &mdash; Fisheye correction for NASA SpaceCage with ROI calibration &amp; SLEAP coordinate transform
+      </p>
+    </div>
   </div>
   <div class="theory-section">
     <h2>6. Top-Down vs Bottom-Up Mounting</h2>
@@ -971,29 +1045,108 @@ drawMultiCam();
 // ══════════════════════════════════════════════════════════════════
 // DISTORTION PREVIEW
 // ══════════════════════════════════════════════════════════════════
-function drawDistortion(){
-  var configs=[{id:"distDji",k1:-0.32,k2:0.12,color:"#667eea"},{id:"distGopro",k1:-0.35,k2:0.14,color:"#22d3ee"},{id:"distBasler",k1:-0.02,k2:0.0,color:"#a78bfa"}];
-  configs.forEach(function(cfg){
-    var c=document.getElementById(cfg.id);if(!c)return;
-    var ct=c.getContext("2d"),w=c.width,h=c.height;
-    ct.clearRect(0,0,w,h);ct.fillStyle=isLight?"#f8f8f8":"#111";ct.fillRect(0,0,w,h);
-    ct.strokeStyle=cfg.color+"66";ct.lineWidth=1;
-    var nx=12,ny=9,cx=w/2,cy=h/2,maxR=Math.sqrt(cx*cx+cy*cy);
-    // Draw distorted grid
-    for(var iy=0;iy<=ny;iy++){ct.beginPath();
-      for(var ix=0;ix<=nx;ix++){
-        var ux=(ix/nx-0.5)*2,uy=(iy/ny-0.5)*2,r2=ux*ux+uy*uy,r4=r2*r2;
-        var f=1+cfg.k1*r2+cfg.k2*r4;var dx=ux*f*w/2+cx,dy=uy*f*h/2+cy;
-        if(ix===0)ct.moveTo(dx,dy);else ct.lineTo(dx,dy);
-      }ct.stroke();}
-    for(var ix2=0;ix2<=nx;ix2++){ct.beginPath();
-      for(var iy2=0;iy2<=ny;iy2++){
-        var ux2=(ix2/nx-0.5)*2,uy2=(iy2/ny-0.5)*2,r2b=ux2*ux2+uy2*uy2,r4b=r2b*r2b;
-        var fb=1+cfg.k1*r2b+cfg.k2*r4b;var dx2=ux2*fb*w/2+cx,dy2=uy2*fb*h/2+cy;
-        if(iy2===0)ct.moveTo(dx2,dy2);else ct.lineTo(dx2,dy2);
-      }ct.stroke();}
-  });
+// Distortion mode presets: { k1, k2, label }
+var DIST_MODES = {
+  dji: {
+    wide:     { k1: -0.30, k2: 0.10, label: "DJI Action 6 \u00B7 Wide (estimate)" },
+    standard: { k1: -0.12, k2: 0.02, label: "DJI Action 6 \u00B7 Standard (estimate)" },
+    linear:   { k1: -0.01, k2: 0.00, label: "DJI Action 6 \u00B7 Linear (corrected)" },
+  },
+  gopro: {
+    wide:   { k1: -0.33, k2: 0.12, label: "GoPro HERO 13 \u00B7 Wide/SuperView (estimate)" },
+    linear: { k1: -0.02, k2: 0.00, label: "GoPro HERO 13 \u00B7 Linear (corrected)" },
+    narrow: { k1: -0.01, k2: 0.00, label: "GoPro HERO 13 \u00B7 Narrow (minimal)" },
+  },
+  basler: {
+    "6mm":  { k1: -0.08, k2: 0.01, label: "Basler \u00B7 6mm (varies by lens quality)" },
+    "8mm":  { k1: -0.04, k2: 0.00, label: "Basler \u00B7 8mm (moderate)" },
+    "12mm": { k1: -0.01, k2: 0.00, label: "Basler \u00B7 12mm+ (minimal)" },
+    cheap:  { k1: -0.35, k2: 0.15, label: "Basler \u00B7 Cheap wide-angle (heavy!)" },
+  }
+};
+
+function drawDistGrid(canvasId, k1, k2, color) {
+  var c = document.getElementById(canvasId); if (!c) return;
+  var ct = c.getContext("2d"), w = c.width, h = c.height;
+  ct.clearRect(0, 0, w, h);
+  ct.fillStyle = isLight ? "#f8f8f8" : "#111"; ct.fillRect(0, 0, w, h);
+
+  // Draw undistorted grid faintly for reference
+  ct.strokeStyle = isLight ? "#ddd" : "#222"; ct.lineWidth = 0.5;
+  var nx = 12, ny = 9, cx = w / 2, cy = h / 2;
+  for (var gy = 0; gy <= ny; gy++) {
+    var yp = (gy / ny) * h; ct.beginPath(); ct.moveTo(0, yp); ct.lineTo(w, yp); ct.stroke();
+  }
+  for (var gx = 0; gx <= nx; gx++) {
+    var xp = (gx / nx) * w; ct.beginPath(); ct.moveTo(xp, 0); ct.lineTo(xp, h); ct.stroke();
+  }
+
+  // Draw distorted grid
+  ct.strokeStyle = color; ct.lineWidth = 1.2;
+  // Horizontal lines
+  for (var iy = 0; iy <= ny; iy++) { ct.beginPath();
+    for (var ix = 0; ix <= nx * 3; ix++) {
+      var ux = (ix / (nx * 3) - 0.5) * 2, uy = (iy / ny - 0.5) * 2;
+      var r2 = ux * ux + uy * uy, f = 1 + k1 * r2 + k2 * r2 * r2;
+      var dx = ux * f * w / 2 + cx, dy = uy * f * h / 2 + cy;
+      if (ix === 0) ct.moveTo(dx, dy); else ct.lineTo(dx, dy);
+    } ct.stroke(); }
+  // Vertical lines
+  for (var ix2 = 0; ix2 <= nx; ix2++) { ct.beginPath();
+    for (var iy2 = 0; iy2 <= ny * 3; iy2++) {
+      var ux2 = (ix2 / nx - 0.5) * 2, uy2 = (iy2 / (ny * 3) - 0.5) * 2;
+      var r2b = ux2 * ux2 + uy2 * uy2, fb = 1 + k1 * r2b + k2 * r2b * r2b;
+      var dx2 = ux2 * fb * w / 2 + cx, dy2 = uy2 * fb * h / 2 + cy;
+      if (iy2 === 0) ct.moveTo(dx2, dy2); else ct.lineTo(dx2, dy2);
+    } ct.stroke(); }
+
+  // Label k values
+  ct.fillStyle = isLight ? "#999" : "#555"; ct.font = "10px monospace"; ct.textAlign = "left";
+  ct.fillText("k1=" + k1.toFixed(2) + "  k2=" + k2.toFixed(2), 6, h - 6);
+
+  // Severity indicator
+  var severity = Math.abs(k1);
+  var sevLabel = severity < 0.03 ? "Minimal" : severity < 0.1 ? "Low" : severity < 0.2 ? "Moderate" : "Heavy";
+  var sevColor = severity < 0.03 ? "#4ade80" : severity < 0.1 ? "#22d3ee" : severity < 0.2 ? "#facc15" : "#f87171";
+  ct.fillStyle = sevColor; ct.font = "bold 11px sans-serif"; ct.textAlign = "right";
+  ct.fillText(sevLabel, w - 6, h - 6);
 }
+
+function drawDistortion() {
+  var djiMode = document.getElementById("distDjiMode").value;
+  var goproMode = document.getElementById("distGoproMode").value;
+  var baslerMode = document.getElementById("distBaslerMode").value;
+
+  var dji = DIST_MODES.dji[djiMode];
+  var gopro = DIST_MODES.gopro[goproMode];
+  var basler = DIST_MODES.basler[baslerMode];
+
+  drawDistGrid("distDji", dji.k1, dji.k2, "#667eea88");
+  document.getElementById("distDjiLabel").textContent = dji.label;
+
+  drawDistGrid("distGopro", gopro.k1, gopro.k2, "#22d3ee88");
+  document.getElementById("distGoproLabel").textContent = gopro.label;
+
+  drawDistGrid("distBasler", basler.k1, basler.k2, "#a78bfa88");
+  document.getElementById("distBaslerLabel").textContent = basler.label;
+
+  drawCustomDistortion();
+}
+
+function drawCustomDistortion() {
+  var k1 = parseFloat(document.getElementById("customK1").value) || 0;
+  var k2 = parseFloat(document.getElementById("customK2").value) || 0;
+  drawDistGrid("distCustom", k1, k2, "#facc1588");
+  document.getElementById("distCustomLabel").textContent = "Your calibration \u00B7 k1=" + k1 + ", k2=" + k2;
+}
+
+// Wire up distortion mode selectors
+["distDjiMode", "distGoproMode", "distBaslerMode"].forEach(function(id) {
+  document.getElementById(id).addEventListener("change", drawDistortion);
+});
+["customK1", "customK2"].forEach(function(id) {
+  document.getElementById(id).addEventListener("input", drawCustomDistortion);
+});
 
 })();
 </script>

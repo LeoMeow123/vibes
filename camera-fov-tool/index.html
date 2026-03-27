@@ -241,7 +241,7 @@
 <div class="header">
   <div style="display:flex;align-items:baseline;gap:14px">
     <h1>Lab Camera Comparison</h1>
-    <span class="sub">DJI Action &middot; GoPro HERO 13 &middot; Basler ace 2</span>
+    <span class="sub">DJI Action 6 &middot; GoPro HERO 13 &middot; Basler ace 2</span>
   </div>
   <div class="header-actions">
     <button class="icon-btn" id="exportBtn" title="Export diagram as PNG">Export PNG</button>
@@ -265,7 +265,7 @@
 <div class="page active" id="page-overview">
   <div class="cam-grid">
     <div class="cam-card dji">
-      <div class="cam-header"><div class="cam-brand">DJI</div><div class="cam-model">Osmo Action 5 Pro</div><div class="cam-type">Action Camera &middot; RGB</div></div>
+      <div class="cam-header"><div class="cam-brand">DJI</div><div class="cam-model">Action 6</div><div class="cam-type">Action Camera &middot; RGB</div></div>
       <div class="cam-body">
         <div class="cam-highlight"><span class="label">Sensor</span><span class="value">1/1.3" CMOS</span></div>
         <div class="cam-highlight"><span class="label">Resolution</span><span class="value">4K (3840&times;2160)</span></div>
@@ -276,7 +276,7 @@
         <div class="cam-highlight"><span class="label">App</span><span class="value"><span class="cam-badge badge-green">Excellent</span></span></div>
         <div class="cam-highlight"><span class="label">Overheat</span><span class="value"><span class="cam-badge badge-green">No issues</span></span></div>
       </div>
-      <div class="cam-footer" style="color:#4ade80">~$300</div>
+      <div class="cam-footer" style="color:#4ade80">~$400</div>
     </div>
     <div class="cam-card gopro">
       <div class="cam-header"><div class="cam-brand">GoPro</div><div class="cam-model">HERO 13 Black</div><div class="cam-type">Action Camera &middot; RGB</div></div>
@@ -304,13 +304,13 @@
         <div class="cam-highlight"><span class="label">Shutter</span><span class="value"><span class="cam-badge badge-blue">Global</span></span></div>
         <div class="cam-highlight"><span class="label">Sync</span><span class="value"><span class="cam-badge badge-green">HW trigger</span></span></div>
       </div>
-      <div class="cam-footer" style="color:#a78bfa">~$570 + lens</div>
+      <div class="cam-footer" style="color:#a78bfa">~$1,200 + lens</div>
     </div>
   </div>
   <div class="card" style="margin-top:8px">
     <div class="card-title">Quick Verdict for Animal Tracking</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:12px;color:#999">
-      <div><strong style="color:#667eea">DJI Action 5 Pro</strong><br>Best all-round choice. Reliable app, no overheating, long battery. Great for top-down recording where 4K is sufficient.</div>
+      <div><strong style="color:#667eea">DJI Action 6</strong><br>Best all-round choice. Reliable app, no overheating, long battery. Great for top-down recording where 4K is sufficient.</div>
       <div><strong style="color:#22d3ee">GoPro HERO 13</strong><br>Highest raw resolution (5.3K) but poor app reliability (50% connection failure), overheating at 4K cuts recordings. Best as backup.</div>
       <div><strong style="color:#a78bfa">Basler ace 2</strong><br>Gold standard for precision. Global shutter, 165fps continuous, hardware trigger sync. Mono only. Requires PC + 5GigE.</div>
     </div>
@@ -321,7 +321,7 @@
 <div class="page" id="page-specs">
   <div class="card" style="overflow-x:auto">
     <table class="comp-table">
-      <thead><tr><th>Specification</th><th style="color:#667eea">DJI Action 5 Pro</th><th style="color:#22d3ee">GoPro HERO 13</th><th style="color:#a78bfa">Basler a2A1920-165g5m</th></tr></thead>
+      <thead><tr><th>Specification</th><th style="color:#667eea">DJI Action 6</th><th style="color:#22d3ee">GoPro HERO 13</th><th style="color:#a78bfa">Basler a2A1920-165g5m</th></tr></thead>
       <tbody>
         <tr class="cat-row"><td colspan="4">Sensor &amp; Optics</td></tr>
         <tr><td class="spec-name">Sensor size</td><td class="best">1/1.3" (~9.6&times;7.2mm)</td><td>1/1.9" (~6.2&times;4.6mm)</td><td>1/1.2" (11.3&times;7.1mm, IMX392)</td></tr>
@@ -349,7 +349,7 @@
         <tr class="cat-row"><td colspan="4">Physical</td></tr>
         <tr><td class="spec-name">Weight</td><td class="best">146g</td><td>154g</td><td>&lt;105g (body)</td></tr>
         <tr><td class="spec-name">Waterproof</td><td class="best">20m</td><td>10m</td><td class="bad">No</td></tr>
-        <tr><td class="spec-name">Price</td><td class="best">~$300</td><td>~$400</td><td>~$570 + lens</td></tr>
+        <tr><td class="spec-name">Price</td><td>~$400</td><td>~$400</td><td>~$1,200 + lens</td></tr>
       </tbody>
     </table>
   </div>
@@ -413,8 +413,8 @@
           <div class="form-group full">
             <label for="calcCamera">Camera preset</label>
             <select id="calcCamera">
-              <option value="dji">DJI Action 5 Pro (4K)</option>
-              <option value="dji1080">DJI Action 5 Pro (1080p)</option>
+              <option value="dji">DJI Action 6 (4K)</option>
+              <option value="dji1080">DJI Action 6 (1080p)</option>
               <option value="gopro">GoPro HERO 13 (4K)</option>
               <option value="gopro53">GoPro HERO 13 (5.3K)</option>
               <option value="basler">Basler ace 2 + 6mm</option>
@@ -436,7 +436,7 @@
         </div>
         <div id="compareSelect" style="display:none">
           <select id="calcCamera2" style="width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px 10px;font-size:14px">
-            <option value="gopro">GoPro HERO 13 (4K)</option><option value="dji">DJI Action 5 Pro (4K)</option>
+            <option value="gopro">GoPro HERO 13 (4K)</option><option value="dji">DJI Action 6 (4K)</option>
             <option value="basler">Basler + 6mm</option><option value="basler8">Basler + 8mm</option><option value="basler12">Basler + 12mm</option>
           </select>
         </div>
@@ -470,7 +470,7 @@
         <div class="diagram-tooltip" id="diagramTooltip"></div>
         <div class="dist-slider-wrap">
           <div class="dist-slider-label"><span>Distance</span><span id="sliderValue">115 cm</span></div>
-          <input type="range" id="distSlider" min="5" max="500" value="115" step="1">
+          <input type="range" id="distSlider" min="5" max="200" value="115" step="1">
         </div>
       </div>
       <div style="font-size:10px;color:#555;margin-top:6px;text-align:center">Drag camera icon or use slider &middot; Hover top view for pixel info</div>
@@ -499,9 +499,12 @@
       <div class="card">
         <div class="card-title">Arena</div>
         <div class="form-grid">
+          <div class="form-group full"><label>Preset</label>
+            <select id="mcArenaPreset"><option value="custom">Custom</option><option value="tmaze">T-Maze (120&times;80)</option><option value="openfield40">Open Field 40&times;40</option><option value="openfield60">Open Field 60&times;60</option><option value="linear150">Linear Track 150&times;15</option><option value="homecage">Home Cage 30&times;20</option><option value="epm">EPM 70&times;70</option><option value="barnes">Barnes 90&times;90</option><option value="mwm">MWM 120&times;120</option><option value="spacecage">SpaceCage 300&times;30</option></select>
+          </div>
           <div class="form-group"><label>Width (cm)</label><input type="number" id="mcArenaW" value="120"></div>
           <div class="form-group"><label>Depth (cm)</label><input type="number" id="mcArenaH" value="80"></div>
-          <div class="form-group"><label>Camera height (cm)</label><input type="number" id="mcHeight" value="100"></div>
+          <div class="form-group full"><label>Camera height (cm)</label><input type="number" id="mcHeight" value="100"></div>
         </div>
       </div>
       <div class="card">
@@ -557,7 +560,11 @@
       <div class="distortion-card"><canvas id="distGopro" width="240" height="180"></canvas><div class="label" style="color:#22d3ee">GoPro HERO 13 (strong barrel)</div></div>
       <div class="distortion-card"><canvas id="distBasler" width="240" height="180"></canvas><div class="label" style="color:#a78bfa">Basler + 6mm (minimal)</div></div>
     </div>
-    <p>Distortion can be corrected with a charuco calibration board (see <code>vibing.calibration</code>).</p>
+    <p>Distortion can be corrected with a charuco calibration board (see <code>vibing.calibration</code>). Our undistortion pipelines:</p>
+    <p>
+      <a href="https://github.com/LeoMeow123/tmaze-undistort" target="_blank">tmaze-undistort</a> &mdash; T-maze lens distortion removal + perspective transformation to top-down views<br>
+      <a href="https://github.com/talmolab/spacecage-undistort" target="_blank">spacecage-undistort</a> &mdash; Fisheye correction for NASA SpaceCage with ROI calibration &amp; SLEAP coordinate transform
+    </p>
   </div>
   <div class="theory-section">
     <h2>6. Top-Down vs Bottom-Up Mounting</h2>
@@ -620,8 +627,8 @@ document.getElementById("exportBtn").addEventListener("click", function() {
 // CAMERA PRESETS
 // ══════════════════════════════════════════════════════════════════
 var PRESETS = {
-  dji:      { sw:9.6, sh:7.2, fl:2.8, crop:1, rw:3840, rh:2160, name:"DJI Action 5 Pro (4K)", color:"#667eea", bitrate:100, battery:150, thermal:999 },
-  dji1080:  { sw:9.6, sh:7.2, fl:2.8, crop:1, rw:1920, rh:1080, name:"DJI Action 5 Pro (1080p)", color:"#667eea", bitrate:45, battery:240, thermal:999 },
+  dji:      { sw:9.6, sh:7.2, fl:2.8, crop:1, rw:3840, rh:2160, name:"DJI Action 6 (4K)", color:"#667eea", bitrate:100, battery:150, thermal:999 },
+  dji1080:  { sw:9.6, sh:7.2, fl:2.8, crop:1, rw:1920, rh:1080, name:"DJI Action 6 (1080p)", color:"#667eea", bitrate:45, battery:240, thermal:999 },
   gopro:    { sw:6.2, sh:4.6, fl:2.92, crop:1, rw:3840, rh:2160, name:"GoPro HERO 13 (4K)", color:"#22d3ee", bitrate:100, battery:90, thermal:90 },
   gopro53:  { sw:6.2, sh:4.6, fl:2.92, crop:1, rw:5312, rh:2988, name:"GoPro HERO 13 (5.3K)", color:"#22d3ee", bitrate:120, battery:60, thermal:60 },
   basler:   { sw:11.35, sh:7.13, fl:6, crop:1, rw:1920, rh:1200, name:"Basler + 6mm", color:"#a78bfa", bitrate:0, battery:999, thermal:999 },
@@ -673,7 +680,7 @@ function updateCalculator() {
   var hfov=calcFOV(sw*crop,fl),vfov=calcFOV(sh*crop,fl);
   var minD=Math.max(calcDst(hfov,objW),calcDst(vfov,objH)),recD=minD*1.15;
   if(!sliderLocked){currentDist=recD;$slider.value=Math.round(currentDist);$sliderVal.textContent=Math.round(currentDist)+" cm";}
-  var d=currentDist; $slider.max=Math.max(500,Math.round(d*2));
+  var d=currentDist; $slider.max=200;
   var covW=calcCov(hfov,d),covH=calcCov(vfov,d);
   var pxH=rw/covW,pxV=rh/covH,pxA=Math.min(pxH,pxV)*anW;
   var fits=covW>=objW&&covH>=objH;
@@ -724,7 +731,10 @@ function rc(v,u,l,s,c){return'<div class="result-card"><div class="result-value"
 
 // ── Drag camera ──
 canvas.addEventListener("mousedown",function(e){var r=canvas.getBoundingClientRect(),mx=(e.clientX-r.left)*(canvas.width/r.width),my=(e.clientY-r.top)*(canvas.height/r.height),dx=mx-camIconPos.x,dy=my-camIconPos.y;if(Math.sqrt(dx*dx+dy*dy)<camIconPos.r+10){isDragging=true;canvas.classList.add("dragging");e.preventDefault();}});
-window.addEventListener("mousemove",function(e){if(!isDragging)return;var r=canvas.getBoundingClientRect(),my=(e.clientY-r.top)*(canvas.height/r.height);var H=canvas.height,pad=40,groundY=lastCalc.isTopDown?H-pad-40:pad+40,maxD=+$slider.max||500,availH=Math.abs(groundY-(lastCalc.isTopDown?pad+20:H-pad-20))-20,ppc=availH/maxD;var nd=lastCalc.isTopDown?Math.max(5,(groundY-my)/ppc):Math.max(5,(my-groundY)/ppc);nd=Math.max(5,Math.min(maxD,nd));currentDist=nd;$slider.value=Math.round(nd);$sliderVal.textContent=Math.round(nd)+" cm";sliderLocked=true;updateCalculator();});
+window.addEventListener("mousemove",function(e){if(!isDragging)return;var r=canvas.getBoundingClientRect(),my=(e.clientY-r.top)*(canvas.height/r.height);var H=canvas.height,pad=40,sideH=H-pad*2-60,maxD=200,scale2=sideH/maxD,centerY=H/2;
+  // Convert mouse Y to distance: how far is mouse from the ground line (at center +/- span/2)
+  var nd;if(lastCalc.isTopDown){nd=(centerY-my+lastCalc.dist*scale2/2)/scale2*2;nd=centerY+lastCalc.dist*scale2/2;nd=Math.abs(my-(centerY+lastCalc.dist*scale2/2))/scale2;/* simplify: */nd=Math.abs(centerY-my)*2/scale2;}else{nd=Math.abs(my-centerY)*2/scale2;}
+  nd=Math.max(5,Math.min(maxD,nd));currentDist=nd;$slider.value=Math.round(nd);$sliderVal.textContent=Math.round(nd)+" cm";sliderLocked=true;updateCalculator();});
 window.addEventListener("mouseup",function(){if(isDragging){isDragging=false;canvas.classList.remove("dragging");}});
 
 // ── Hover tooltip ──
@@ -743,9 +753,16 @@ function drawDiagram(hfov,vfov,dist,covW,covH,objW,objH,isTop,rw,rh,cmp) {
   for(var x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
   for(var y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
   var midX=W/2,pad=40,camX=pad+(midX-pad*2)/2;
-  var camBaseY=isTop?pad+20:H-pad-20,groundY=isTop?H-pad-40:pad+40;
-  var maxSD=+$slider.max||500,availH=Math.abs(groundY-camBaseY)-20,scale=availH/maxSD;
-  var camY=isTop?groundY-dist*scale:groundY+dist*scale;
+  // Center the side view vertically: camera and ground spaced around the vertical midpoint
+  var sideH=H-pad*2-60, maxSD=200;
+  var scale=sideH/maxSD;
+  var spanPx=dist*scale;
+  var centerY=H/2;
+  var camY,objY;
+  if(isTop){camY=centerY-spanPx/2;objY=centerY+spanPx/2;}else{camY=centerY+spanPx/2;objY=centerY-spanPx/2;}
+  // Clamp to canvas bounds
+  camY=Math.max(pad+12,Math.min(H-pad-12,camY));
+  objY=Math.max(pad+12,Math.min(H-pad-12,objY));
   camIconPos.x=camX;camIconPos.y=camY;camIconPos.r=12;
   var objY=groundY,halfCovPx=covW/2*scale,halfObjPx=objW/2*scale;
 
@@ -825,7 +842,7 @@ var WIZARD_QS = [
   { id:"color", title:"Color", sub:"Do you need color video?", opts:[
     {label:"Yes, need RGB",v:"y",dji:10,gopro:10,basler:2},{label:"No, grayscale OK",v:"n",dji:8,gopro:7,basler:10}]},
   { id:"budget", title:"Budget", sub:"Per-camera budget?", opts:[
-    {label:"Budget (~$300)",v:"lo",dji:10,gopro:6,basler:3},{label:"Moderate (~$500)",v:"mid",dji:9,gopro:8,basler:6},{label:"No limit",v:"hi",dji:8,gopro:7,basler:10}]},
+    {label:"Budget (~$400)",v:"lo",dji:10,gopro:9,basler:3},{label:"Moderate (~$800)",v:"mid",dji:9,gopro:8,basler:5},{label:"No limit",v:"hi",dji:8,gopro:7,basler:10}]},
 ];
 var wizStep=0, wizAnswers=[];
 var $wizSteps=document.getElementById("wizSteps"), $wizResult=document.getElementById("wizResult");
@@ -862,7 +879,7 @@ function showWizResult() {
   });
   var maxS=Math.max(scores.dji,scores.gopro,scores.basler);
   var cams=[
-    {key:"dji",name:"DJI Osmo Action 5 Pro",score:scores.dji,color:"#667eea",reasons:reasons.dji},
+    {key:"dji",name:"DJI Action 6",score:scores.dji,color:"#667eea",reasons:reasons.dji},
     {key:"gopro",name:"GoPro HERO 13 Black",score:scores.gopro,color:"#22d3ee",reasons:reasons.gopro},
     {key:"basler",name:"Basler ace 2 + 6mm",score:scores.basler,color:"#a78bfa",reasons:reasons.basler},
   ].sort(function(a,b){return b.score-a.score;});
@@ -887,6 +904,9 @@ function addMcCam(type){
   var aw=+document.getElementById("mcArenaW").value||120,ah=+document.getElementById("mcArenaH").value||80;
   mcCams.push({type:type,x:aw/2,y:-10,angle:180}); drawMultiCam();
 }
+document.getElementById("mcArenaPreset").addEventListener("change",function(){
+  var a=ARENA_PRESETS[this.value];if(a){document.getElementById("mcArenaW").value=a.w;document.getElementById("mcArenaH").value=a.h;drawMultiCam();}
+});
 document.getElementById("mcAddDji").addEventListener("click",function(){addMcCam("dji");});
 document.getElementById("mcAddGopro").addEventListener("click",function(){addMcCam("gopro");});
 document.getElementById("mcAddBasler").addEventListener("click",function(){addMcCam("basler");});

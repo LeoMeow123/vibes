@@ -22,9 +22,11 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import glob as globmod
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -66,7 +68,11 @@ def load_config() -> dict:
     cfg["machine_type"] = os.environ.get(
         "GPU_DASH_TYPE", cfg.get("machine_type", "workstation")
     )
-    cfg.setdefault("interval_seconds", 30)
+    cfg.setdefault("interval_seconds", 120)
+    cfg["inference_log_dir"] = os.environ.get(
+        "GPU_DASH_INFERENCE_LOG_DIR", cfg.get("inference_log_dir", "")
+    )
+    cfg.setdefault("inference_refresh_seconds", 3600)
 
     if not cfg["gist_id"]:
         print("ERROR: No gist_id configured.")
@@ -259,6 +265,169 @@ def collect_system() -> dict:
     }
 
 
+# ── Inference progress collection ─────────────────────────────────────────────
+
+_inference_cache: dict | None = None
+_inference_cache_time: float = 0.0
+
+
+def collect_inference(cfg: dict) -> dict | None:
+    """Parse JSONL inference logs and return a progress summary.
+
+    Returns None if inference_log_dir is not configured or has no data.
+    Results are cached for inference_refresh_seconds.
+    """
+    global _inference_cache, _inference_cache_time
+
+    log_dir = cfg.get("inference_log_dir", "")
+    if not log_dir or not os.path.isdir(log_dir):
+        return None
+
+    refresh = cfg.get("inference_refresh_seconds", 3600)
+    if _inference_cache is not None and (time.time() - _inference_cache_time) < refresh:
+        return _inference_cache
+
+    jsonl_files = sorted(globmod.glob(os.path.join(log_dir, "*_progress.jsonl")))
+    if not jsonl_files:
+        return None
+
+    cameras = {}
+    earliest_ts = None
+
+    for filepath in jsonl_files:
+        # Derive camera name from filename: cam_01_progress.jsonl -> cam_01
+        basename = os.path.basename(filepath)
+        cam_name = basename.replace("_progress.jsonl", "")
+
+        try:
+            with open(filepath) as f:
+                lines = f.readlines()
+        except OSError:
+            continue
+
+        if not lines:
+            continue
+
+        completed = 0
+        failed = 0
+        fps_sum = 0.0
+        fps_count = 0
+        runtime_sum = 0.0
+        first_ts = None
+        last_entry = None
+
+        # Pattern to fix invalid JSON: leading zeros in numbers (e.g. "frames":02)
+        _leading_zero_re = re.compile(r'(?<=:)0(\d+)(?=[,}])')
+
+        for raw in lines:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                entry = json.loads(raw)
+            except json.JSONDecodeError:
+                # Try fixing leading zeros in numeric values
+                try:
+                    fixed = _leading_zero_re.sub(r'\1', raw)
+                    entry = json.loads(fixed)
+                except json.JSONDecodeError:
+                    continue
+
+            status = entry.get("status", "")
+            if status == "completed":
+                completed += 1
+                fps_val = entry.get("fps")
+                if fps_val is not None:
+                    fps_sum += float(fps_val)
+                    fps_count += 1
+            elif status == "failed":
+                failed += 1
+
+            rt = entry.get("runtime_sec")
+            if rt is not None:
+                runtime_sum += float(rt)
+
+            ts = entry.get("timestamp")
+            if ts and first_ts is None:
+                first_ts = ts
+            last_entry = entry
+
+        if last_entry is None:
+            continue
+
+        videos_done = last_entry.get("videos_done", completed + failed)
+        videos_total = last_entry.get("videos_total", 0)
+        avg_fps = round(fps_sum / fps_count, 1) if fps_count > 0 else 0.0
+
+        # Per-camera ETA based on average runtime per video
+        eta_hours = None
+        if videos_done > 0 and videos_total > 0:
+            remaining = videos_total - videos_done
+            avg_time = runtime_sum / videos_done
+            eta_hours = round(avg_time * remaining / 3600, 1)
+
+        cameras[cam_name] = {
+            "gpu": last_entry.get("gpu"),
+            "videos_done": videos_done,
+            "videos_total": videos_total,
+            "sessions_done": last_entry.get("sessions_done"),
+            "sessions_total": last_entry.get("sessions_total"),
+            "completed": completed,
+            "failed": failed,
+            "avg_fps": avg_fps,
+            "total_runtime_sec": round(runtime_sum, 1),
+            "last_session": last_entry.get("session", ""),
+            "last_video": last_entry.get("video", ""),
+            "eta_hours": eta_hours,
+        }
+
+        if first_ts is not None:
+            if earliest_ts is None or first_ts < earliest_ts:
+                earliest_ts = first_ts
+
+    if not cameras:
+        return None
+
+    # Totals
+    total_done = sum(c["videos_done"] for c in cameras.values())
+    total_total = sum(c["videos_total"] for c in cameras.values())
+    total_completed = sum(c["completed"] for c in cameras.values())
+    total_failed = sum(c["failed"] for c in cameras.values())
+    all_fps = [c["avg_fps"] for c in cameras.values() if c["avg_fps"] > 0]
+    avg_fps_all = round(sum(all_fps) / len(all_fps), 1) if all_fps else 0.0
+
+    # Wall-clock ETA
+    wall_eta_hours = None
+    if earliest_ts and total_done > 0 and total_total > 0:
+        try:
+            first_epoch = dt.datetime.fromisoformat(
+                earliest_ts.replace("Z", "+00:00")
+            ).timestamp()
+            elapsed = time.time() - first_epoch
+            remaining = total_total - total_done
+            wall_per_video = elapsed / total_done
+            wall_eta_hours = round(wall_per_video * remaining / 3600, 1)
+        except (ValueError, OSError):
+            pass
+
+    result = {
+        "cameras": cameras,
+        "totals": {
+            "videos_done": total_done,
+            "videos_total": total_total,
+            "completed": total_completed,
+            "failed": total_failed,
+            "avg_fps": avg_fps_all,
+        },
+        "wall_eta_hours": wall_eta_hours,
+        "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+
+    _inference_cache = result
+    _inference_cache_time = time.time()
+    return result
+
+
 # ── Assemble snapshot ─────────────────────────────────────────────────────────
 
 
@@ -277,7 +446,7 @@ def collect_snapshot(cfg: dict) -> dict:
 
     system = collect_system()
 
-    return {
+    snapshot = {
         "machine": {
             "hostname": system["hostname"],
             "label": cfg["machine_label"],
@@ -290,12 +459,22 @@ def collect_snapshot(cfg: dict) -> dict:
         "gpus": gpus,
     }
 
+    inference = collect_inference(cfg)
+    if inference is not None:
+        snapshot["inference"] = inference
+
+    return snapshot
+
 
 # ── Push to Gist ──────────────────────────────────────────────────────────────
 
 
-def push_to_gist(cfg: dict, snapshot: dict) -> bool:
-    """Update the machine's file in the shared Gist."""
+def push_to_gist(cfg: dict, snapshot: dict) -> tuple[bool, int]:
+    """Update the machine's file in the shared Gist.
+
+    Returns (success, retry_after_seconds). retry_after_seconds > 0 means
+    the caller should back off before the next attempt.
+    """
     hostname = snapshot["machine"]["hostname"]
     # Sanitize hostname for filename
     safe_name = "".join(c if c.isalnum() or c in "-_" else "-" for c in hostname)
@@ -314,13 +493,17 @@ def push_to_gist(cfg: dict, snapshot: dict) -> bool:
             timeout=15,
         )
         if resp.status_code == 200:
-            return True
+            return True, 0
+        elif resp.status_code in (403, 429):
+            retry_after = int(resp.headers.get("Retry-After", 0))
+            _log(f"Rate limited ({resp.status_code}), Retry-After: {retry_after}s")
+            return False, retry_after
         else:
             _log(f"Gist update failed: {resp.status_code} {resp.text[:200]}")
-            return False
+            return False, 0
     except requests.RequestException as e:
         _log(f"Gist update error: {e}")
-        return False
+        return False, 0
 
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -357,6 +540,7 @@ def main():
         cfg = {
             "machine_label": os.environ.get("GPU_DASH_LABEL", platform.node()),
             "machine_type": os.environ.get("GPU_DASH_TYPE", "workstation"),
+            "inference_log_dir": os.environ.get("GPU_DASH_INFERENCE_LOG_DIR", ""),
         }
         snapshot = collect_snapshot(cfg)
         print(json.dumps(snapshot, indent=2))
@@ -371,27 +555,45 @@ def main():
     _log(f"  GPUs detected: {len(collect_gpus())}")
     if not NVIDIA_SMI:
         _log("  WARNING: nvidia-smi not found — GPU data will be empty")
+    inference_dir = cfg.get("inference_log_dir", "")
+    if inference_dir:
+        _log(f"  Inference log dir: {inference_dir}")
 
     # Initial CPU percent measurement (first call always returns 0)
     psutil.cpu_percent(interval=0)
 
+    backoff = 0  # extra seconds to wait after rate limiting
+    MAX_BACKOFF = 300  # 5 minutes max
+
     while True:
         try:
             snapshot = collect_snapshot(cfg)
-            ok = push_to_gist(cfg, snapshot)
+            ok, retry_after = push_to_gist(cfg, snapshot)
             gpu_summary = ", ".join(
                 f"GPU{g['index']}:{g['utilization_percent']}%"
                 for g in snapshot["gpus"]
             )
-            status = "OK" if ok else "FAILED"
-            _log(f"[{status}] CPU:{snapshot['cpu']['percent']}% RAM:{snapshot['ram']['percent']}% {gpu_summary}")
+            if ok:
+                if backoff > 0:
+                    _log(f"[OK] Recovered from rate limit, resetting backoff")
+                backoff = 0
+                _log(f"[OK] CPU:{snapshot['cpu']['percent']}% RAM:{snapshot['ram']['percent']}% {gpu_summary}")
+            else:
+                # Exponential backoff on rate limit
+                if retry_after > 0:
+                    backoff = retry_after
+                elif backoff == 0:
+                    backoff = 60
+                else:
+                    backoff = min(backoff * 2, MAX_BACKOFF)
+                _log(f"[FAILED] CPU:{snapshot['cpu']['percent']}% RAM:{snapshot['ram']['percent']}% {gpu_summary} (backoff: {backoff}s)")
         except Exception as e:
             _log(f"Error: {e}")
 
         if args.once:
             break
 
-        time.sleep(interval)
+        time.sleep(interval + backoff)
 
 
 if __name__ == "__main__":

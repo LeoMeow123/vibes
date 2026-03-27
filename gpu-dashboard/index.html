@@ -168,6 +168,52 @@
   /* ── No GPU notice ───────────────────────────────────────────── */
   .no-gpus { color: #555; font-size: 13px; padding: 16px 18px; font-style: italic; }
 
+  /* ── Inference progress ─────────────────────────────────── */
+  .inference-section {
+    padding: 10px 18px 14px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .inference-header {
+    font-size: 11px; color: #555; text-transform: uppercase;
+    letter-spacing: 0.05em; padding: 6px 0; margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .inference-header .inference-eta {
+    color: #a78bfa; font-weight: 500; text-transform: none;
+    letter-spacing: 0; font-size: 12px;
+  }
+  .inference-totals {
+    display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .inference-totals .inf-stat {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .inference-totals .inf-stat .label { color: #666; }
+  .inference-totals .inf-stat .value { color: #ccc; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .inference-totals .inf-stat .value.failed { color: #f87171; }
+  .inference-overall-bar { margin-bottom: 12px; }
+  .inference-cam-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .inference-cam-card {
+    background: #151515; border: 1px solid #252525; border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .inference-cam-card .cam-name {
+    font-size: 12px; font-weight: 600; color: #ccc; margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .inference-cam-card .cam-name .cam-gpu {
+    font-size: 10px; color: #555; font-weight: 400;
+  }
+  .inference-cam-card .cam-stats {
+    display: flex; gap: 10px; font-size: 11px; color: #666; margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .inference-cam-card .cam-stats .val { color: #aaa; font-weight: 500; }
+
   /* ── Settings modal ──────────────────────────────────────────── */
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: #000a; z-index: 200;
@@ -408,6 +454,21 @@ function renderSummary() {
   const totalVramUsed = all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.memory_used_mb || 0), 0), 0);
   const totalVramTotal = all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.memory_total_mb || 0), 0), 0);
 
+  // Inference totals across all machines
+  const infMachines = all.filter(m => m.inference?.totals);
+  let infHtml = '';
+  if (infMachines.length > 0) {
+    const infDone = infMachines.reduce((s, m) => s + (m.inference.totals.videos_done || 0), 0);
+    const infTotal = infMachines.reduce((s, m) => s + (m.inference.totals.videos_total || 0), 0);
+    const infPct = infTotal > 0 ? (infDone / infTotal * 100).toFixed(1) : '0.0';
+    infHtml = `
+      <div class="summary-card">
+        <div class="val" style="color:#a78bfa;">${infPct}%</div>
+        <div class="lbl">Inference</div>
+      </div>
+    `;
+  }
+
   bar.innerHTML = `
     <div class="summary-card">
       <div class="val" style="color:#fff;">${all.length}</div>
@@ -429,6 +490,7 @@ function renderSummary() {
       <div class="val" style="color:${totalProcesses > 0 ? '#4ade80' : '#555'};">${totalProcesses}</div>
       <div class="lbl">Running Jobs</div>
     </div>
+    ${infHtml}
   `;
 }
 
@@ -485,6 +547,8 @@ function renderMachineCard(m) {
           ${gpus.map(g => renderGpuRow(g)).join('')}
         </div>
       ` : '<div class="no-gpus">No GPUs detected</div>'}
+
+      ${m.inference ? renderInference(m.inference) : ''}
 
       ${allProcesses.length > 0 ? `
         <div class="processes">
@@ -545,6 +609,95 @@ function renderProcess(p) {
       <span class="proc-runtime">${esc(p.runtime_human || '?')}</span>
     </div>
   `;
+}
+
+// ── Inference rendering ─────────────────────────────────────────────────────
+
+function renderInference(inf) {
+  if (!inf || !inf.totals) return '';
+
+  const t = inf.totals;
+  const pct = t.videos_total > 0 ? (t.videos_done / t.videos_total * 100) : 0;
+  const pctStr = pct.toFixed(1);
+  const etaStr = inf.wall_eta_hours != null
+    ? (inf.wall_eta_hours < 24
+        ? `${inf.wall_eta_hours.toFixed(1)}h remaining`
+        : `${(inf.wall_eta_hours / 24).toFixed(1)} days remaining`)
+    : '';
+
+  const cameras = inf.cameras || {};
+  const camKeys = Object.keys(cameras).sort();
+
+  return `
+    <div class="inference-section">
+      <div class="inference-header">
+        <span>Inference Progress</span>
+        ${etaStr ? `<span class="inference-eta">${esc(etaStr)}</span>` : ''}
+      </div>
+
+      <div class="inference-totals">
+        <div class="inf-stat">
+          <span class="label">Videos</span>
+          <span class="value">${t.videos_done.toLocaleString()} / ${t.videos_total.toLocaleString()}</span>
+        </div>
+        <div class="inf-stat">
+          <span class="label">Progress</span>
+          <span class="value">${pctStr}%</span>
+        </div>
+        <div class="inf-stat">
+          <span class="label">Avg FPS</span>
+          <span class="value">${t.avg_fps?.toFixed(1) ?? '?'}</span>
+        </div>
+        ${t.failed > 0 ? `
+          <div class="inf-stat">
+            <span class="label">Failed</span>
+            <span class="value failed">${t.failed}</span>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="inference-overall-bar">
+        <div class="bar-group">
+          <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
+          <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+        </div>
+      </div>
+
+      <div class="inference-cam-grid">
+        ${camKeys.map(cam => renderInferenceCam(cam, cameras[cam])).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderInferenceCam(name, cam) {
+  const pct = cam.videos_total > 0 ? (cam.videos_done / cam.videos_total * 100) : 0;
+  const etaStr = cam.eta_hours != null
+    ? (cam.eta_hours < 24 ? `${cam.eta_hours.toFixed(1)}h` : `${(cam.eta_hours / 24).toFixed(1)}d`)
+    : '';
+  return `
+    <div class="inference-cam-card">
+      <div class="cam-name">
+        <span>${esc(name)}${cam.gpu != null ? ` <span class="cam-gpu">GPU ${cam.gpu}</span>` : ''}</span>
+        <span style="color:#888;font-size:11px;">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+      </div>
+      <div class="cam-stats">
+        <span><span class="val">${cam.videos_done.toLocaleString()}</span> / ${cam.videos_total.toLocaleString()}</span>
+        ${cam.avg_fps ? `<span><span class="val">${cam.avg_fps.toFixed(1)}</span> fps</span>` : ''}
+        ${cam.failed > 0 ? `<span style="color:#f87171;">${cam.failed} failed</span>` : ''}
+        ${etaStr ? `<span>${etaStr}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function barColorInference(pct) {
+  if (pct >= 80) return 'green';
+  if (pct >= 40) return 'yellow';
+  return 'red';
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

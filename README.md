@@ -19,6 +19,8 @@ A collection of small but useful tools for scientific publications and projects.
 | **Pixel Scale Tool** | Draw a line on your video, enter real distance, get px↔cm conversion | [Launch](https://leomeow123.github.io/vibes/scale-tool/) |
 | **SLEAP Render Tool** | Preview skeleton overlay before export, adjust settings in real-time | [Launch](https://leomeow123.github.io/vibes/sleap-render-tool/) |
 | **Quality Review Tool** | Batch scan results viewer with embedded SLP proofreading | [Launch](https://leomeow123.github.io/vibes/quality-review-tool/) |
+| **Camera Comparison Tool** | Compare DJI/GoPro/Basler cameras, interactive FOV calculator, setup wizard | [Launch](https://leomeow123.github.io/vibes/camera-fov-tool/) |
+| **Fitness Form Analyzer** | AI-powered exercise form analysis with personalized biomechanics | [Launch](https://leomeow123.github.io/vibes/fitness-analysis-tool/) |
 | **GPU Dashboard** | Monitor GPUs across multiple workstations from one page | [Launch](https://leomeow123.github.io/vibes/gpu-dashboard/) |
 
 ## Standalone Tools

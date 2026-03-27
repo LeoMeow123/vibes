@@ -732,8 +732,8 @@ function rc(v,u,l,s,c){return'<div class="result-card"><div class="result-value"
 // ── Drag camera ──
 canvas.addEventListener("mousedown",function(e){var r=canvas.getBoundingClientRect(),mx=(e.clientX-r.left)*(canvas.width/r.width),my=(e.clientY-r.top)*(canvas.height/r.height),dx=mx-camIconPos.x,dy=my-camIconPos.y;if(Math.sqrt(dx*dx+dy*dy)<camIconPos.r+10){isDragging=true;canvas.classList.add("dragging");e.preventDefault();}});
 window.addEventListener("mousemove",function(e){if(!isDragging)return;var r=canvas.getBoundingClientRect(),my=(e.clientY-r.top)*(canvas.height/r.height);var H=canvas.height,pad=40,sideH=H-pad*2-60,maxD=200,scale2=sideH/maxD,centerY=H/2;
-  // Convert mouse Y to distance: how far is mouse from the ground line (at center +/- span/2)
-  var nd;if(lastCalc.isTopDown){nd=(centerY-my+lastCalc.dist*scale2/2)/scale2*2;nd=centerY+lastCalc.dist*scale2/2;nd=Math.abs(my-(centerY+lastCalc.dist*scale2/2))/scale2;/* simplify: */nd=Math.abs(centerY-my)*2/scale2;}else{nd=Math.abs(my-centerY)*2/scale2;}
+  // Distance = how far camera is from center, doubled (since center is midpoint of camera-to-ground)
+  var nd=Math.abs(centerY-my)*2/scale2;
   nd=Math.max(5,Math.min(maxD,nd));currentDist=nd;$slider.value=Math.round(nd);$sliderVal.textContent=Math.round(nd)+" cm";sliderLocked=true;updateCalculator();});
 window.addEventListener("mouseup",function(){if(isDragging){isDragging=false;canvas.classList.remove("dragging");}});
 
@@ -764,7 +764,7 @@ function drawDiagram(hfov,vfov,dist,covW,covH,objW,objH,isTop,rw,rh,cmp) {
   camY=Math.max(pad+12,Math.min(H-pad-12,camY));
   objY=Math.max(pad+12,Math.min(H-pad-12,objY));
   camIconPos.x=camX;camIconPos.y=camY;camIconPos.r=12;
-  var objY=groundY,halfCovPx=covW/2*scale,halfObjPx=objW/2*scale;
+  var halfCovPx=covW/2*scale,halfObjPx=objW/2*scale;
 
   // Comparison cone behind
   if(cmp){var cmpRad=cmp.hfov*Math.PI/180,cL=camX-Math.tan(cmpRad/2)*dist*scale,cR=camX+Math.tan(cmpRad/2)*dist*scale;

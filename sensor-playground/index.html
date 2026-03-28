@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sensor Behavior Playground</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;line-height:1.6}
+  .header{padding:14px 28px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between}
+  .header h1{font-size:20px;font-weight:700;color:#fff}
+  .header .sub{font-size:12px;color:#667eea;margin-left:14px}
+  .tabs{display:flex;background:#1a1a1a;border-bottom:2px solid #2a2a2a;padding:0 28px;overflow-x:auto}
+  .tab{padding:10px 18px;font-size:13px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
+  .tab:hover{color:#ccc}.tab.active{color:#667eea;border-bottom-color:#667eea}
+  .container{max-width:1400px;margin:0 auto;padding:24px 28px}
+  .page{display:none}.page.active{display:block}
+  .card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;margin-bottom:16px}
+  .card-title{font-size:15px;font-weight:600;color:#ccc;margin-bottom:14px}
+  .calc-layout{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start}
+  label{font-size:12px;color:#888;display:block;margin-bottom:2px}
+
+  /* Sliders */
+  .sensor-group{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #1f1f1f}
+  .sensor-group:last-child{border-bottom:none;margin-bottom:0}
+  .sensor-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+  .sensor-name{font-size:13px;font-weight:600;color:#ddd}
+  .sensor-val{font-size:16px;font-weight:700;font-family:"SF Mono",monospace}
+  .sensor-unit{font-size:11px;color:#666;margin-left:3px}
+  .sensor-meta{font-size:10px;color:#555;margin-bottom:4px}
+  input[type="range"]{width:100%;-webkit-appearance:none;background:#333;height:4px;border-radius:2px;outline:none}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#667eea;cursor:pointer}
+
+  /* Behavior badge */
+  .behavior-badge{text-align:center;padding:24px}
+  .behavior-icon{font-size:48px;margin-bottom:8px}
+  .behavior-name{font-size:28px;font-weight:800;margin-bottom:4px}
+  .behavior-desc{font-size:13px;color:#888}
+  .safety-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:8px;margin-top:12px;font-size:13px;font-weight:600}
+  .safety-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+  /* Rule breakdown */
+  .rule-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #1f1f1f}
+  .rule-item:last-child{border-bottom:none}
+  .rule-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .rule-cond{color:#aaa;flex:1}
+  .rule-status{font-weight:600;width:50px;text-align:right}
+
+  /* Radar chart */
+  .radar-wrap{display:flex;justify-content:center;padding:10px}
+  .radar-wrap canvas{max-width:280px}
+
+  /* Presets */
+  .preset-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .preset-btn{padding:8px 16px;background:#1f1f1f;border:1px solid #2a2a2a;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;transition:all 0.15s}
+  .preset-btn:hover{border-color:#667eea;color:#fff;background:#1f1f2f}
+  .preset-btn.active{border-color:#667eea;background:rgba(102,126,234,0.15);color:#667eea}
+
+  /* Threshold editor */
+  .thresh-table{width:100%;border-collapse:collapse;font-size:12px}
+  .thresh-table th{text-align:left;padding:8px;color:#888;border-bottom:2px solid #2a2a2a;font-weight:600}
+  .thresh-table td{padding:6px 8px;border-bottom:1px solid #1f1f1f}
+  .thresh-table input{width:60px;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 6px;font-size:12px;text-align:center}
+  .thresh-table input:focus{border-color:#667eea;outline:none}
+
+  /* Experiment log */
+  .log-entry{background:#1f1f1f;border:1px solid #2a2a2a;border-radius:8px;padding:14px;margin-bottom:10px}
+  .log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .log-state{font-weight:700;font-size:14px}
+  .log-time{font-size:11px;color:#666}
+  .log-values{font-size:11px;color:#888;font-family:"SF Mono",monospace;margin-bottom:6px}
+  .log-note{font-size:12px;color:#bbb;font-style:italic}
+  .log-actions{display:flex;gap:6px;margin-top:6px}
+  .log-btn{padding:3px 10px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:4px;color:#aaa;font-size:11px;cursor:pointer}
+  .log-btn:hover{color:#fff;border-color:#667eea}
+  .log-btn.danger:hover{border-color:#f87171;color:#f87171}
+  textarea{width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px;font-size:13px;resize:vertical;min-height:60px;outline:none;font-family:inherit}
+  textarea:focus{border-color:#667eea}
+  .btn{padding:8px 18px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s}
+  .btn-primary{background:#667eea;color:#fff}.btn-primary:hover{background:#5a6fd6}
+  .btn-secondary{background:#2a2a2a;color:#ccc;border:1px solid #3a3a3a}.btn-secondary:hover{background:#333}
+  .export-bar{display:flex;gap:8px;margin-bottom:16px}
+
+  /* Reference tables */
+  .ref-table{width:100%;border-collapse:collapse;font-size:12px}
+  .ref-table th{text-align:left;padding:8px;color:#888;border-bottom:2px solid #2a2a2a;font-weight:600}
+  .ref-table td{padding:6px 8px;border-bottom:1px solid #1f1f1f}
+  .ref-table .cat{background:#151515;color:#667eea;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+  .formula{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:8px 14px;font-family:"SF Mono",monospace;font-size:13px;color:#facc15;margin:6px 0}
+
+  @media(max-width:960px){.calc-layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:baseline;gap:14px">
+    <h1>Sensor Behavior Playground</h1>
+    <span class="sub">Soft Robot Elbow Pad &middot; 7-Variable Classification</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-page="playground">Playground</button>
+  <button class="tab" data-page="thresholds">Threshold Editor</button>
+  <button class="tab" data-page="log">Experiment Log</button>
+  <button class="tab" data-page="reference">Reference</button>
+</div>
+
+<div class="container">
+
+<!-- ═══ PLAYGROUND ═══ -->
+<div class="page active" id="page-playground">
+  <div class="calc-layout">
+    <div>
+      <!-- Presets -->
+      <div class="card">
+        <div class="card-title">Load Behavior Preset</div>
+        <div class="preset-grid" id="presetGrid"></div>
+      </div>
+      <!-- Sliders -->
+      <div class="card" id="slidersCard"></div>
+    </div>
+    <div>
+      <!-- Detection result -->
+      <div class="card behavior-badge" id="behaviorBadge"></div>
+      <!-- Safety -->
+      <div class="card" id="safetyCard"></div>
+      <!-- Radar chart -->
+      <div class="card">
+        <div class="card-title">Sensor Profile</div>
+        <div class="radar-wrap"><canvas id="radarCanvas" width="280" height="280"></canvas></div>
+      </div>
+      <!-- Rule breakdown -->
+      <div class="card">
+        <div class="card-title">Rule Breakdown</div>
+        <div id="ruleBreakdown"></div>
+      </div>
+      <!-- Save snapshot -->
+      <div class="card">
+        <div class="card-title">Save to Experiment Log</div>
+        <textarea id="snapshotNote" placeholder="Notes about this combination..."></textarea>
+        <div style="margin-top:8px"><button class="btn btn-primary" id="saveSnapshotBtn">Save Snapshot</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ THRESHOLD EDITOR ═══ -->
+<div class="page" id="page-thresholds">
+  <div class="card">
+    <div class="card-title">Classification Thresholds</div>
+    <p style="font-size:12px;color:#888;margin-bottom:14px">Edit thresholds to see how classification changes. Values are used by the playground in real-time.</p>
+    <div style="overflow-x:auto"><table class="thresh-table" id="threshTable"></table></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn btn-secondary" id="resetThresh">Reset to Defaults</button>
+      <button class="btn btn-primary" id="exportThresh">Export JSON (for ESP32)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EXPERIMENT LOG ═══ -->
+<div class="page" id="page-log">
+  <div class="export-bar">
+    <button class="btn btn-secondary" id="exportLogCSV">Export CSV</button>
+    <button class="btn btn-secondary" id="exportLogJSON">Export JSON</button>
+    <button class="btn btn-secondary danger" id="clearLog" style="margin-left:auto">Clear All</button>
+  </div>
+  <div id="logEntries"></div>
+  <div id="logEmpty" style="text-align:center;padding:40px;color:#555;font-size:14px">No snapshots saved yet. Use the playground to experiment and save interesting combinations.</div>
+</div>
+
+<!-- ═══ REFERENCE ═══ -->
+<div class="page" id="page-reference">
+  <div class="card">
+    <div class="card-title">7 Sensor Variables</div>
+    <table class="ref-table">
+      <thead><tr><th>Variable</th><th>Name</th><th>Unit</th><th>Range</th><th>Sensor</th></tr></thead>
+      <tbody>
+        <tr><td style="color:#f87171;font-weight:700">T</td><td>Skin Temperature</td><td>&deg;C</td><td>28 &ndash; 38</td><td>NTC 10k&Omega; thermistor</td></tr>
+        <tr><td style="color:#facc15;font-weight:700">&theta;</td><td>Elbow Flex Angle</td><td>degrees</td><td>0 &ndash; 135</td><td>Flex Sensor 2.2"</td></tr>
+        <tr><td style="color:#22d3ee;font-weight:700">&omega;</td><td>Angular Velocity</td><td>deg/s</td><td>0 &ndash; 300+</td><td>MPU-6050 gyro</td></tr>
+        <tr><td style="color:#4ade80;font-weight:700">SpO2</td><td>Blood Oxygen</td><td>%</td><td>88 &ndash; 100</td><td>MAX30102</td></tr>
+        <tr><td style="color:#f472b6;font-weight:700">HR</td><td>Heart Rate</td><td>bpm</td><td>55 &ndash; 180</td><td>MAX30102</td></tr>
+        <tr><td style="color:#a78bfa;font-weight:700">G</td><td>Skin Conductance</td><td>&micro;S</td><td>1 &ndash; 100</td><td>Silver electrodes</td></tr>
+        <tr><td style="color:#fb923c;font-weight:700">F</td><td>Muscle Force</td><td>N</td><td>0 &ndash; 100</td><td>FSR 402</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">Behavior Classification Table</div>
+    <div style="overflow-x:auto">
+    <table class="ref-table">
+      <thead><tr><th>Behavior</th><th>T (&deg;C)</th><th>&theta; (deg)</th><th>&omega; (deg/s)</th><th>HR (bpm)</th><th>G (&micro;S)</th><th>F (N)</th></tr></thead>
+      <tbody>
+        <tr><td>Resting / sleep</td><td>28&ndash;33</td><td>20&ndash;60</td><td>&lt; 15</td><td>55&ndash;80</td><td>1&ndash;5</td><td>0&ndash;2</td></tr>
+        <tr><td>Eating / drinking</td><td>28&ndash;33</td><td>60&ndash;110</td><td>20&ndash;60</td><td>60&ndash;90</td><td>2&ndash;8</td><td>2&ndash;10</td></tr>
+        <tr><td>Office / typing</td><td>29&ndash;33</td><td>70&ndash;100</td><td>5&ndash;30</td><td>60&ndash;90</td><td>2&ndash;10</td><td>0&ndash;5</td></tr>
+        <tr><td>Walking</td><td>30&ndash;35</td><td>0&ndash;30</td><td>30&ndash;120</td><td>80&ndash;110</td><td>5&ndash;20</td><td>2&ndash;15</td></tr>
+        <tr><td>Light exercise</td><td>33&ndash;36</td><td>varied</td><td>80&ndash;180</td><td>100&ndash;130</td><td>15&ndash;40</td><td>10&ndash;40</td></tr>
+        <tr><td>Strength training</td><td>35&ndash;38</td><td>45&ndash;135</td><td>100&ndash;250</td><td>120&ndash;170</td><td>30&ndash;70</td><td>30&ndash;100</td></tr>
+        <tr><td style="color:#f87171">Fatigue / failure</td><td>36&ndash;38</td><td>stuck</td><td>sudden drop</td><td>abnormal</td><td>40&ndash;80</td><td>sudden drop</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Key Formulas</div>
+    <p style="font-size:12px;color:#aaa;margin-bottom:8px"><strong>Temperature (NTC):</strong></p>
+    <div class="formula">R_T = R_ref &times; (V_cc / V_out - 1) &nbsp;&nbsp;|&nbsp;&nbsp; 1/T = 1/T0 + (1/B) &times; ln(R_T / R0)</div>
+    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>Joint Torque:</strong></p>
+    <div class="formula">M = F &times; L &times; sin(&theta;) &nbsp;&nbsp;|&nbsp;&nbsp; F=load(N), L=forearm(m)</div>
+    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>Impact Force:</strong></p>
+    <div class="formula">&alpha; = &Delta;&omega; / &Delta;t &nbsp;&nbsp;|&nbsp;&nbsp; M_impact = I &times; &alpha; &nbsp;&nbsp;|&nbsp;&nbsp; I = (1/3) &times; m &times; L&sup2;</div>
+    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>SpO2:</strong></p>
+    <div class="formula">R = (AC_red/DC_red) / (AC_IR/DC_IR) &nbsp;&nbsp;|&nbsp;&nbsp; SpO2 = 110 - 25 &times; R</div>
+  </div>
+  <div class="card">
+    <div class="card-title">ESP32 Wiring</div>
+    <table class="ref-table">
+      <thead><tr><th>Sensor</th><th>Type</th><th>ESP32 Pin</th></tr></thead>
+      <tbody>
+        <tr><td>NTC thermistor</td><td>Analog ADC</td><td>GPIO34</td></tr>
+        <tr><td>Flex sensor</td><td>Analog ADC</td><td>GPIO35</td></tr>
+        <tr><td>MPU-6050</td><td>I2C</td><td>SDA=21, SCL=22</td></tr>
+        <tr><td>MAX30102</td><td>I2C</td><td>SDA=21, SCL=22</td></tr>
+        <tr><td>Silver electrodes</td><td>Analog ADC</td><td>GPIO32</td></tr>
+        <tr><td>FSR 402</td><td>Analog ADC</td><td>GPIO33</td></tr>
+        <tr><td>Pneumatic pump</td><td>PWM</td><td>GPIO25</td></tr>
+        <tr><td>Vibration motor</td><td>Digital</td><td>GPIO26</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ═══ TABS ═══
+document.querySelectorAll(".tab").forEach(function(t){
+  t.addEventListener("click",function(){
+    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active")});
+    document.querySelectorAll(".page").forEach(function(x){x.classList.remove("active")});
+    t.classList.add("active");
+    document.getElementById("page-"+t.dataset.page).classList.add("active");
+  });
+});
+
+// ═══ SENSOR DEFINITIONS ═══
+var SENSORS = [
+  {id:"T",   name:"Skin Temperature",  unit:"\u00B0C",   min:25, max:40, step:0.5, def:30, color:"#f87171"},
+  {id:"theta",name:"Elbow Flex Angle", unit:"\u00B0",    min:0,  max:135,step:1,   def:45, color:"#facc15"},
+  {id:"omega",name:"Angular Velocity",  unit:"deg/s",    min:0,  max:350,step:1,   def:10, color:"#22d3ee"},
+  {id:"HR",   name:"Heart Rate",        unit:"bpm",      min:40, max:200,step:1,   def:72, color:"#f472b6"},
+  {id:"SpO2", name:"Blood Oxygen",      unit:"%",        min:85, max:100,step:0.5, def:98, color:"#4ade80"},
+  {id:"G",    name:"Skin Conductance",  unit:"\u00B5S",  min:0,  max:100,step:0.5, def:3,  color:"#a78bfa"},
+  {id:"F",    name:"Muscle Force",      unit:"N",        min:0,  max:100,step:0.5, def:1,  color:"#fb923c"},
+];
+
+// ═══ BEHAVIORS ═══
+var BEHAVIORS = {
+  FATIGUE_WARNING:   {name:"Fatigue Warning",    icon:"\u26A0\uFE0F", color:"#f87171", bg:"rgba(248,113,113,0.1)", desc:"Sudden drop in omega/force with high HR — possible muscle failure. STOP immediately."},
+  LOW_OXYGEN_ALERT:  {name:"Low Oxygen Alert",   icon:"\uD83D\uDEA8", color:"#f87171", bg:"rgba(248,113,113,0.1)", desc:"SpO2 below 93% — potential hypoxia. Stop exercise and rest."},
+  STRENGTH_TRAINING: {name:"Strength Training",  icon:"\uD83C\uDFCB\uFE0F", color:"#fb923c", bg:"rgba(251,146,60,0.1)", desc:"High omega + HR + force + temperature. Active resistance exercise."},
+  LIGHT_EXERCISE:    {name:"Light Exercise",     icon:"\uD83C\uDFC3", color:"#facc15", bg:"rgba(250,204,21,0.1)", desc:"Elevated HR, omega, and sweat. Aerobic activity or dynamic movement."},
+  WALKING:           {name:"Walking",            icon:"\uD83D\uDEB6", color:"#22d3ee", bg:"rgba(34,211,238,0.1)", desc:"Rhythmic omega pattern with moderate HR. Locomotion detected."},
+  OFFICE_WORK:       {name:"Office / Typing",    icon:"\uD83D\uDCBB", color:"#667eea", bg:"rgba(102,126,234,0.1)", desc:"Low omega, stable theta 70\u2013100\u00B0, low HR and sweat. Sedentary desk work."},
+  EATING:            {name:"Eating / Drinking",  icon:"\uD83C\uDF7D\uFE0F", color:"#a78bfa", bg:"rgba(167,139,250,0.1)", desc:"Periodic theta 60\u2013110\u00B0, moderate omega, low sweat. Hand-to-mouth motion."},
+  RESTING:           {name:"Resting",            icon:"\uD83D\uDECB\uFE0F", color:"#4ade80", bg:"rgba(74,222,128,0.1)", desc:"Low activity across all sensors. Relaxed or sleeping."},
+};
+
+// ═══ PRESETS ═══
+var PRESETS = {
+  RESTING:           {T:30, theta:35, omega:5,  HR:65, SpO2:98, G:2,  F:0.5},
+  EATING:            {T:31, theta:85, omega:40, HR:75, SpO2:98, G:5,  F:5},
+  OFFICE_WORK:       {T:31, theta:85, omega:15, HR:72, SpO2:98, G:4,  F:2},
+  WALKING:           {T:32, theta:15, omega:70, HR:95, SpO2:97, G:12, F:8},
+  LIGHT_EXERCISE:    {T:34, theta:60, omega:130,HR:115,SpO2:96, G:25, F:20},
+  STRENGTH_TRAINING: {T:36, theta:90, omega:180,HR:145,SpO2:95, G:50, F:60},
+  FATIGUE_WARNING:   {T:37, theta:100,omega:8,  HR:155,SpO2:92, G:65, F:3},
+  LOW_OXYGEN_ALERT:  {T:36, theta:80, omega:50, HR:140,SpO2:90, G:45, F:15},
+};
+
+// ═══ EDITABLE THRESHOLDS ═══
+var DEFAULT_THRESH = {
+  fatigue_omega_drop: 20,
+  fatigue_hr_min: 130,
+  spo2_alert: 93,
+  strength_omega: 100,
+  strength_hr: 120,
+  strength_f: 25,
+  strength_t: 35,
+  light_omega: 80,
+  light_hr: 100,
+  light_g: 15,
+  walk_omega_min: 30,
+  walk_omega_max: 120,
+  walk_hr_min: 80,
+  walk_hr_max: 110,
+  office_omega_max: 30,
+  office_theta_min: 70,
+  office_theta_max: 100,
+  office_hr_max: 90,
+  office_g_max: 10,
+  eat_theta_min: 60,
+  eat_theta_max: 110,
+  eat_omega_min: 20,
+  eat_omega_max: 60,
+  eat_g_max: 10,
+};
+var thresh = JSON.parse(JSON.stringify(DEFAULT_THRESH));
+
+// ═══ STATE ═══
+var vals = {};
+SENSORS.forEach(function(s){ vals[s.id] = s.def; });
+
+// ═══ BUILD SLIDERS ═══
+var $sliders = document.getElementById("slidersCard");
+$sliders.innerHTML = '<div class="card-title">Sensor Values</div>' + SENSORS.map(function(s){
+  return '<div class="sensor-group"><div class="sensor-header"><span class="sensor-name" style="color:'+s.color+'">'+s.name+' ('+s.id+')</span><span><span class="sensor-val" id="val_'+s.id+'" style="color:'+s.color+'">'+s.def+'</span><span class="sensor-unit">'+s.unit+'</span></span></div><div class="sensor-meta">Range: '+s.min+' \u2013 '+s.max+' '+s.unit+'</div><input type="range" id="slider_'+s.id+'" min="'+s.min+'" max="'+s.max+'" step="'+s.step+'" value="'+s.def+'"></div>';
+}).join("");
+
+SENSORS.forEach(function(s){
+  document.getElementById("slider_"+s.id).addEventListener("input",function(){
+    vals[s.id] = parseFloat(this.value);
+    document.getElementById("val_"+s.id).textContent = vals[s.id];
+    update();
+  });
+});
+
+// ═══ BUILD PRESETS ═══
+var $presetGrid = document.getElementById("presetGrid");
+Object.keys(PRESETS).forEach(function(k){
+  var b = BEHAVIORS[k];
+  var btn = document.createElement("button");
+  btn.className = "preset-btn";
+  btn.textContent = b.icon + " " + b.name;
+  btn.addEventListener("click",function(){
+    var p = PRESETS[k];
+    SENSORS.forEach(function(s){
+      vals[s.id] = p[s.id];
+      document.getElementById("slider_"+s.id).value = p[s.id];
+      document.getElementById("val_"+s.id).textContent = p[s.id];
+    });
+    document.querySelectorAll(".preset-btn").forEach(function(x){x.classList.remove("active")});
+    btn.classList.add("active");
+    update();
+  });
+  $presetGrid.appendChild(btn);
+});
+
+// ═══ DETECTION LOGIC ═══
+function detect(v) {
+  var rules = [];
+  // Fatigue
+  var fat = v.omega < thresh.fatigue_omega_drop && v.HR > thresh.fatigue_hr_min;
+  rules.push({label:"Fatigue: \u03C9 < "+thresh.fatigue_omega_drop+" AND HR > "+thresh.fatigue_hr_min, match:fat, behavior:"FATIGUE_WARNING"});
+  if(fat) return {state:"FATIGUE_WARNING", rules:rules};
+
+  // Low O2
+  var lo2 = v.SpO2 < thresh.spo2_alert;
+  rules.push({label:"Low O\u2082: SpO2 < "+thresh.spo2_alert+"%", match:lo2, behavior:"LOW_OXYGEN_ALERT"});
+  if(lo2) return {state:"LOW_OXYGEN_ALERT", rules:rules};
+
+  // Strength
+  var str = v.omega > thresh.strength_omega && v.HR > thresh.strength_hr && v.F > thresh.strength_f && v.T > thresh.strength_t;
+  rules.push({label:"Strength: \u03C9>"+thresh.strength_omega+" & HR>"+thresh.strength_hr+" & F>"+thresh.strength_f+" & T>"+thresh.strength_t, match:str, behavior:"STRENGTH_TRAINING"});
+  if(str) return {state:"STRENGTH_TRAINING", rules:rules};
+
+  // Light exercise
+  var lex = v.omega > thresh.light_omega && v.HR > thresh.light_hr && v.G > thresh.light_g;
+  rules.push({label:"Light Ex: \u03C9>"+thresh.light_omega+" & HR>"+thresh.light_hr+" & G>"+thresh.light_g, match:lex, behavior:"LIGHT_EXERCISE"});
+  if(lex) return {state:"LIGHT_EXERCISE", rules:rules};
+
+  // Walking
+  var wlk = v.omega >= thresh.walk_omega_min && v.omega <= thresh.walk_omega_max && v.HR >= thresh.walk_hr_min && v.HR <= thresh.walk_hr_max;
+  rules.push({label:"Walk: \u03C9 "+thresh.walk_omega_min+"\u2013"+thresh.walk_omega_max+" & HR "+thresh.walk_hr_min+"\u2013"+thresh.walk_hr_max, match:wlk, behavior:"WALKING"});
+  if(wlk) return {state:"WALKING", rules:rules};
+
+  // Office
+  var ofc = v.omega < thresh.office_omega_max && v.theta >= thresh.office_theta_min && v.theta <= thresh.office_theta_max && v.HR < thresh.office_hr_max && v.G < thresh.office_g_max;
+  rules.push({label:"Office: \u03C9<"+thresh.office_omega_max+" & \u03B8 "+thresh.office_theta_min+"\u2013"+thresh.office_theta_max+" & HR<"+thresh.office_hr_max+" & G<"+thresh.office_g_max, match:ofc, behavior:"OFFICE_WORK"});
+  if(ofc) return {state:"OFFICE_WORK", rules:rules};
+
+  // Eating
+  var eat = v.theta >= thresh.eat_theta_min && v.theta <= thresh.eat_theta_max && v.omega >= thresh.eat_omega_min && v.omega <= thresh.eat_omega_max && v.G < thresh.eat_g_max;
+  rules.push({label:"Eat: \u03B8 "+thresh.eat_theta_min+"\u2013"+thresh.eat_theta_max+" & \u03C9 "+thresh.eat_omega_min+"\u2013"+thresh.eat_omega_max+" & G<"+thresh.eat_g_max, match:eat, behavior:"EATING"});
+  if(eat) return {state:"EATING", rules:rules};
+
+  rules.push({label:"Default: no other rule matched", match:true, behavior:"RESTING"});
+  return {state:"RESTING", rules:rules};
+}
+
+// ═══ RADAR CHART ═══
+var radarCanvas = document.getElementById("radarCanvas");
+var rCtx = radarCanvas.getContext("2d");
+
+function drawRadar(v) {
+  var w=radarCanvas.width, h=radarCanvas.height, cx=w/2, cy=h/2, r=100;
+  rCtx.clearRect(0,0,w,h);
+  var n = SENSORS.length;
+  var angleStep = Math.PI*2/n;
+
+  // Grid rings
+  [0.25,0.5,0.75,1.0].forEach(function(frac){
+    rCtx.beginPath();
+    for(var i=0;i<=n;i++){
+      var a = -Math.PI/2 + i*angleStep;
+      var x = cx + Math.cos(a)*r*frac, y = cy + Math.sin(a)*r*frac;
+      if(i===0) rCtx.moveTo(x,y); else rCtx.lineTo(x,y);
+    }
+    rCtx.strokeStyle="#2a2a2a"; rCtx.lineWidth=1; rCtx.stroke();
+  });
+
+  // Axes + labels
+  SENSORS.forEach(function(s,i){
+    var a = -Math.PI/2 + i*angleStep;
+    rCtx.beginPath(); rCtx.moveTo(cx,cy);
+    rCtx.lineTo(cx+Math.cos(a)*r*1.05, cy+Math.sin(a)*r*1.05);
+    rCtx.strokeStyle="#2a2a2a"; rCtx.stroke();
+    rCtx.fillStyle=s.color; rCtx.font="bold 10px sans-serif"; rCtx.textAlign="center";
+    rCtx.fillText(s.id, cx+Math.cos(a)*r*1.18, cy+Math.sin(a)*r*1.18+4);
+  });
+
+  // Data polygon
+  rCtx.beginPath();
+  SENSORS.forEach(function(s,i){
+    var a = -Math.PI/2 + i*angleStep;
+    var norm = (v[s.id]-s.min)/(s.max-s.min);
+    norm = Math.max(0,Math.min(1,norm));
+    var x = cx + Math.cos(a)*r*norm, y = cy + Math.sin(a)*r*norm;
+    if(i===0) rCtx.moveTo(x,y); else rCtx.lineTo(x,y);
+  });
+  rCtx.closePath();
+  rCtx.fillStyle="rgba(102,126,234,0.15)"; rCtx.fill();
+  rCtx.strokeStyle="#667eea"; rCtx.lineWidth=2; rCtx.stroke();
+
+  // Data points
+  SENSORS.forEach(function(s,i){
+    var a = -Math.PI/2 + i*angleStep;
+    var norm = Math.max(0,Math.min(1,(v[s.id]-s.min)/(s.max-s.min)));
+    rCtx.beginPath(); rCtx.arc(cx+Math.cos(a)*r*norm, cy+Math.sin(a)*r*norm, 4, 0, Math.PI*2);
+    rCtx.fillStyle=s.color; rCtx.fill();
+  });
+}
+
+// ═══ UPDATE ═══
+function update() {
+  var result = detect(vals);
+  var b = BEHAVIORS[result.state];
+
+  // Badge
+  document.getElementById("behaviorBadge").innerHTML =
+    '<div class="behavior-icon">'+b.icon+'</div>' +
+    '<div class="behavior-name" style="color:'+b.color+'">'+b.name+'</div>' +
+    '<div class="behavior-desc">'+b.desc+'</div>';
+
+  // Safety
+  var safetyLevel = "safe", safetyColor = "#4ade80", safetyText = "All vitals normal";
+  if(vals.SpO2 < 93){ safetyLevel="danger"; safetyColor="#f87171"; safetyText="LOW OXYGEN — stop immediately"; }
+  else if(result.state==="FATIGUE_WARNING"){ safetyLevel="danger"; safetyColor="#f87171"; safetyText="FATIGUE DETECTED — risk of injury"; }
+  else if(vals.omega > 200){ safetyLevel="warning"; safetyColor="#facc15"; safetyText="Fast motion — high impact risk"; }
+  else if(vals.HR > 170){ safetyLevel="warning"; safetyColor="#facc15"; safetyText="Very high heart rate"; }
+  else if(vals.SpO2 < 95){ safetyLevel="caution"; safetyColor="#facc15"; safetyText="SpO2 slightly low — monitor closely"; }
+  document.getElementById("safetyCard").innerHTML =
+    '<div class="safety-bar" style="background:'+b.bg+'"><div class="safety-dot" style="background:'+safetyColor+'"></div><span style="color:'+safetyColor+'">'+safetyText+'</span></div>';
+
+  // Rule breakdown
+  var html = "";
+  result.rules.forEach(function(r){
+    var color = r.match ? "#4ade80" : "#555";
+    var status = r.match ? (r.behavior===result.state ? "MATCH" : "TRUE") : "no";
+    html += '<div class="rule-item"><div class="rule-dot" style="background:'+color+'"></div><span class="rule-cond">'+r.label+'</span><span class="rule-status" style="color:'+color+'">'+status+'</span></div>';
+  });
+  document.getElementById("ruleBreakdown").innerHTML = html;
+
+  // Radar
+  drawRadar(vals);
+}
+
+update();
+
+// ═══ THRESHOLD EDITOR ═══
+function renderThreshTable() {
+  var keys = Object.keys(thresh);
+  var html = '<thead><tr><th>Parameter</th><th>Value</th><th>Description</th></tr></thead><tbody>';
+  var descs = {
+    fatigue_omega_drop:"Omega drops below this = fatigue",fatigue_hr_min:"HR must be above this for fatigue",
+    spo2_alert:"SpO2 below this triggers alert",
+    strength_omega:"Min omega for strength",strength_hr:"Min HR for strength",strength_f:"Min force for strength",strength_t:"Min temp for strength",
+    light_omega:"Min omega for light exercise",light_hr:"Min HR for light exercise",light_g:"Min sweat for light exercise",
+    walk_omega_min:"Walk omega lower bound",walk_omega_max:"Walk omega upper bound",walk_hr_min:"Walk HR lower",walk_hr_max:"Walk HR upper",
+    office_omega_max:"Max omega for office",office_theta_min:"Office theta lower",office_theta_max:"Office theta upper",office_hr_max:"Max HR for office",office_g_max:"Max sweat for office",
+    eat_theta_min:"Eating theta lower",eat_theta_max:"Eating theta upper",eat_omega_min:"Eating omega lower",eat_omega_max:"Eating omega upper",eat_g_max:"Max sweat for eating"
+  };
+  keys.forEach(function(k){
+    html += '<tr><td style="color:#ccc;font-family:monospace">'+k+'</td><td><input type="number" id="th_'+k+'" value="'+thresh[k]+'" step="1"></td><td style="color:#666">'+( descs[k]||"")+'</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("threshTable").innerHTML = html;
+  keys.forEach(function(k){
+    document.getElementById("th_"+k).addEventListener("input",function(){
+      thresh[k] = parseFloat(this.value)||0;
+      update();
+    });
+  });
+}
+renderThreshTable();
+
+document.getElementById("resetThresh").addEventListener("click",function(){
+  thresh = JSON.parse(JSON.stringify(DEFAULT_THRESH));
+  renderThreshTable(); update();
+});
+
+document.getElementById("exportThresh").addEventListener("click",function(){
+  var blob = new Blob([JSON.stringify(thresh,null,2)],{type:"application/json"});
+  var a = document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="behavior_thresholds.json"; a.click();
+});
+
+// ═══ EXPERIMENT LOG ═══
+var logData = JSON.parse(localStorage.getItem("sensor_log")||"[]");
+
+function renderLog() {
+  var $entries = document.getElementById("logEntries");
+  var $empty = document.getElementById("logEmpty");
+  if(logData.length===0){ $entries.innerHTML=""; $empty.style.display="block"; return; }
+  $empty.style.display="none";
+  $entries.innerHTML = logData.map(function(entry,i){
+    var b = BEHAVIORS[entry.state]||BEHAVIORS.RESTING;
+    var vStr = SENSORS.map(function(s){return s.id+"="+entry.values[s.id];}).join("  ");
+    return '<div class="log-entry"><div class="log-header"><span class="log-state" style="color:'+b.color+'">'+b.icon+' '+b.name+'</span><span class="log-time">'+entry.time+'</span></div><div class="log-values">'+vStr+'</div>'+(entry.note?'<div class="log-note">"'+entry.note+'"</div>':'')+'<div class="log-actions"><button class="log-btn" data-load="'+i+'">Load values</button><button class="log-btn danger" data-del="'+i+'">Delete</button></div></div>';
+  }).join("");
+  $entries.querySelectorAll("[data-load]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var entry = logData[parseInt(btn.dataset.load)];
+      SENSORS.forEach(function(s){
+        vals[s.id]=entry.values[s.id];
+        document.getElementById("slider_"+s.id).value=entry.values[s.id];
+        document.getElementById("val_"+s.id).textContent=entry.values[s.id];
+      });
+      update();
+      document.querySelector('[data-page="playground"]').click();
+    });
+  });
+  $entries.querySelectorAll("[data-del]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      logData.splice(parseInt(btn.dataset.del),1);
+      localStorage.setItem("sensor_log",JSON.stringify(logData));
+      renderLog();
+    });
+  });
+}
+renderLog();
+
+document.getElementById("saveSnapshotBtn").addEventListener("click",function(){
+  var note = document.getElementById("snapshotNote").value.trim();
+  var result = detect(vals);
+  logData.unshift({
+    time: new Date().toLocaleString(),
+    state: result.state,
+    values: JSON.parse(JSON.stringify(vals)),
+    thresholds: JSON.parse(JSON.stringify(thresh)),
+    note: note
+  });
+  localStorage.setItem("sensor_log",JSON.stringify(logData));
+  document.getElementById("snapshotNote").value = "";
+  renderLog();
+  // Flash confirmation
+  var btn = document.getElementById("saveSnapshotBtn");
+  btn.textContent = "Saved!"; btn.style.background = "#4ade80";
+  setTimeout(function(){ btn.textContent="Save Snapshot"; btn.style.background=""; }, 1200);
+});
+
+document.getElementById("exportLogCSV").addEventListener("click",function(){
+  if(!logData.length) return;
+  var header = ["time","state","note"].concat(SENSORS.map(function(s){return s.id}));
+  var rows = [header.join(",")];
+  logData.forEach(function(e){
+    rows.push(['"'+e.time+'"',e.state,'"'+(e.note||"").replace(/"/g,'""')+'"'].concat(SENSORS.map(function(s){return e.values[s.id]})).join(","));
+  });
+  var blob = new Blob([rows.join("\n")],{type:"text/csv"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sensor_experiments.csv";a.click();
+});
+
+document.getElementById("exportLogJSON").addEventListener("click",function(){
+  var blob = new Blob([JSON.stringify(logData,null,2)],{type:"application/json"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sensor_experiments.json";a.click();
+});
+
+document.getElementById("clearLog").addEventListener("click",function(){
+  if(!confirm("Delete all saved experiments?")) return;
+  logData=[]; localStorage.removeItem("sensor_log"); renderLog();
+});
+
+})();
+</script>
+</body>
+</html>

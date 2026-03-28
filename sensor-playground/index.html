@@ -88,7 +88,27 @@
   .ref-table .cat{background:#151515;color:#667eea;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
   .formula{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:8px 14px;font-family:"SF Mono",monospace;font-size:13px;color:#facc15;margin:6px 0}
 
-  @media(max-width:960px){.calc-layout{grid-template-columns:1fr}}
+  /* Boundary Lab */
+  .boundary-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .boundary-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;min-height:400px}
+  .boundary-card h3{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
+  .boundary-card .question{font-size:12px;color:#667eea;margin-bottom:12px;font-style:italic}
+  .boundary-card canvas{width:100%;border-radius:6px;background:#111;border:1px solid #222;margin-bottom:10px}
+  .boundary-card .insight{font-size:11px;color:#888;padding:8px 10px;background:#151515;border-radius:6px;border-left:3px solid #667eea;margin-top:10px}
+  .param-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
+  .param-row label{width:120px;color:#aaa;flex-shrink:0;margin-bottom:0}
+  .param-row input[type="range"]{flex:1}
+  .param-row .pval{width:50px;text-align:right;color:#ddd;font-family:"SF Mono",monospace;font-weight:600}
+  .layer-view{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+  .layer-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:16px;text-align:center}
+  .layer-card h4{font-size:13px;color:#667eea;margin-bottom:8px}
+  .layer-card .layer-desc{font-size:11px;color:#888;margin-bottom:10px}
+  .layer-vars{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+  .layer-var{padding:3px 10px;background:#222;border-radius:4px;font-size:11px;font-weight:600}
+  .layer-arrow{display:flex;align-items:center;justify-content:center;color:#555;font-size:20px}
+  .math-block{background:#151515;border:1px solid #2a2a2a;border-radius:6px;padding:10px 14px;font-family:"SF Mono",monospace;font-size:12px;color:#facc15;margin:8px 0;overflow-x:auto}
+
+  @media(max-width:960px){.calc-layout{grid-template-columns:1fr}.boundary-grid{grid-template-columns:1fr}.layer-view{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -103,6 +123,7 @@
 <div class="tabs">
   <button class="tab active" data-page="playground">Playground</button>
   <button class="tab" data-page="thresholds">Threshold Editor</button>
+  <button class="tab" data-page="boundary">Boundary Lab</button>
   <button class="tab" data-page="log">Experiment Log</button>
   <button class="tab" data-page="reference">Reference</button>
 </div>
@@ -156,6 +177,106 @@
       <button class="btn btn-secondary" id="resetThresh">Reset to Defaults</button>
       <button class="btn btn-primary" id="exportThresh">Export JSON (for ESP32)</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ BOUNDARY LAB ═══ -->
+<div class="page" id="page-boundary">
+
+  <!-- 3-Layer Classification View -->
+  <div class="card">
+    <div class="card-title">Three-Layer Classification Model</div>
+    <p style="font-size:12px;color:#888;margin-bottom:14px">Behavior detection requires three dimensions of information, not just threshold values.</p>
+    <div class="layer-view">
+      <div class="layer-card" style="border-color:#4ade80">
+        <h4 style="color:#4ade80">Layer 1: Static Values</h4>
+        <div class="layer-desc">Instantaneous sensor readings. Separates intensity levels but cannot distinguish behaviors within the same level.</div>
+        <div class="layer-vars">
+          <span class="layer-var" style="color:#f472b6">HR</span>
+          <span class="layer-var" style="color:#f87171">T</span>
+          <span class="layer-var" style="color:#4ade80">SpO2</span>
+        </div>
+        <div class="math-block">if HR &lt; 90 &rarr; low intensity<br>if HR 90-130 &rarr; moderate<br>if HR &gt; 130 &rarr; high</div>
+        <div class="insight">Limitation: eating and office work both have HR 60-90. Cannot separate them with static values alone.</div>
+      </div>
+      <div class="layer-card" style="border-color:#facc15">
+        <h4 style="color:#facc15">Layer 2: Dynamic Patterns</h4>
+        <div class="layer-desc">How values change over a time window (5-10s). Periodicity, frequency, and amplitude distinguish same-intensity behaviors.</div>
+        <div class="layer-vars">
+          <span class="layer-var" style="color:#facc15">&theta; pattern</span>
+          <span class="layer-var" style="color:#22d3ee">&omega; rhythm</span>
+          <span class="layer-var" style="color:#fb923c">F envelope</span>
+        </div>
+        <div class="math-block">periodicity = std(peak_intervals) / mean(peak_intervals)<br>if periodicity &lt; 0.3 &rarr; rhythmic motion<br>dominant_freq = FFT peak frequency</div>
+        <div class="insight">This is what separates eating (theta cycles at 0.3 Hz) from office work (theta stable).</div>
+      </div>
+      <div class="layer-card" style="border-color:#f87171">
+        <h4 style="color:#f87171">Layer 3: Trend Detection</h4>
+        <div class="layer-desc">Rate of change over time. Detects transitions and anomalies that single-frame values cannot catch.</div>
+        <div class="layer-vars">
+          <span class="layer-var" style="color:#22d3ee">d&omega;/dt</span>
+          <span class="layer-var" style="color:#fb923c">dF/dt</span>
+          <span class="layer-var" style="color:#f472b6">HR trend</span>
+        </div>
+        <div class="math-block">rate = (&omega;_now - &omega;_prev) / &Delta;t<br>if rate &lt; -100 deg/s&sup2; AND HR &gt; 130<br>&rarr; FATIGUE WARNING</div>
+        <div class="insight">Fatigue cannot be detected from any single instant. It requires knowing that omega was high and suddenly dropped.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 Boundary Problems -->
+  <div class="boundary-grid">
+
+    <!-- Boundary 1: Walking vs Eating -->
+    <div class="boundary-card">
+      <h3>1. Walking vs Eating</h3>
+      <div class="question">How do you mathematically define "rhythmic" vs "periodic"?</div>
+      <canvas id="bndWalkEat" width="500" height="200"></canvas>
+      <div class="param-row"><label>Walk &omega; freq (Hz)</label><input type="range" id="bndWalkFreq" min="0.5" max="3" step="0.1" value="1.5"><span class="pval" id="bndWalkFreqVal">1.5</span></div>
+      <div class="param-row"><label>Walk &omega; amplitude</label><input type="range" id="bndWalkAmp" min="10" max="150" step="5" value="70"><span class="pval" id="bndWalkAmpVal">70</span></div>
+      <div class="param-row"><label>Eat &theta; freq (Hz)</label><input type="range" id="bndEatFreq" min="0.1" max="1" step="0.05" value="0.3"><span class="pval" id="bndEatFreqVal">0.3</span></div>
+      <div class="param-row"><label>Eat &theta; amplitude</label><input type="range" id="bndEatAmp" min="10" max="50" step="2" value="25"><span class="pval" id="bndEatAmpVal">25</span></div>
+      <div class="math-block">Walking: &omega;(t) = A&middot;|sin(2&pi;f&middot;t)| + noise &nbsp; (f &asymp; 1.5 Hz, step rhythm)<br>Eating: &theta;(t) = &theta;0 + A&middot;sin(2&pi;f&middot;t) &nbsp; (f &asymp; 0.3 Hz, hand-to-mouth)<br><br>Key separator: dominant frequency<br>f &gt; 0.8 Hz &rarr; walking &nbsp;|&nbsp; f &lt; 0.5 Hz &rarr; eating</div>
+      <div class="insight">Both show periodic motion, but at very different frequencies. Walking is ~1.5 Hz (steps), eating is ~0.3 Hz (arm cycles). The physical reason: walking involves the full body oscillation cycle, eating only the forearm lever.</div>
+    </div>
+
+    <!-- Boundary 2: Aerobic vs Strength -->
+    <div class="boundary-card">
+      <h3>2. Aerobic vs Strength Training</h3>
+      <div class="question">Where does the force threshold separate aerobic from resistance?</div>
+      <canvas id="bndAeroStr" width="500" height="200"></canvas>
+      <div class="param-row"><label>F boundary (N)</label><input type="range" id="bndFBound" min="10" max="60" step="1" value="25"><span class="pval" id="bndFBoundVal">25</span></div>
+      <div class="param-row"><label>HR boundary (bpm)</label><input type="range" id="bndHRBound" min="90" max="160" step="5" value="120"><span class="pval" id="bndHRBoundVal">120</span></div>
+      <div class="math-block">Joint torque: M = F &times; L &times; sin(&theta;)<br>For L=0.27m, &theta;=90&deg;: M = F &times; 0.27 N&middot;m<br><br>Aerobic zone: HR &gt; 100, F &lt; 25 N (M &lt; 6.75 N&middot;m)<br>Strength zone: HR &gt; 120, F &gt; 25 N (M &gt; 6.75 N&middot;m)<br><br>Physical basis: resistance training requires sustained muscle force<br>against external load. Aerobic keeps HR high but low peak force.</div>
+      <div class="insight">The F threshold comes from physics: at F=25N with L=0.27m, joint torque is ~6.75 N&middot;m. Below this, the elbow moves freely (aerobic). Above it, the muscle is working against resistance (strength).</div>
+    </div>
+
+    <!-- Boundary 3: Office vs Rest -->
+    <div class="boundary-card">
+      <h3>3. Office vs Rest</h3>
+      <div class="question">How do you quantify "stable" arm position?</div>
+      <canvas id="bndOfficeRest" width="500" height="200"></canvas>
+      <div class="param-row"><label>Office &theta; mean (&deg;)</label><input type="range" id="bndOffMean" min="60" max="110" step="1" value="85"><span class="pval" id="bndOffMeanVal">85</span></div>
+      <div class="param-row"><label>Office &theta; noise (&deg;)</label><input type="range" id="bndOffNoise" min="1" max="20" step="0.5" value="4"><span class="pval" id="bndOffNoiseVal">4</span></div>
+      <div class="param-row"><label>Rest &theta; mean (&deg;)</label><input type="range" id="bndRestMean" min="10" max="70" step="1" value="35"><span class="pval" id="bndRestMeanVal">35</span></div>
+      <div class="param-row"><label>Stability window (s)</label><input type="range" id="bndStabWin" min="2" max="15" step="1" value="10"><span class="pval" id="bndStabWinVal">10</span></div>
+      <div class="math-block">stability = std(&theta;) over window of N seconds<br><br>Office: &theta; &isin; [70&deg;, 100&deg;] AND stability &lt; 5&deg;<br>Resting: &theta; &isin; [20&deg;, 60&deg;] AND stability &lt; 8&deg;<br><br>Both are "still" but at different arm positions.<br>The desk constrains the elbow to ~85&deg; (typing posture).<br>Rest lets the arm hang naturally at ~30-40&deg;.</div>
+      <div class="insight">The key differentiator is NOT motion (both are still) but the static angle range. Office = arm on desk (70-100&deg;). Rest = arm relaxed (20-60&deg;). Stability (low std dev) confirms it's sustained, not transitioning.</div>
+    </div>
+
+    <!-- Boundary 4: Fatigue Detection -->
+    <div class="boundary-card">
+      <h3>4. Fatigue / Muscle Failure</h3>
+      <div class="question">How fast must omega drop, and over what time window?</div>
+      <canvas id="bndFatigue" width="500" height="200"></canvas>
+      <div class="param-row"><label>Pre-fatigue &omega; (deg/s)</label><input type="range" id="bndFatOmegaPre" min="80" max="250" step="5" value="150"><span class="pval" id="bndFatOmegaPreVal">150</span></div>
+      <div class="param-row"><label>Drop time (s)</label><input type="range" id="bndFatDropTime" min="0.2" max="3" step="0.1" value="0.5"><span class="pval" id="bndFatDropTimeVal">0.5</span></div>
+      <div class="param-row"><label>Detection window (s)</label><input type="range" id="bndFatWindow" min="1" max="10" step="0.5" value="2"><span class="pval" id="bndFatWindowVal">2</span></div>
+      <div class="param-row"><label>Rate threshold (deg/s&sup2;)</label><input type="range" id="bndFatRate" min="30" max="300" step="10" value="100"><span class="pval" id="bndFatRateVal">100</span></div>
+      <div class="math-block">d&omega;/dt = (&omega;_now - &omega;_prev) / &Delta;t<br><br>FATIGUE if ALL of:<br>&nbsp; 1. &omega; was &gt; 100 deg/s in last N seconds<br>&nbsp; 2. &omega; dropped to &lt; 20 deg/s<br>&nbsp; 3. |d&omega;/dt| &gt; threshold (sudden, not gradual)<br>&nbsp; 4. HR still &gt; 130 (body still stressed)<br><br>Normal stop: &omega; decreases gradually over 2-3s<br>Fatigue: &omega; drops to ~0 within 0.3-0.5s</div>
+      <div class="insight">The physics: muscle failure means the motor neurons stop firing abruptly. Unlike a deliberate stop (gradual deceleration), fatigue causes near-instantaneous force loss. The rate of omega change (d&omega;/dt) is the critical discriminator, not omega itself.</div>
+    </div>
+
   </div>
 </div>
 
@@ -519,6 +640,293 @@ document.getElementById("exportThresh").addEventListener("click",function(){
   var blob = new Blob([JSON.stringify(thresh,null,2)],{type:"application/json"});
   var a = document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="behavior_thresholds.json"; a.click();
+});
+
+// ═══ BOUNDARY LAB ═══
+var bndAnimId = null;
+
+function setupBoundaryLab() {
+  var params = ["bndWalkFreq","bndWalkAmp","bndEatFreq","bndEatAmp","bndFBound","bndHRBound",
+    "bndOffMean","bndOffNoise","bndRestMean","bndStabWin","bndFatOmegaPre","bndFatDropTime","bndFatWindow","bndFatRate"];
+  params.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", function() {
+      document.getElementById(id+"Val").textContent = el.value;
+      drawBoundaries();
+    });
+  });
+  drawBoundaries();
+  startBoundaryAnim();
+}
+
+var bndTime = 0;
+function startBoundaryAnim() {
+  function tick() {
+    bndTime += 0.033;
+    drawBoundaries();
+    bndAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function drawBoundaries() {
+  drawBndWalkEat();
+  drawBndAeroStr();
+  drawBndOfficeRest();
+  drawBndFatigue();
+}
+
+function drawTimeline(canvasId, signals, duration, labels) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var ctx = c.getContext("2d"), w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "#111"; ctx.fillRect(0,0,w,h);
+  // Grid
+  ctx.strokeStyle = "#1f1f1f"; ctx.lineWidth = 0.5;
+  for (var gy = 0; gy < h; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
+  // Time axis
+  ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(40, h-20); ctx.lineTo(w-10, h-20); ctx.stroke();
+  ctx.fillStyle = "#555"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+  for (var ts = 0; ts <= duration; ts += 1) {
+    var tx = 40 + (ts/duration)*(w-50);
+    ctx.fillText(ts+"s", tx, h-6);
+  }
+  // Signals
+  var plotH = (h - 40) / signals.length;
+  signals.forEach(function(sig, si) {
+    var baseY = 10 + si * plotH;
+    var midY = baseY + plotH/2;
+    // Label
+    ctx.fillStyle = sig.color; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText(sig.label, 4, midY + 4);
+    // Signal line
+    ctx.beginPath(); ctx.strokeStyle = sig.color; ctx.lineWidth = 1.5;
+    var pts = sig.data;
+    for (var i = 0; i < pts.length; i++) {
+      var x = 40 + (i / pts.length) * (w - 50);
+      var y = midY - pts[i] * (plotH * 0.4);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  });
+}
+
+function drawBndWalkEat() {
+  var wFreq = parseFloat(document.getElementById("bndWalkFreq").value);
+  var wAmp = parseFloat(document.getElementById("bndWalkAmp").value);
+  var eFreq = parseFloat(document.getElementById("bndEatFreq").value);
+  var eAmp = parseFloat(document.getElementById("bndEatAmp").value);
+  var dur = 8, n = 240;
+  var walkOmega = [], eatTheta = [];
+  for (var i = 0; i < n; i++) {
+    var t = (i/n)*dur + bndTime;
+    walkOmega.push(Math.abs(Math.sin(2*Math.PI*wFreq*t)) * wAmp / 150 + (Math.random()-0.5)*0.05);
+    eatTheta.push(Math.sin(2*Math.PI*eFreq*t) * eAmp / 60 + (Math.random()-0.5)*0.03);
+  }
+  drawTimeline("bndWalkEat", [
+    {label:"\u03C9 walk", color:"#22d3ee", data:walkOmega},
+    {label:"\u03B8 eat", color:"#a78bfa", data:eatTheta}
+  ], dur);
+}
+
+function drawBndAeroStr() {
+  var fBound = parseFloat(document.getElementById("bndFBound").value);
+  var hrBound = parseFloat(document.getElementById("bndHRBound").value);
+  var c = document.getElementById("bndAeroStr");
+  if (!c) return;
+  var ctx = c.getContext("2d"), w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h); ctx.fillStyle = "#111"; ctx.fillRect(0,0,w,h);
+  var pad = 40, pw = w-pad*2, ph = h-pad*2;
+  // Axes
+  ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
+  ctx.fillStyle = "#666"; ctx.font = "10px sans-serif";
+  ctx.textAlign = "center"; ctx.fillText("Muscle Force F (N)", w/2, h-4);
+  ctx.save(); ctx.translate(10, h/2); ctx.rotate(-Math.PI/2); ctx.fillText("Heart Rate (bpm)", 0, 0); ctx.restore();
+  // Axis ticks
+  [0,25,50,75,100].forEach(function(v) { var x=pad+v/100*pw; ctx.fillStyle="#555"; ctx.fillText(v,x,h-pad+14); });
+  [60,90,120,150,180].forEach(function(v) { var y=h-pad-(v-60)/140*ph; ctx.fillStyle="#555"; ctx.textAlign="right"; ctx.fillText(v,pad-6,y+4); });
+  ctx.textAlign = "center";
+  // Decision boundary
+  var bx = pad + fBound/100*pw, by = h-pad-(hrBound-60)/140*ph;
+  // Zones
+  ctx.fillStyle = "rgba(250,204,21,0.06)"; ctx.fillRect(pad,by,bx-pad,pad+ph-by+pad-h+h-pad); // aerobic: low F, high HR — top-left
+  ctx.fillStyle = "rgba(251,146,60,0.06)"; ctx.fillRect(bx,by,w-pad-bx,pad+ph-by+pad-h+h-pad); // strength: high F, high HR — top-right
+  ctx.fillStyle = "rgba(74,222,128,0.06)"; ctx.fillRect(pad,h-pad-(hrBound-60)/140*ph,pw,h-pad-(h-pad-(hrBound-60)/140*ph)); // low HR zone
+  // Fix zones properly
+  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
+  // Redraw axes
+  ctx.strokeStyle="#333"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
+  // Zone fills
+  // Aerobic: HR > hrBound, F < fBound
+  ctx.fillStyle="rgba(250,204,21,0.08)";
+  ctx.fillRect(pad, pad, (fBound/100)*pw, (h-pad)-pad-(180-hrBound)/140*ph);
+  // Strength: HR > hrBound, F > fBound
+  ctx.fillStyle="rgba(251,146,60,0.08)";
+  ctx.fillRect(pad+(fBound/100)*pw, pad, pw-(fBound/100)*pw, (h-pad)-pad-(180-hrBound)/140*ph);
+  // Low intensity: HR < hrBound
+  ctx.fillStyle="rgba(74,222,128,0.05)";
+  var hrLineY = h-pad-(hrBound-60)/140*ph;
+  ctx.fillRect(pad, hrLineY, pw, h-pad-hrLineY);
+  // Boundary lines
+  ctx.setLineDash([5,4]); ctx.strokeStyle="#f87171"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(pad+(fBound/100)*pw, pad); ctx.lineTo(pad+(fBound/100)*pw, h-pad); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad, hrLineY); ctx.lineTo(w-pad, hrLineY); ctx.stroke();
+  ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle="#facc15"; ctx.font="bold 11px sans-serif";
+  ctx.fillText("Aerobic", pad+(fBound/100)*pw/2, pad+20);
+  ctx.fillStyle="#fb923c";
+  ctx.fillText("Strength", pad+(fBound/100)*pw + (pw-(fBound/100)*pw)/2, pad+20);
+  ctx.fillStyle="#4ade80";
+  ctx.fillText("Low intensity", w/2, hrLineY+16);
+  // Sample points (animated)
+  var pts = [
+    {f:15,hr:110,c:"#facc15",l:"jogging"},{f:45,hr:140,c:"#fb923c",l:"curls"},
+    {f:8,hr:72,c:"#4ade80",l:"rest"},{f:60,hr:155,c:"#fb923c",l:"squat"},
+    {f:20,hr:105,c:"#facc15",l:"cycling"},{f:3,hr:80,c:"#4ade80",l:"office"},
+  ];
+  pts.forEach(function(p) {
+    var px = pad+p.f/100*pw, py = h-pad-(p.hr-60)/140*ph;
+    ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fillStyle=p.c; ctx.fill();
+    ctx.fillStyle="#ddd"; ctx.font="9px sans-serif"; ctx.fillText(p.l,px,py-8);
+  });
+  // Axis labels
+  ctx.fillStyle="#666"; ctx.font="10px sans-serif";
+  ctx.textAlign="center"; ctx.fillText("Muscle Force F (N)",w/2,h-4);
+  [0,25,50,75,100].forEach(function(v){ctx.fillText(v,pad+v/100*pw,h-pad+14);});
+  ctx.textAlign="right";
+  [60,90,120,150,180].forEach(function(v){ctx.fillText(v,pad-6,h-pad-(v-60)/140*ph+4);});
+  // Boundary value labels
+  ctx.fillStyle="#f87171"; ctx.font="bold 10px monospace"; ctx.textAlign="center";
+  ctx.fillText("F="+fBound+"N", pad+(fBound/100)*pw, h-pad+26);
+  ctx.fillText("HR="+hrBound, w-pad+2, hrLineY+4);
+}
+
+function drawBndOfficeRest() {
+  var offMean = parseFloat(document.getElementById("bndOffMean").value);
+  var offNoise = parseFloat(document.getElementById("bndOffNoise").value);
+  var restMean = parseFloat(document.getElementById("bndRestMean").value);
+  var stabWin = parseFloat(document.getElementById("bndStabWin").value);
+  var dur = 10, n = 300;
+  var offData = [], restData = [];
+  for (var i = 0; i < n; i++) {
+    var t = (i/n)*dur;
+    offData.push((offMean + (Math.random()-0.5)*2*offNoise - 60) / 80);
+    restData.push((restMean + (Math.random()-0.5)*2*6 - 60) / 80);
+  }
+  // Compute std for display
+  var offVals = offData.map(function(v){return v*80+60;});
+  var restVals = restData.map(function(v){return v*80+60;});
+  function std(arr){var m=arr.reduce(function(a,b){return a+b},0)/arr.length;return Math.sqrt(arr.reduce(function(a,b){return a+(b-m)*(b-m)},0)/arr.length);}
+
+  var c = document.getElementById("bndOfficeRest");
+  if (!c) return;
+  var ctx = c.getContext("2d"), w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
+  // Office zone highlight
+  ctx.fillStyle="rgba(102,126,234,0.06)";
+  var zoneTop = h*0.1 + (1-(100-60)/80)*h*0.35;
+  var zoneBot = h*0.1 + (1-(70-60)/80)*h*0.35;
+  ctx.fillRect(40, h*0.1, w-50, h*0.35);
+  // Draw both signals
+  [{data:offData,color:"#667eea",label:"Office \u03B8",baseY:h*0.28},{data:restData,color:"#4ade80",label:"Rest \u03B8",baseY:h*0.72}].forEach(function(sig){
+    ctx.beginPath(); ctx.strokeStyle=sig.color; ctx.lineWidth=1.5;
+    for(var i=0;i<sig.data.length;i++){
+      var x=40+(i/sig.data.length)*(w-50);
+      var y=sig.baseY-sig.data[i]*(h*0.18);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.fillStyle=sig.color; ctx.font="bold 10px sans-serif"; ctx.textAlign="left";
+    ctx.fillText(sig.label,4,sig.baseY+4);
+  });
+  // Std labels
+  ctx.fillStyle="#888"; ctx.font="11px monospace"; ctx.textAlign="right";
+  ctx.fillText("std="+std(offVals).toFixed(1)+"\u00B0 ("+offMean+"\u00B0 mean)", w-10, h*0.15);
+  ctx.fillText("std="+std(restVals).toFixed(1)+"\u00B0 ("+restMean+"\u00B0 mean)", w-10, h*0.6);
+  ctx.fillStyle="#555"; ctx.font="10px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("Window: "+stabWin+"s", w/2, h-6);
+}
+
+function drawBndFatigue() {
+  var omegaPre = parseFloat(document.getElementById("bndFatOmegaPre").value);
+  var dropTime = parseFloat(document.getElementById("bndFatDropTime").value);
+  var detectWin = parseFloat(document.getElementById("bndFatWindow").value);
+  var rateThresh = parseFloat(document.getElementById("bndFatRate").value);
+  var dur = 6, n = 300;
+
+  var c = document.getElementById("bndFatigue");
+  if (!c) return;
+  var ctx = c.getContext("2d"), w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
+
+  var pad = 40, pw = w-pad-10, ph = h-40;
+  // Generate omega over time: training → sudden drop at t=3s → near zero
+  var dropStart = 3.0;
+  var data = [];
+  for (var i = 0; i < n; i++) {
+    var t = (i/n)*dur;
+    var v;
+    if (t < dropStart) {
+      v = omegaPre + Math.sin(t*8)*20 + (Math.random()-0.5)*15; // training oscillation
+    } else if (t < dropStart + dropTime) {
+      var frac = (t - dropStart) / dropTime;
+      v = omegaPre * (1 - frac) + (Math.random()-0.5)*5;
+    } else {
+      v = 5 + (Math.random()-0.5)*8; // near zero with noise
+    }
+    data.push(Math.max(0, v));
+  }
+
+  // Draw
+  ctx.strokeStyle="#333"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,20); ctx.lineTo(pad,h-20); ctx.lineTo(w-10,h-20); ctx.stroke();
+
+  // Omega line
+  ctx.beginPath(); ctx.strokeStyle="#22d3ee"; ctx.lineWidth=2;
+  for (var j=0;j<data.length;j++){
+    var x=pad+(j/n)*pw, y=(h-20)-data[j]/300*ph;
+    if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+
+  // Detection zone
+  var dropEndT = dropStart + dropTime;
+  var detectX = pad+(dropStart/dur)*pw;
+  var detectX2 = pad+((dropStart+detectWin)/dur)*pw;
+  ctx.fillStyle="rgba(248,113,113,0.1)";
+  ctx.fillRect(detectX, 20, detectX2-detectX, ph);
+  ctx.strokeStyle="#f8717166"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(detectX,20); ctx.lineTo(detectX,h-20); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Rate of change at drop point
+  var actualRate = omegaPre / dropTime;
+  var detected = actualRate > rateThresh;
+  ctx.fillStyle = detected ? "#f87171" : "#4ade80";
+  ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left";
+  ctx.fillText(detected ? "FATIGUE DETECTED" : "Normal stop", detectX + 4, 36);
+  ctx.fillStyle = "#888"; ctx.font = "10px monospace";
+  ctx.fillText("d\u03C9/dt = " + Math.round(actualRate) + " deg/s\u00B2", detectX + 4, 52);
+  ctx.fillText("threshold = " + rateThresh + " deg/s\u00B2", detectX + 4, 66);
+
+  // Labels
+  ctx.fillStyle="#22d3ee"; ctx.font="bold 10px sans-serif"; ctx.textAlign="left";
+  ctx.fillText("\u03C9 (deg/s)", 4, 30);
+  ctx.fillStyle="#555"; ctx.font="10px sans-serif"; ctx.textAlign="center";
+  for(var ts=0;ts<=dur;ts++){ctx.fillText(ts+"s",pad+(ts/dur)*pw,h-4);}
+  ctx.textAlign="right";
+  [0,100,200,300].forEach(function(v){ctx.fillText(v,pad-4,(h-20)-v/300*ph+4);});
+}
+
+// Init boundary lab when tab is shown
+document.querySelector('[data-page="boundary"]').addEventListener("click", function() {
+  if (!bndAnimId) { setupBoundaryLab(); }
 });
 
 // ═══ EXPERIMENT LOG ═══

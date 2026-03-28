@@ -1,1010 +1,1203 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sensor Behavior Playground</title>
+<title>软体护肘 — 行为检测 Playground</title>
 <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;line-height:1.6}
-  .header{padding:14px 28px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;justify-content:space-between}
-  .header h1{font-size:20px;font-weight:700;color:#fff}
-  .header .sub{font-size:12px;color:#667eea;margin-left:14px}
-  .tabs{display:flex;background:#1a1a1a;border-bottom:2px solid #2a2a2a;padding:0 28px;overflow-x:auto}
-  .tab{padding:10px 18px;font-size:13px;font-weight:600;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
-  .tab:hover{color:#ccc}.tab.active{color:#667eea;border-bottom-color:#667eea}
-  .container{max-width:1400px;margin:0 auto;padding:24px 28px}
-  .page{display:none}.page.active{display:block}
-  .card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;margin-bottom:16px}
-  .card-title{font-size:15px;font-weight:600;color:#ccc;margin-bottom:14px}
-  .calc-layout{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start}
-  label{font-size:12px;color:#888;display:block;margin-bottom:2px}
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 
-  /* Sliders */
-  .sensor-group{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #1f1f1f}
-  .sensor-group:last-child{border-bottom:none;margin-bottom:0}
-  .sensor-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
-  .sensor-name{font-size:13px;font-weight:600;color:#ddd}
-  .sensor-val{font-size:16px;font-weight:700;font-family:"SF Mono",monospace}
-  .sensor-unit{font-size:11px;color:#666;margin-left:3px}
-  .sensor-meta{font-size:10px;color:#555;margin-bottom:4px}
-  input[type="range"]{width:100%;-webkit-appearance:none;background:#333;height:4px;border-radius:2px;outline:none}
-  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#667eea;cursor:pointer}
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e2a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8eaf0;
+    --muted: #7a7f94;
+    --accent: #4f9cf9;
 
-  /* Behavior badge */
-  .behavior-badge{text-align:center;padding:24px}
-  .behavior-icon{font-size:48px;margin-bottom:8px}
-  .behavior-name{font-size:28px;font-weight:800;margin-bottom:4px}
-  .behavior-desc{font-size:13px;color:#888}
-  .safety-bar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:8px;margin-top:12px;font-size:13px;font-weight:600}
-  .safety-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+    --sleep:   #6366f1;
+    --rest:    #818cf8;
+    --office:  #22d3ee;
+    --eating:  #34d399;
+    --walking: #a3e635;
+    --aerobic: #fbbf24;
+    --strength:#f97316;
+    --fatigue: #ef4444;
+  }
 
-  /* Rule breakdown */
-  .rule-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #1f1f1f}
-  .rule-item:last-child{border-bottom:none}
-  .rule-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-  .rule-cond{color:#aaa;flex:1}
-  .rule-status{font-weight:600;width:50px;text-align:right}
+  * { margin:0; padding:0; box-sizing:border-box; }
 
-  /* Radar chart */
-  .radar-wrap{display:flex;justify-content:center;padding:10px}
-  .radar-wrap canvas{max-width:280px}
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
 
-  /* Presets */
-  .preset-grid{display:flex;flex-wrap:wrap;gap:8px}
-  .preset-btn{padding:8px 16px;background:#1f1f1f;border:1px solid #2a2a2a;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;transition:all 0.15s}
-  .preset-btn:hover{border-color:#667eea;color:#fff;background:#1f1f2f}
-  .preset-btn.active{border-color:#667eea;background:rgba(102,126,234,0.15);color:#667eea}
+  /* ── Header ── */
+  header {
+    padding: 20px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f9cf9, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  header p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
-  /* Threshold editor */
-  .thresh-table{width:100%;border-collapse:collapse;font-size:12px}
-  .thresh-table th{text-align:left;padding:8px;color:#888;border-bottom:2px solid #2a2a2a;font-weight:600}
-  .thresh-table td{padding:6px 8px;border-bottom:1px solid #1f1f1f}
-  .thresh-table input{width:60px;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 6px;font-size:12px;text-align:center}
-  .thresh-table input:focus{border-color:#667eea;outline:none}
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 12px 32px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.2s;
+    background: transparent;
+    font-family: 'Outfit', sans-serif;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--text);
+    background: var(--bg2);
+    border-color: var(--border);
+    border-bottom-color: var(--bg2);
+    margin-bottom: -1px;
+    z-index: 1;
+  }
 
-  /* Experiment log */
-  .log-entry{background:#1f1f1f;border:1px solid #2a2a2a;border-radius:8px;padding:14px;margin-bottom:10px}
-  .log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .log-state{font-weight:700;font-size:14px}
-  .log-time{font-size:11px;color:#666}
-  .log-values{font-size:11px;color:#888;font-family:"SF Mono",monospace;margin-bottom:6px}
-  .log-note{font-size:12px;color:#bbb;font-style:italic}
-  .log-actions{display:flex;gap:6px;margin-top:6px}
-  .log-btn{padding:3px 10px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:4px;color:#aaa;font-size:11px;cursor:pointer}
-  .log-btn:hover{color:#fff;border-color:#667eea}
-  .log-btn.danger:hover{border-color:#f87171;color:#f87171}
-  textarea{width:100%;background:#222;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px;font-size:13px;resize:vertical;min-height:60px;outline:none;font-family:inherit}
-  textarea:focus{border-color:#667eea}
-  .btn{padding:8px 18px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s}
-  .btn-primary{background:#667eea;color:#fff}.btn-primary:hover{background:#5a6fd6}
-  .btn-secondary{background:#2a2a2a;color:#ccc;border:1px solid #3a3a3a}.btn-secondary:hover{background:#333}
-  .export-bar{display:flex;gap:8px;margin-bottom:16px}
+  /* ── Panel ── */
+  .panel { display: none; padding: 24px 32px; }
+  .panel.active { display: block; }
 
-  /* Reference tables */
-  .ref-table{width:100%;border-collapse:collapse;font-size:12px}
-  .ref-table th{text-align:left;padding:8px;color:#888;border-bottom:2px solid #2a2a2a;font-weight:600}
-  .ref-table td{padding:6px 8px;border-bottom:1px solid #1f1f1f}
-  .ref-table .cat{background:#151515;color:#667eea;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
-  .formula{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:8px 14px;font-family:"SF Mono",monospace;font-size:13px;color:#facc15;margin:6px 0}
+  /* ── Playground layout ── */
+  .playground-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: auto auto;
+    gap: 20px;
+  }
 
-  /* Boundary Lab */
-  .boundary-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .boundary-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:20px;min-height:400px}
-  .boundary-card h3{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px}
-  .boundary-card .question{font-size:12px;color:#667eea;margin-bottom:12px;font-style:italic}
-  .boundary-card canvas{width:100%;border-radius:6px;background:#111;border:1px solid #222;margin-bottom:10px}
-  .boundary-card .insight{font-size:11px;color:#888;padding:8px 10px;background:#151515;border-radius:6px;border-left:3px solid #667eea;margin-top:10px}
-  .param-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px}
-  .param-row label{width:120px;color:#aaa;flex-shrink:0;margin-bottom:0}
-  .param-row input[type="range"]{flex:1}
-  .param-row .pval{width:50px;text-align:right;color:#ddd;font-family:"SF Mono",monospace;font-weight:600}
-  .layer-view{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
-  .layer-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:16px;text-align:center}
-  .layer-card h4{font-size:13px;color:#667eea;margin-bottom:8px}
-  .layer-card .layer-desc{font-size:11px;color:#888;margin-bottom:10px}
-  .layer-vars{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
-  .layer-var{padding:3px 10px;background:#222;border-radius:4px;font-size:11px;font-weight:600}
-  .layer-arrow{display:flex;align-items:center;justify-content:center;color:#555;font-size:20px}
-  .math-block{background:#151515;border:1px solid #2a2a2a;border-radius:6px;padding:10px 14px;font-family:"SF Mono",monospace;font-size:12px;color:#facc15;margin:8px 0;overflow-x:auto}
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
 
-  @media(max-width:960px){.calc-layout{grid-template-columns:1fr}.boundary-grid{grid-template-columns:1fr}.layer-view{grid-template-columns:1fr}}
+  /* ── Sliders ── */
+  .slider-group { margin-bottom: 14px; }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .slider-label {
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slider-label .sym {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .slider-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 64px;
+    text-align: right;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--bg3);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+    cursor: grab;
+    transition: transform 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); cursor: grabbing; }
+
+  /* ── Behavior Badge ── */
+  .behavior-display {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .behavior-badge {
+    border-radius: 14px;
+    padding: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .behavior-icon {
+    width: 64px; height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .behavior-name {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    transition: color 0.3s;
+  }
+  .behavior-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Safety indicator */
+  .safety-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .safety-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    transition: background 0.3s;
+  }
+  .safety-label { font-size: 12px; font-weight: 500; }
+
+  /* ── Rule breakdown ── */
+  .rules-list { display: flex; flex-direction: column; gap: 6px; }
+  .rule-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--bg3);
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    transition: opacity 0.2s;
+  }
+  .rule-item.matched { opacity: 1; }
+  .rule-item.unmatched { opacity: 0.35; }
+  .rule-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .rule-item.matched .rule-dot { background: #22d3ee; }
+  .rule-item.unmatched .rule-dot { background: var(--muted); }
+
+  /* ── Radar chart ── */
+  .radar-wrap {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+  }
+
+  canvas#radar {
+    display: block;
+  }
+
+  /* ── Presets ── */
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .preset-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .preset-btn .pd { font-size: 14px; }
+
+  /* ── Reference table ── */
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+  .ref-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg3);
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+  .ref-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .ref-table tr:last-child td { border-bottom: none; }
+  .ref-table tr:hover td { background: var(--bg3); }
+  .bcolor {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* ── Layer badges in reference ── */
+  .layer-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+
+  /* ── Threshold editor ── */
+  .thresh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .thresh-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .thresh-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .thresh-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+  .thresh-row label { color: var(--muted); width: 100px; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+  .thresh-row input[type=number] {
+    width: 70px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+  .thresh-row span { color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    margin-top: 20px;
+    transition: opacity 0.15s;
+  }
+  .export-btn:hover { opacity: 0.85; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div style="display:flex;align-items:baseline;gap:14px">
-    <h1>Sensor Behavior Playground</h1>
-    <span class="sub">Soft Robot Elbow Pad &middot; 7-Variable Classification</span>
+<header>
+  <div class="logo">🦾</div>
+  <div>
+    <h1>软体护肘 — 行为检测 Playground</h1>
+    <p>拖动滑块探索参数组合 · 实时行为分类</p>
   </div>
-</div>
+</header>
 
 <div class="tabs">
-  <button class="tab active" data-page="playground">Playground</button>
-  <button class="tab" data-page="thresholds">Threshold Editor</button>
-  <button class="tab" data-page="boundary">Boundary Lab</button>
-  <button class="tab" data-page="log">Experiment Log</button>
-  <button class="tab" data-page="reference">Reference</button>
+  <button class="tab active" onclick="switchTab('playground')">Playground</button>
+  <button class="tab" onclick="switchTab('boundary')">Boundary Lab</button>
+  <button class="tab" onclick="switchTab('thresholds')">阈值编辑器</button>
+  <button class="tab" onclick="switchTab('log')">实验记录</button>
+  <button class="tab" onclick="switchTab('reference')">参数参考表</button>
 </div>
 
-<div class="container">
+<!-- ══ TAB 1: PLAYGROUND ══ -->
+<div class="panel active" id="tab-playground">
 
-<!-- ═══ PLAYGROUND ═══ -->
-<div class="page active" id="page-playground">
-  <div class="calc-layout">
-    <div>
-      <!-- Presets -->
-      <div class="card">
-        <div class="card-title">Load Behavior Preset</div>
-        <div class="preset-grid" id="presetGrid"></div>
+  <!-- Presets -->
+  <div class="presets">
+    <span style="font-size:12px;color:var(--muted);align-self:center;margin-right:4px;">快速预设:</span>
+    <button class="preset-btn" onclick="loadPreset('sleep')"><span class="pd">😴</span>睡眠</button>
+    <button class="preset-btn" onclick="loadPreset('rest')"><span class="pd">🪑</span>静坐</button>
+    <button class="preset-btn" onclick="loadPreset('office')"><span class="pd">💻</span>办公</button>
+    <button class="preset-btn" onclick="loadPreset('eating')"><span class="pd">🍜</span>吃饭</button>
+    <button class="preset-btn" onclick="loadPreset('walking')"><span class="pd">🚶</span>走路</button>
+    <button class="preset-btn" onclick="loadPreset('aerobic')"><span class="pd">🏃</span>有氧</button>
+    <button class="preset-btn" onclick="loadPreset('strength')"><span class="pd">🏋️</span>力量训练</button>
+    <button class="preset-btn" onclick="loadPreset('fatigue')" style="border-color:#ef4444;color:#ef4444"><span class="pd">⚠️</span>力竭预警</button>
+  </div>
+
+  <div class="playground-grid">
+
+    <!-- Sliders column -->
+    <div class="card" style="grid-row: 1 / 3;">
+      <div class="card-title">传感器输入</div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">T</span> 皮肤温度</div>
+          <div class="slider-value" id="val-T">33°C</div>
+        </div>
+        <input type="range" id="sl-T" min="28" max="38" step="0.1" value="33" oninput="update()">
       </div>
-      <!-- Sliders -->
-      <div class="card" id="slidersCard"></div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">θ</span> 弯曲角度</div>
+          <div class="slider-value" id="val-theta">70°</div>
+        </div>
+        <input type="range" id="sl-theta" min="0" max="135" step="1" value="70" oninput="update()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">ω</span> 角速度</div>
+          <div class="slider-value" id="val-omega">20°/s</div>
+        </div>
+        <input type="range" id="sl-omega" min="0" max="300" step="1" value="20" oninput="update()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">HR</span> 心率</div>
+          <div class="slider-value" id="val-HR">72 bpm</div>
+        </div>
+        <input type="range" id="sl-HR" min="55" max="180" step="1" value="72" oninput="update()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">SpO₂</span> 血氧</div>
+          <div class="slider-value" id="val-spo2">98%</div>
+        </div>
+        <input type="range" id="sl-spo2" min="88" max="100" step="0.1" value="98" oninput="update()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">G</span> 皮肤导电</div>
+          <div class="slider-value" id="val-G">4 µS</div>
+        </div>
+        <input type="range" id="sl-G" min="1" max="100" step="1" value="4" oninput="update()">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-label"><span class="sym">F</span> 肌肉收缩力</div>
+          <div class="slider-value" id="val-F">2 N</div>
+        </div>
+        <input type="range" id="sl-F" min="0" max="100" step="1" value="2" oninput="update()">
+      </div>
     </div>
-    <div>
-      <!-- Detection result -->
-      <div class="card behavior-badge" id="behaviorBadge"></div>
-      <!-- Safety -->
-      <div class="card" id="safetyCard"></div>
-      <!-- Radar chart -->
-      <div class="card">
-        <div class="card-title">Sensor Profile</div>
-        <div class="radar-wrap"><canvas id="radarCanvas" width="280" height="280"></canvas></div>
+
+    <!-- Behavior badge + safety -->
+    <div class="behavior-display">
+      <div class="behavior-badge" id="behavior-badge">
+        <div class="behavior-icon" id="b-icon">🪑</div>
+        <div>
+          <div class="behavior-name" id="b-name">静坐休息</div>
+          <div class="behavior-sub" id="b-sub">A2 · 静止层 · 低强度</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+            <div class="safety-bar">
+              <div class="safety-dot" id="safety-dot"></div>
+              <div class="safety-label" id="safety-label"></div>
+            </div>
+          </div>
+        </div>
       </div>
-      <!-- Rule breakdown -->
-      <div class="card">
-        <div class="card-title">Rule Breakdown</div>
-        <div id="ruleBreakdown"></div>
-      </div>
-      <!-- Save snapshot -->
-      <div class="card">
-        <div class="card-title">Save to Experiment Log</div>
-        <textarea id="snapshotNote" placeholder="Notes about this combination..."></textarea>
-        <div style="margin-top:8px"><button class="btn btn-primary" id="saveSnapshotBtn">Save Snapshot</button></div>
+
+      <!-- Rules -->
+      <div class="card" style="flex:1">
+        <div class="card-title">判断依据</div>
+        <div class="rules-list" id="rules-list"></div>
       </div>
     </div>
+
+    <!-- Radar -->
+    <div class="radar-wrap">
+      <div class="card" style="display:flex;flex-direction:column;align-items:center;">
+        <div class="card-title" style="align-self:flex-start">参数雷达图</div>
+        <canvas id="radar" width="240" height="240"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">各参数归一化值</div>
+        <div id="norm-bars" style="display:flex;flex-direction:column;gap:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Save snapshot -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-title">保存到实验记录</div>
+      <textarea id="snapshotNote" placeholder="记录你的观察和结论..." style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px;font-family:'Outfit',sans-serif;font-size:13px;resize:vertical;min-height:50px;outline:none;"></textarea>
+      <button class="export-btn" id="saveSnapshotBtn" style="margin-top:10px">保存快照</button>
+    </div>
+
   </div>
 </div>
 
-<!-- ═══ THRESHOLD EDITOR ═══ -->
-<div class="page" id="page-thresholds">
-  <div class="card">
-    <div class="card-title">Classification Thresholds</div>
-    <p style="font-size:12px;color:#888;margin-bottom:14px">Edit thresholds to see how classification changes. Values are used by the playground in real-time.</p>
-    <div style="overflow-x:auto"><table class="thresh-table" id="threshTable"></table></div>
-    <div style="margin-top:12px;display:flex;gap:8px">
-      <button class="btn btn-secondary" id="resetThresh">Reset to Defaults</button>
-      <button class="btn btn-primary" id="exportThresh">Export JSON (for ESP32)</button>
+<!-- ══ BOUNDARY LAB ══ -->
+<div class="panel" id="tab-boundary">
+  <!-- 3-Layer Model -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+    <div class="card" style="border-color:rgba(99,102,241,0.3)">
+      <div class="card-title" style="color:#818cf8">第一层：静态数值</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">瞬时读数区分强度层级，但不能区分同层行为</p>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);background:var(--bg3);padding:8px;border-radius:6px">HR, T, SpO₂ → 强度分级<br>局限: 吃饭和办公HR一样</div>
     </div>
-  </div>
-</div>
-
-<!-- ═══ BOUNDARY LAB ═══ -->
-<div class="page" id="page-boundary">
-
-  <!-- 3-Layer Classification View -->
-  <div class="card">
-    <div class="card-title">Three-Layer Classification Model</div>
-    <p style="font-size:12px;color:#888;margin-bottom:14px">Behavior detection requires three dimensions of information, not just threshold values.</p>
-    <div class="layer-view">
-      <div class="layer-card" style="border-color:#4ade80">
-        <h4 style="color:#4ade80">Layer 1: Static Values</h4>
-        <div class="layer-desc">Instantaneous sensor readings. Separates intensity levels but cannot distinguish behaviors within the same level.</div>
-        <div class="layer-vars">
-          <span class="layer-var" style="color:#f472b6">HR</span>
-          <span class="layer-var" style="color:#f87171">T</span>
-          <span class="layer-var" style="color:#4ade80">SpO2</span>
-        </div>
-        <div class="math-block">if HR &lt; 90 &rarr; low intensity<br>if HR 90-130 &rarr; moderate<br>if HR &gt; 130 &rarr; high</div>
-        <div class="insight">Limitation: eating and office work both have HR 60-90. Cannot separate them with static values alone.</div>
-      </div>
-      <div class="layer-card" style="border-color:#facc15">
-        <h4 style="color:#facc15">Layer 2: Dynamic Patterns</h4>
-        <div class="layer-desc">How values change over a time window (5-10s). Periodicity, frequency, and amplitude distinguish same-intensity behaviors.</div>
-        <div class="layer-vars">
-          <span class="layer-var" style="color:#facc15">&theta; pattern</span>
-          <span class="layer-var" style="color:#22d3ee">&omega; rhythm</span>
-          <span class="layer-var" style="color:#fb923c">F envelope</span>
-        </div>
-        <div class="math-block">periodicity = std(peak_intervals) / mean(peak_intervals)<br>if periodicity &lt; 0.3 &rarr; rhythmic motion<br>dominant_freq = FFT peak frequency</div>
-        <div class="insight">This is what separates eating (theta cycles at 0.3 Hz) from office work (theta stable).</div>
-      </div>
-      <div class="layer-card" style="border-color:#f87171">
-        <h4 style="color:#f87171">Layer 3: Trend Detection</h4>
-        <div class="layer-desc">Rate of change over time. Detects transitions and anomalies that single-frame values cannot catch.</div>
-        <div class="layer-vars">
-          <span class="layer-var" style="color:#22d3ee">d&omega;/dt</span>
-          <span class="layer-var" style="color:#fb923c">dF/dt</span>
-          <span class="layer-var" style="color:#f472b6">HR trend</span>
-        </div>
-        <div class="math-block">rate = (&omega;_now - &omega;_prev) / &Delta;t<br>if rate &lt; -100 deg/s&sup2; AND HR &gt; 130<br>&rarr; FATIGUE WARNING</div>
-        <div class="insight">Fatigue cannot be detected from any single instant. It requires knowing that omega was high and suddenly dropped.</div>
-      </div>
+    <div class="card" style="border-color:rgba(250,204,21,0.3)">
+      <div class="card-title" style="color:#fbbf24">第二层：动态模式</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">5-10秒时间窗口内的周期性、频率、振幅</p>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);background:var(--bg3);padding:8px;border-radius:6px">periodicity = std(intervals)/mean<br>if &lt; 0.3 → 节律性运动<br>freq = FFT 主频</div>
+    </div>
+    <div class="card" style="border-color:rgba(239,68,68,0.3)">
+      <div class="card-title" style="color:#ef4444">第三层：趋势检测</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">变化速率，检测异常和过渡状态</p>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);background:var(--bg3);padding:8px;border-radius:6px">dω/dt = (ω_now - ω_prev)/Δt<br>if rate &lt; -100 AND HR &gt; 130<br>→ 力竭预警</div>
     </div>
   </div>
 
   <!-- 4 Boundary Problems -->
-  <div class="boundary-grid">
-
-    <!-- Boundary 1: Walking vs Eating -->
-    <div class="boundary-card">
-      <h3>1. Walking vs Eating</h3>
-      <div class="question">How do you mathematically define "rhythmic" vs "periodic"?</div>
-      <canvas id="bndWalkEat" width="500" height="200"></canvas>
-      <div class="param-row"><label>Walk &omega; freq (Hz)</label><input type="range" id="bndWalkFreq" min="0.5" max="3" step="0.1" value="1.5"><span class="pval" id="bndWalkFreqVal">1.5</span></div>
-      <div class="param-row"><label>Walk &omega; amplitude</label><input type="range" id="bndWalkAmp" min="10" max="150" step="5" value="70"><span class="pval" id="bndWalkAmpVal">70</span></div>
-      <div class="param-row"><label>Eat &theta; freq (Hz)</label><input type="range" id="bndEatFreq" min="0.1" max="1" step="0.05" value="0.3"><span class="pval" id="bndEatFreqVal">0.3</span></div>
-      <div class="param-row"><label>Eat &theta; amplitude</label><input type="range" id="bndEatAmp" min="10" max="50" step="2" value="25"><span class="pval" id="bndEatAmpVal">25</span></div>
-      <div class="math-block">Walking: &omega;(t) = A&middot;|sin(2&pi;f&middot;t)| + noise &nbsp; (f &asymp; 1.5 Hz, step rhythm)<br>Eating: &theta;(t) = &theta;0 + A&middot;sin(2&pi;f&middot;t) &nbsp; (f &asymp; 0.3 Hz, hand-to-mouth)<br><br>Key separator: dominant frequency<br>f &gt; 0.8 Hz &rarr; walking &nbsp;|&nbsp; f &lt; 0.5 Hz &rarr; eating</div>
-      <div class="insight">Both show periodic motion, but at very different frequencies. Walking is ~1.5 Hz (steps), eating is ~0.3 Hz (arm cycles). The physical reason: walking involves the full body oscillation cycle, eating only the forearm lever.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <!-- 1: Walking vs Eating -->
+    <div class="card">
+      <div class="card-title" style="color:var(--text);font-size:14px">1. 走路 vs 吃饭</div>
+      <p style="font-size:11px;color:var(--accent);margin-bottom:10px;font-style:italic">如何用数学定义「节律性」vs「周期性」？</p>
+      <canvas id="bndWalkEat" width="460" height="180" style="width:100%;border-radius:8px;background:var(--bg3);border:1px solid var(--border)"></canvas>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px"><label style="width:100px;color:var(--muted)">走路ω频率 Hz</label><input type="range" id="bndWalkFreq" min="0.5" max="3" step="0.1" value="1.5" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndWalkFreqVal">1.5</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px"><label style="width:100px;color:var(--muted)">吃饭θ频率 Hz</label><input type="range" id="bndEatFreq" min="0.1" max="1" step="0.05" value="0.3" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndEatFreqVal">0.3</span></div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#fbbf24;background:var(--bg3);padding:8px;border-radius:6px;margin-top:8px">关键区分: 主频率<br>f &gt; 0.8 Hz → 走路 | f &lt; 0.5 Hz → 吃饭</div>
     </div>
-
-    <!-- Boundary 2: Aerobic vs Strength -->
-    <div class="boundary-card">
-      <h3>2. Aerobic vs Strength Training</h3>
-      <div class="question">Where does the force threshold separate aerobic from resistance?</div>
-      <canvas id="bndAeroStr" width="500" height="200"></canvas>
-      <div class="param-row"><label>F boundary (N)</label><input type="range" id="bndFBound" min="10" max="60" step="1" value="25"><span class="pval" id="bndFBoundVal">25</span></div>
-      <div class="param-row"><label>HR boundary (bpm)</label><input type="range" id="bndHRBound" min="90" max="160" step="5" value="120"><span class="pval" id="bndHRBoundVal">120</span></div>
-      <div class="math-block">Joint torque: M = F &times; L &times; sin(&theta;)<br>For L=0.27m, &theta;=90&deg;: M = F &times; 0.27 N&middot;m<br><br>Aerobic zone: HR &gt; 100, F &lt; 25 N (M &lt; 6.75 N&middot;m)<br>Strength zone: HR &gt; 120, F &gt; 25 N (M &gt; 6.75 N&middot;m)<br><br>Physical basis: resistance training requires sustained muscle force<br>against external load. Aerobic keeps HR high but low peak force.</div>
-      <div class="insight">The F threshold comes from physics: at F=25N with L=0.27m, joint torque is ~6.75 N&middot;m. Below this, the elbow moves freely (aerobic). Above it, the muscle is working against resistance (strength).</div>
+    <!-- 2: Aerobic vs Strength -->
+    <div class="card">
+      <div class="card-title" style="color:var(--text);font-size:14px">2. 有氧 vs 力量训练</div>
+      <p style="font-size:11px;color:var(--accent);margin-bottom:10px;font-style:italic">F的阈值划在哪里？物理推导</p>
+      <canvas id="bndAeroStr" width="460" height="180" style="width:100%;border-radius:8px;background:var(--bg3);border:1px solid var(--border)"></canvas>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px"><label style="width:100px;color:var(--muted)">F 边界 (N)</label><input type="range" id="bndFBound" min="10" max="60" step="1" value="25" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndFBoundVal">25</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px"><label style="width:100px;color:var(--muted)">HR 边界 (bpm)</label><input type="range" id="bndHRBound" min="90" max="160" step="5" value="120" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndHRBoundVal">120</span></div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#fbbf24;background:var(--bg3);padding:8px;border-radius:6px;margin-top:8px">M = F × L × sin(θ)<br>F=25N, L=0.27m → M=6.75 N·m<br>低于此值=自由运动，高于=抗阻</div>
     </div>
-
-    <!-- Boundary 3: Office vs Rest -->
-    <div class="boundary-card">
-      <h3>3. Office vs Rest</h3>
-      <div class="question">How do you quantify "stable" arm position?</div>
-      <canvas id="bndOfficeRest" width="500" height="200"></canvas>
-      <div class="param-row"><label>Office &theta; mean (&deg;)</label><input type="range" id="bndOffMean" min="60" max="110" step="1" value="85"><span class="pval" id="bndOffMeanVal">85</span></div>
-      <div class="param-row"><label>Office &theta; noise (&deg;)</label><input type="range" id="bndOffNoise" min="1" max="20" step="0.5" value="4"><span class="pval" id="bndOffNoiseVal">4</span></div>
-      <div class="param-row"><label>Rest &theta; mean (&deg;)</label><input type="range" id="bndRestMean" min="10" max="70" step="1" value="35"><span class="pval" id="bndRestMeanVal">35</span></div>
-      <div class="param-row"><label>Stability window (s)</label><input type="range" id="bndStabWin" min="2" max="15" step="1" value="10"><span class="pval" id="bndStabWinVal">10</span></div>
-      <div class="math-block">stability = std(&theta;) over window of N seconds<br><br>Office: &theta; &isin; [70&deg;, 100&deg;] AND stability &lt; 5&deg;<br>Resting: &theta; &isin; [20&deg;, 60&deg;] AND stability &lt; 8&deg;<br><br>Both are "still" but at different arm positions.<br>The desk constrains the elbow to ~85&deg; (typing posture).<br>Rest lets the arm hang naturally at ~30-40&deg;.</div>
-      <div class="insight">The key differentiator is NOT motion (both are still) but the static angle range. Office = arm on desk (70-100&deg;). Rest = arm relaxed (20-60&deg;). Stability (low std dev) confirms it's sustained, not transitioning.</div>
+    <!-- 3: Office vs Rest -->
+    <div class="card">
+      <div class="card-title" style="color:var(--text);font-size:14px">3. 办公 vs 静坐</div>
+      <p style="font-size:11px;color:var(--accent);margin-bottom:10px;font-style:italic">如何量化「稳定」的手臂位置？</p>
+      <canvas id="bndOfficeRest" width="460" height="180" style="width:100%;border-radius:8px;background:var(--bg3);border:1px solid var(--border)"></canvas>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px"><label style="width:100px;color:var(--muted)">办公θ均值 (°)</label><input type="range" id="bndOffMean" min="60" max="110" step="1" value="85" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndOffMeanVal">85</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px"><label style="width:100px;color:var(--muted)">办公θ噪声 (°)</label><input type="range" id="bndOffNoise" min="1" max="20" step="0.5" value="4" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndOffNoiseVal">4</span></div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#fbbf24;background:var(--bg3);padding:8px;border-radius:6px;margin-top:8px">stability = std(θ) over 10s window<br>办公: θ∈[70°,100°] AND std &lt; 5°<br>静坐: θ∈[20°,60°] 手臂自然下垂</div>
     </div>
-
-    <!-- Boundary 4: Fatigue Detection -->
-    <div class="boundary-card">
-      <h3>4. Fatigue / Muscle Failure</h3>
-      <div class="question">How fast must omega drop, and over what time window?</div>
-      <canvas id="bndFatigue" width="500" height="200"></canvas>
-      <div class="param-row"><label>Pre-fatigue &omega; (deg/s)</label><input type="range" id="bndFatOmegaPre" min="80" max="250" step="5" value="150"><span class="pval" id="bndFatOmegaPreVal">150</span></div>
-      <div class="param-row"><label>Drop time (s)</label><input type="range" id="bndFatDropTime" min="0.2" max="3" step="0.1" value="0.5"><span class="pval" id="bndFatDropTimeVal">0.5</span></div>
-      <div class="param-row"><label>Detection window (s)</label><input type="range" id="bndFatWindow" min="1" max="10" step="0.5" value="2"><span class="pval" id="bndFatWindowVal">2</span></div>
-      <div class="param-row"><label>Rate threshold (deg/s&sup2;)</label><input type="range" id="bndFatRate" min="30" max="300" step="10" value="100"><span class="pval" id="bndFatRateVal">100</span></div>
-      <div class="math-block">d&omega;/dt = (&omega;_now - &omega;_prev) / &Delta;t<br><br>FATIGUE if ALL of:<br>&nbsp; 1. &omega; was &gt; 100 deg/s in last N seconds<br>&nbsp; 2. &omega; dropped to &lt; 20 deg/s<br>&nbsp; 3. |d&omega;/dt| &gt; threshold (sudden, not gradual)<br>&nbsp; 4. HR still &gt; 130 (body still stressed)<br><br>Normal stop: &omega; decreases gradually over 2-3s<br>Fatigue: &omega; drops to ~0 within 0.3-0.5s</div>
-      <div class="insight">The physics: muscle failure means the motor neurons stop firing abruptly. Unlike a deliberate stop (gradual deceleration), fatigue causes near-instantaneous force loss. The rate of omega change (d&omega;/dt) is the critical discriminator, not omega itself.</div>
+    <!-- 4: Fatigue -->
+    <div class="card">
+      <div class="card-title" style="color:var(--text);font-size:14px">4. 力竭检测</div>
+      <p style="font-size:11px;color:var(--accent);margin-bottom:10px;font-style:italic">ω下降多快算「突然」？需要多长时间窗口？</p>
+      <canvas id="bndFatigue" width="460" height="180" style="width:100%;border-radius:8px;background:var(--bg3);border:1px solid var(--border)"></canvas>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px"><label style="width:100px;color:var(--muted)">训练中ω (°/s)</label><input type="range" id="bndFatOmegaPre" min="80" max="250" step="5" value="150" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndFatOmegaPreVal">150</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px"><label style="width:100px;color:var(--muted)">下降时间 (s)</label><input type="range" id="bndFatDropTime" min="0.2" max="3" step="0.1" value="0.5" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndFatDropTimeVal">0.5</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px"><label style="width:100px;color:var(--muted)">速率阈值 (°/s²)</label><input type="range" id="bndFatRate" min="30" max="300" step="10" value="100" style="flex:1"><span style="width:30px;text-align:right;font-family:'DM Mono',monospace" id="bndFatRateVal">100</span></div>
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#fbbf24;background:var(--bg3);padding:8px;border-radius:6px;margin-top:8px">力竭: dω/dt &gt; threshold<br>正常停止: ω缓慢下降 2-3s<br>肌肉失败: ω在0.3-0.5s内骤降至0</div>
     </div>
-
   </div>
 </div>
 
-<!-- ═══ EXPERIMENT LOG ═══ -->
-<div class="page" id="page-log">
-  <div class="export-bar">
-    <button class="btn btn-secondary" id="exportLogCSV">Export CSV</button>
-    <button class="btn btn-secondary" id="exportLogJSON">Export JSON</button>
-    <button class="btn btn-secondary danger" id="clearLog" style="margin-left:auto">Clear All</button>
+<!-- ══ TAB 2: THRESHOLDS ══ -->
+<div class="panel" id="tab-thresholds">
+  <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">调整分类阈值，观察 Playground 中行为判断如何变化。修改后导出为 JSON 供 ESP32 固件使用。</p>
+
+  <div class="thresh-grid" id="thresh-grid"></div>
+
+  <button class="export-btn" onclick="exportThresholds()">导出 JSON</button>
+  <button class="export-btn" style="background:var(--bg3);color:var(--text);margin-left:12px;border:1px solid var(--border2);" onclick="resetThresholds()">重置默认值</button>
+</div>
+
+<!-- ══ EXPERIMENT LOG ══ -->
+<div class="panel" id="tab-log">
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="export-btn" style="margin-top:0" id="exportLogCSV">导出 CSV</button>
+    <button class="export-btn" style="margin-top:0" id="exportLogJSON">导出 JSON</button>
+    <button class="export-btn" style="margin-top:0;background:var(--bg3);color:var(--text);border:1px solid var(--border2);margin-left:auto" id="clearLog">清空全部</button>
   </div>
   <div id="logEntries"></div>
-  <div id="logEmpty" style="text-align:center;padding:40px;color:#555;font-size:14px">No snapshots saved yet. Use the playground to experiment and save interesting combinations.</div>
+  <div id="logEmpty" style="text-align:center;padding:40px;color:var(--muted);font-size:14px">还没有保存的记录。在 Playground 中实验并保存有趣的参数组合。</div>
 </div>
 
-<!-- ═══ REFERENCE ═══ -->
-<div class="page" id="page-reference">
-  <div class="card">
-    <div class="card-title">7 Sensor Variables</div>
+<!-- ══ TAB 3: REFERENCE ══ -->
+<div class="panel" id="tab-reference">
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title">行为分类完整参数表</div>
     <table class="ref-table">
-      <thead><tr><th>Variable</th><th>Name</th><th>Unit</th><th>Range</th><th>Sensor</th></tr></thead>
-      <tbody>
-        <tr><td style="color:#f87171;font-weight:700">T</td><td>Skin Temperature</td><td>&deg;C</td><td>28 &ndash; 38</td><td>NTC 10k&Omega; thermistor</td></tr>
-        <tr><td style="color:#facc15;font-weight:700">&theta;</td><td>Elbow Flex Angle</td><td>degrees</td><td>0 &ndash; 135</td><td>Flex Sensor 2.2"</td></tr>
-        <tr><td style="color:#22d3ee;font-weight:700">&omega;</td><td>Angular Velocity</td><td>deg/s</td><td>0 &ndash; 300+</td><td>MPU-6050 gyro</td></tr>
-        <tr><td style="color:#4ade80;font-weight:700">SpO2</td><td>Blood Oxygen</td><td>%</td><td>88 &ndash; 100</td><td>MAX30102</td></tr>
-        <tr><td style="color:#f472b6;font-weight:700">HR</td><td>Heart Rate</td><td>bpm</td><td>55 &ndash; 180</td><td>MAX30102</td></tr>
-        <tr><td style="color:#a78bfa;font-weight:700">G</td><td>Skin Conductance</td><td>&micro;S</td><td>1 &ndash; 100</td><td>Silver electrodes</td></tr>
-        <tr><td style="color:#fb923c;font-weight:700">F</td><td>Muscle Force</td><td>N</td><td>0 &ndash; 100</td><td>FSR 402</td></tr>
-      </tbody>
+      <thead>
+        <tr>
+          <th>行为</th><th>层级</th>
+          <th>T (°C)</th><th>θ (°)</th><th>ω (°/s)</th>
+          <th>HR (bpm)</th><th>SpO₂ (%)</th><th>G (µS)</th><th>F (N)</th>
+          <th>主要区分变量</th>
+        </tr>
+      </thead>
+      <tbody id="ref-tbody"></tbody>
     </table>
   </div>
+
   <div class="card">
-    <div class="card-title">Behavior Classification Table</div>
-    <div style="overflow-x:auto">
-    <table class="ref-table">
-      <thead><tr><th>Behavior</th><th>T (&deg;C)</th><th>&theta; (deg)</th><th>&omega; (deg/s)</th><th>HR (bpm)</th><th>G (&micro;S)</th><th>F (N)</th></tr></thead>
-      <tbody>
-        <tr><td>Resting / sleep</td><td>28&ndash;33</td><td>20&ndash;60</td><td>&lt; 15</td><td>55&ndash;80</td><td>1&ndash;5</td><td>0&ndash;2</td></tr>
-        <tr><td>Eating / drinking</td><td>28&ndash;33</td><td>60&ndash;110</td><td>20&ndash;60</td><td>60&ndash;90</td><td>2&ndash;8</td><td>2&ndash;10</td></tr>
-        <tr><td>Office / typing</td><td>29&ndash;33</td><td>70&ndash;100</td><td>5&ndash;30</td><td>60&ndash;90</td><td>2&ndash;10</td><td>0&ndash;5</td></tr>
-        <tr><td>Walking</td><td>30&ndash;35</td><td>0&ndash;30</td><td>30&ndash;120</td><td>80&ndash;110</td><td>5&ndash;20</td><td>2&ndash;15</td></tr>
-        <tr><td>Light exercise</td><td>33&ndash;36</td><td>varied</td><td>80&ndash;180</td><td>100&ndash;130</td><td>15&ndash;40</td><td>10&ndash;40</td></tr>
-        <tr><td>Strength training</td><td>35&ndash;38</td><td>45&ndash;135</td><td>100&ndash;250</td><td>120&ndash;170</td><td>30&ndash;70</td><td>30&ndash;100</td></tr>
-        <tr><td style="color:#f87171">Fatigue / failure</td><td>36&ndash;38</td><td>stuck</td><td>sudden drop</td><td>abnormal</td><td>40&ndash;80</td><td>sudden drop</td></tr>
-      </tbody>
-    </table>
+    <div class="card-title">三层分类逻辑</div>
+    <div style="font-family:'DM Mono',monospace;font-size:12px;line-height:1.8;color:var(--text);">
+      <div style="color:var(--muted);">// 第一层：omega 主判断</div>
+      <div>if omega &lt; 15  →  <span style="color:var(--sleep)">A组 静止</span></div>
+      <div>if 15 ≤ omega &lt; 100  →  <span style="color:var(--walking)">B组 日常活动</span></div>
+      <div>if omega ≥ 100  →  <span style="color:var(--strength)">C组 运动</span></div>
+      <br>
+      <div style="color:var(--muted);">// 第二层：组内细分</div>
+      <div>A组: HR &lt; 68  →  <span style="color:var(--sleep)">睡眠</span>  | HR ≥ 68  →  <span style="color:var(--rest)">静坐</span></div>
+      <div>B组: theta_stable &amp;&amp; 70-100  →  <span style="color:var(--office)">办公</span></div>
+      <div>     theta_periodic  →  <span style="color:var(--eating)">吃饭</span>  | omega_rhythmic  →  <span style="color:var(--walking)">走路</span></div>
+      <div>C组: F &gt; 25  →  <span style="color:var(--strength)">力量训练</span>  | F ≤ 25  →  <span style="color:var(--aerobic)">有氧运动</span></div>
+      <br>
+      <div style="color:var(--muted);">// 最高优先级：健康预警</div>
+      <div>SpO₂ &lt; 93  →  <span style="color:var(--fatigue)">⚠️ 血氧预警</span></div>
+      <div>omega_sudden_drop &amp;&amp; prev_omega &gt; 100  →  <span style="color:var(--fatigue)">⚠️ 力竭预警</span></div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-title">Key Formulas</div>
-    <p style="font-size:12px;color:#aaa;margin-bottom:8px"><strong>Temperature (NTC):</strong></p>
-    <div class="formula">R_T = R_ref &times; (V_cc / V_out - 1) &nbsp;&nbsp;|&nbsp;&nbsp; 1/T = 1/T0 + (1/B) &times; ln(R_T / R0)</div>
-    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>Joint Torque:</strong></p>
-    <div class="formula">M = F &times; L &times; sin(&theta;) &nbsp;&nbsp;|&nbsp;&nbsp; F=load(N), L=forearm(m)</div>
-    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>Impact Force:</strong></p>
-    <div class="formula">&alpha; = &Delta;&omega; / &Delta;t &nbsp;&nbsp;|&nbsp;&nbsp; M_impact = I &times; &alpha; &nbsp;&nbsp;|&nbsp;&nbsp; I = (1/3) &times; m &times; L&sup2;</div>
-    <p style="font-size:12px;color:#aaa;margin:12px 0 8px"><strong>SpO2:</strong></p>
-    <div class="formula">R = (AC_red/DC_red) / (AC_IR/DC_IR) &nbsp;&nbsp;|&nbsp;&nbsp; SpO2 = 110 - 25 &times; R</div>
-  </div>
-  <div class="card">
-    <div class="card-title">ESP32 Wiring</div>
-    <table class="ref-table">
-      <thead><tr><th>Sensor</th><th>Type</th><th>ESP32 Pin</th></tr></thead>
-      <tbody>
-        <tr><td>NTC thermistor</td><td>Analog ADC</td><td>GPIO34</td></tr>
-        <tr><td>Flex sensor</td><td>Analog ADC</td><td>GPIO35</td></tr>
-        <tr><td>MPU-6050</td><td>I2C</td><td>SDA=21, SCL=22</td></tr>
-        <tr><td>MAX30102</td><td>I2C</td><td>SDA=21, SCL=22</td></tr>
-        <tr><td>Silver electrodes</td><td>Analog ADC</td><td>GPIO32</td></tr>
-        <tr><td>FSR 402</td><td>Analog ADC</td><td>GPIO33</td></tr>
-        <tr><td>Pneumatic pump</td><td>PWM</td><td>GPIO25</td></tr>
-        <tr><td>Vibration motor</td><td>Digital</td><td>GPIO26</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
 </div>
 
 <script>
-(function(){
-"use strict";
+// ── Thresholds (editable) ──
+let TH = {
+  omega_static_max: 15,
+  omega_daily_max: 100,
+  HR_sleep_max: 68,
+  theta_office_min: 70,
+  theta_office_max: 100,
+  F_strength_min: 25,
+  spo2_warn: 93,
+  omega_fatigue_drop: 20,
+};
 
-// ═══ TABS ═══
-document.querySelectorAll(".tab").forEach(function(t){
-  t.addEventListener("click",function(){
-    document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("active")});
-    document.querySelectorAll(".page").forEach(function(x){x.classList.remove("active")});
-    t.classList.add("active");
-    document.getElementById("page-"+t.dataset.page).classList.add("active");
-  });
-});
+// ── Presets ──
+const PRESETS = {
+  sleep:    {T:29, theta:30, omega:5,   HR:60,  spo2:98, G:1,  F:0},
+  rest:     {T:31, theta:80, omega:8,   HR:74,  spo2:98, G:3,  F:1},
+  office:   {T:32, theta:85, omega:18,  HR:78,  spo2:98, G:5,  F:2},
+  eating:   {T:32, theta:90, omega:42,  HR:80,  spo2:97, G:4,  F:6},
+  walking:  {T:33, theta:20, omega:75,  HR:95,  spo2:97, G:10, F:8},
+  aerobic:  {T:35, theta:60, omega:140, HR:130, spo2:96, G:28, F:15},
+  strength: {T:37, theta:100,omega:190, HR:150, spo2:95, G:55, F:70},
+  fatigue:  {T:37, theta:120,omega:12,  HR:165, spo2:91, G:65, F:8},
+};
 
-// ═══ SENSOR DEFINITIONS ═══
-var SENSORS = [
-  {id:"T",   name:"Skin Temperature",  unit:"\u00B0C",   min:25, max:40, step:0.5, def:30, color:"#f87171"},
-  {id:"theta",name:"Elbow Flex Angle", unit:"\u00B0",    min:0,  max:135,step:1,   def:45, color:"#facc15"},
-  {id:"omega",name:"Angular Velocity",  unit:"deg/s",    min:0,  max:350,step:1,   def:10, color:"#22d3ee"},
-  {id:"HR",   name:"Heart Rate",        unit:"bpm",      min:40, max:200,step:1,   def:72, color:"#f472b6"},
-  {id:"SpO2", name:"Blood Oxygen",      unit:"%",        min:85, max:100,step:0.5, def:98, color:"#4ade80"},
-  {id:"G",    name:"Skin Conductance",  unit:"\u00B5S",  min:0,  max:100,step:0.5, def:3,  color:"#a78bfa"},
-  {id:"F",    name:"Muscle Force",      unit:"N",        min:0,  max:100,step:0.5, def:1,  color:"#fb923c"},
+// ── Behavior definitions ──
+const BEHAVIORS = {
+  sleep:    {name:'睡眠',    sub:'A1 · 静止层 · 最低强度', icon:'😴', color:'#6366f1'},
+  rest:     {name:'静坐休息',sub:'A2 · 静止层 · 低强度',   icon:'🪑', color:'#818cf8'},
+  office:   {name:'办公打字',sub:'B1 · 日常层 · 低强度',   icon:'💻', color:'#22d3ee'},
+  eating:   {name:'吃饭',   sub:'B2 · 日常层 · 低强度',   icon:'🍜', color:'#34d399'},
+  walking:  {name:'走路',   sub:'B3 · 日常层 · 中强度',   icon:'🚶', color:'#a3e635'},
+  aerobic:  {name:'有氧运动',sub:'C1 · 运动层 · 中高强度', icon:'🏃', color:'#fbbf24'},
+  strength: {name:'力量训练',sub:'C2 · 运动层 · 高强度',   icon:'🏋️', color:'#f97316'},
+  fatigue:  {name:'⚠️ 力竭预警',sub:'异常状态 · 最高优先级',icon:'🚨', color:'#ef4444'},
+  oxygen:   {name:'⚠️ 血氧过低',sub:'异常状态 · 立即停止',  icon:'💧', color:'#ef4444'},
+};
+
+const REF_DATA = [
+  {id:'sleep',    layer:'A1', T:'28–32', theta:'20–50 固定', omega:'<10',       HR:'55–68',  spo2:'>96', G:'1–3',   F:'~0',    key:'HR < 68'},
+  {id:'rest',     layer:'A2', T:'28–33', theta:'60–100 固定',omega:'<15',       HR:'68–85',  spo2:'>96', G:'1–5',   F:'0–3',   key:'omega < 15, HR ≥ 68'},
+  {id:'office',   layer:'B1', T:'29–33', theta:'70–100 稳定',omega:'5–30',      HR:'60–90',  spo2:'>96', G:'2–8',   F:'0–5',   key:'theta 稳定在 70-100°'},
+  {id:'eating',   layer:'B2', T:'29–33', theta:'60–110 周期',omega:'20–60',     HR:'65–90',  spo2:'>96', G:'2–8',   F:'2–10',  key:'theta 周期性变化'},
+  {id:'walking',  layer:'B3', T:'30–35', theta:'0–40 摆动',  omega:'30–120 节律',HR:'80–110', spo2:'>95', G:'5–15',  F:'2–15',  key:'omega 节律性'},
+  {id:'aerobic',  layer:'C1', T:'33–36', theta:'varied',     omega:'80–180',    HR:'110–150',spo2:'>94', G:'15–40', F:'5–25',  key:'F < 25N'},
+  {id:'strength', layer:'C2', T:'35–38', theta:'45–135 反复',omega:'100–250',   HR:'120–170',spo2:'>93', G:'30–70', F:'30–100',key:'F > 25N'},
+  {id:'fatigue',  layer:'!!', T:'>36',   theta:'卡高位',     omega:'突然降至<20',HR:'异常',  spo2:'<93', G:'40–80', F:'突降',  key:'趋势检测'},
 ];
 
-// ═══ BEHAVIORS ═══
-var BEHAVIORS = {
-  FATIGUE_WARNING:   {name:"Fatigue Warning",    icon:"\u26A0\uFE0F", color:"#f87171", bg:"rgba(248,113,113,0.1)", desc:"Sudden drop in omega/force with high HR — possible muscle failure. STOP immediately."},
-  LOW_OXYGEN_ALERT:  {name:"Low Oxygen Alert",   icon:"\uD83D\uDEA8", color:"#f87171", bg:"rgba(248,113,113,0.1)", desc:"SpO2 below 93% — potential hypoxia. Stop exercise and rest."},
-  STRENGTH_TRAINING: {name:"Strength Training",  icon:"\uD83C\uDFCB\uFE0F", color:"#fb923c", bg:"rgba(251,146,60,0.1)", desc:"High omega + HR + force + temperature. Active resistance exercise."},
-  LIGHT_EXERCISE:    {name:"Light Exercise",     icon:"\uD83C\uDFC3", color:"#facc15", bg:"rgba(250,204,21,0.1)", desc:"Elevated HR, omega, and sweat. Aerobic activity or dynamic movement."},
-  WALKING:           {name:"Walking",            icon:"\uD83D\uDEB6", color:"#22d3ee", bg:"rgba(34,211,238,0.1)", desc:"Rhythmic omega pattern with moderate HR. Locomotion detected."},
-  OFFICE_WORK:       {name:"Office / Typing",    icon:"\uD83D\uDCBB", color:"#667eea", bg:"rgba(102,126,234,0.1)", desc:"Low omega, stable theta 70\u2013100\u00B0, low HR and sweat. Sedentary desk work."},
-  EATING:            {name:"Eating / Drinking",  icon:"\uD83C\uDF7D\uFE0F", color:"#a78bfa", bg:"rgba(167,139,250,0.1)", desc:"Periodic theta 60\u2013110\u00B0, moderate omega, low sweat. Hand-to-mouth motion."},
-  RESTING:           {name:"Resting",            icon:"\uD83D\uDECB\uFE0F", color:"#4ade80", bg:"rgba(74,222,128,0.1)", desc:"Low activity across all sensors. Relaxed or sleeping."},
-};
+// ── Classify ──
+function classify(v) {
+  if (v.spo2 < TH.spo2_warn) return 'oxygen';
+  if (v.omega < TH.omega_static_max && v.omega < 20 && v.HR > 130 && v.F > 5) return 'fatigue';
 
-// ═══ PRESETS ═══
-var PRESETS = {
-  RESTING:           {T:30, theta:35, omega:5,  HR:65, SpO2:98, G:2,  F:0.5},
-  EATING:            {T:31, theta:85, omega:40, HR:75, SpO2:98, G:5,  F:5},
-  OFFICE_WORK:       {T:31, theta:85, omega:15, HR:72, SpO2:98, G:4,  F:2},
-  WALKING:           {T:32, theta:15, omega:70, HR:95, SpO2:97, G:12, F:8},
-  LIGHT_EXERCISE:    {T:34, theta:60, omega:130,HR:115,SpO2:96, G:25, F:20},
-  STRENGTH_TRAINING: {T:36, theta:90, omega:180,HR:145,SpO2:95, G:50, F:60},
-  FATIGUE_WARNING:   {T:37, theta:100,omega:8,  HR:155,SpO2:92, G:65, F:3},
-  LOW_OXYGEN_ALERT:  {T:36, theta:80, omega:50, HR:140,SpO2:90, G:45, F:15},
-};
+  if (v.omega < TH.omega_static_max) {
+    return v.HR < TH.HR_sleep_max ? 'sleep' : 'rest';
+  }
 
-// ═══ EDITABLE THRESHOLDS ═══
-var DEFAULT_THRESH = {
-  fatigue_omega_drop: 20,
-  fatigue_hr_min: 130,
-  spo2_alert: 93,
-  strength_omega: 100,
-  strength_hr: 120,
-  strength_f: 25,
-  strength_t: 35,
-  light_omega: 80,
-  light_hr: 100,
-  light_g: 15,
-  walk_omega_min: 30,
-  walk_omega_max: 120,
-  walk_hr_min: 80,
-  walk_hr_max: 110,
-  office_omega_max: 30,
-  office_theta_min: 70,
-  office_theta_max: 100,
-  office_hr_max: 90,
-  office_g_max: 10,
-  eat_theta_min: 60,
-  eat_theta_max: 110,
-  eat_omega_min: 20,
-  eat_omega_max: 60,
-  eat_g_max: 10,
-};
-var thresh = JSON.parse(JSON.stringify(DEFAULT_THRESH));
+  if (v.omega < TH.omega_daily_max) {
+    if (v.theta >= TH.theta_office_min && v.theta <= TH.theta_office_max && v.omega < 35) return 'office';
+    if (v.omega >= 30 && v.HR >= 80) return 'walking';
+    return 'eating';
+  }
 
-// ═══ STATE ═══
-var vals = {};
-SENSORS.forEach(function(s){ vals[s.id] = s.def; });
-
-// ═══ BUILD SLIDERS ═══
-var $sliders = document.getElementById("slidersCard");
-$sliders.innerHTML = '<div class="card-title">Sensor Values</div>' + SENSORS.map(function(s){
-  return '<div class="sensor-group"><div class="sensor-header"><span class="sensor-name" style="color:'+s.color+'">'+s.name+' ('+s.id+')</span><span><span class="sensor-val" id="val_'+s.id+'" style="color:'+s.color+'">'+s.def+'</span><span class="sensor-unit">'+s.unit+'</span></span></div><div class="sensor-meta">Range: '+s.min+' \u2013 '+s.max+' '+s.unit+'</div><input type="range" id="slider_'+s.id+'" min="'+s.min+'" max="'+s.max+'" step="'+s.step+'" value="'+s.def+'"></div>';
-}).join("");
-
-SENSORS.forEach(function(s){
-  document.getElementById("slider_"+s.id).addEventListener("input",function(){
-    vals[s.id] = parseFloat(this.value);
-    document.getElementById("val_"+s.id).textContent = vals[s.id];
-    update();
-  });
-});
-
-// ═══ BUILD PRESETS ═══
-var $presetGrid = document.getElementById("presetGrid");
-Object.keys(PRESETS).forEach(function(k){
-  var b = BEHAVIORS[k];
-  var btn = document.createElement("button");
-  btn.className = "preset-btn";
-  btn.textContent = b.icon + " " + b.name;
-  btn.addEventListener("click",function(){
-    var p = PRESETS[k];
-    SENSORS.forEach(function(s){
-      vals[s.id] = p[s.id];
-      document.getElementById("slider_"+s.id).value = p[s.id];
-      document.getElementById("val_"+s.id).textContent = p[s.id];
-    });
-    document.querySelectorAll(".preset-btn").forEach(function(x){x.classList.remove("active")});
-    btn.classList.add("active");
-    update();
-  });
-  $presetGrid.appendChild(btn);
-});
-
-// ═══ DETECTION LOGIC ═══
-function detect(v) {
-  var rules = [];
-  // Fatigue
-  var fat = v.omega < thresh.fatigue_omega_drop && v.HR > thresh.fatigue_hr_min;
-  rules.push({label:"Fatigue: \u03C9 < "+thresh.fatigue_omega_drop+" AND HR > "+thresh.fatigue_hr_min, match:fat, behavior:"FATIGUE_WARNING"});
-  if(fat) return {state:"FATIGUE_WARNING", rules:rules};
-
-  // Low O2
-  var lo2 = v.SpO2 < thresh.spo2_alert;
-  rules.push({label:"Low O\u2082: SpO2 < "+thresh.spo2_alert+"%", match:lo2, behavior:"LOW_OXYGEN_ALERT"});
-  if(lo2) return {state:"LOW_OXYGEN_ALERT", rules:rules};
-
-  // Strength
-  var str = v.omega > thresh.strength_omega && v.HR > thresh.strength_hr && v.F > thresh.strength_f && v.T > thresh.strength_t;
-  rules.push({label:"Strength: \u03C9>"+thresh.strength_omega+" & HR>"+thresh.strength_hr+" & F>"+thresh.strength_f+" & T>"+thresh.strength_t, match:str, behavior:"STRENGTH_TRAINING"});
-  if(str) return {state:"STRENGTH_TRAINING", rules:rules};
-
-  // Light exercise
-  var lex = v.omega > thresh.light_omega && v.HR > thresh.light_hr && v.G > thresh.light_g;
-  rules.push({label:"Light Ex: \u03C9>"+thresh.light_omega+" & HR>"+thresh.light_hr+" & G>"+thresh.light_g, match:lex, behavior:"LIGHT_EXERCISE"});
-  if(lex) return {state:"LIGHT_EXERCISE", rules:rules};
-
-  // Walking
-  var wlk = v.omega >= thresh.walk_omega_min && v.omega <= thresh.walk_omega_max && v.HR >= thresh.walk_hr_min && v.HR <= thresh.walk_hr_max;
-  rules.push({label:"Walk: \u03C9 "+thresh.walk_omega_min+"\u2013"+thresh.walk_omega_max+" & HR "+thresh.walk_hr_min+"\u2013"+thresh.walk_hr_max, match:wlk, behavior:"WALKING"});
-  if(wlk) return {state:"WALKING", rules:rules};
-
-  // Office
-  var ofc = v.omega < thresh.office_omega_max && v.theta >= thresh.office_theta_min && v.theta <= thresh.office_theta_max && v.HR < thresh.office_hr_max && v.G < thresh.office_g_max;
-  rules.push({label:"Office: \u03C9<"+thresh.office_omega_max+" & \u03B8 "+thresh.office_theta_min+"\u2013"+thresh.office_theta_max+" & HR<"+thresh.office_hr_max+" & G<"+thresh.office_g_max, match:ofc, behavior:"OFFICE_WORK"});
-  if(ofc) return {state:"OFFICE_WORK", rules:rules};
-
-  // Eating
-  var eat = v.theta >= thresh.eat_theta_min && v.theta <= thresh.eat_theta_max && v.omega >= thresh.eat_omega_min && v.omega <= thresh.eat_omega_max && v.G < thresh.eat_g_max;
-  rules.push({label:"Eat: \u03B8 "+thresh.eat_theta_min+"\u2013"+thresh.eat_theta_max+" & \u03C9 "+thresh.eat_omega_min+"\u2013"+thresh.eat_omega_max+" & G<"+thresh.eat_g_max, match:eat, behavior:"EATING"});
-  if(eat) return {state:"EATING", rules:rules};
-
-  rules.push({label:"Default: no other rule matched", match:true, behavior:"RESTING"});
-  return {state:"RESTING", rules:rules};
+  return v.F >= TH.F_strength_min ? 'strength' : 'aerobic';
 }
 
-// ═══ RADAR CHART ═══
-var radarCanvas = document.getElementById("radarCanvas");
-var rCtx = radarCanvas.getContext("2d");
+// ── Rules explanation ──
+function getRules(v, behavior) {
+  const rules = [
+    { text: `omega=${v.omega}°/s  ${v.omega < TH.omega_static_max ? '< '+TH.omega_static_max+' → 静止组' : v.omega < TH.omega_daily_max ? '< '+TH.omega_daily_max+' → 日常组' : '≥ '+TH.omega_daily_max+' → 运动组'}`, matched: true },
+  ];
 
+  if (v.omega < TH.omega_static_max) {
+    rules.push({ text: `HR=${v.HR} bpm  ${v.HR < TH.HR_sleep_max ? '< '+TH.HR_sleep_max+' → 睡眠' : '≥ '+TH.HR_sleep_max+' → 静坐'}`, matched: true });
+  } else if (v.omega < TH.omega_daily_max) {
+    rules.push({ text: `theta=${v.theta}°  ${v.theta>=TH.theta_office_min&&v.theta<=TH.theta_office_max?'在 '+TH.theta_office_min+'–'+TH.theta_office_max+'° 范围':'不在办公范围'}`, matched: v.theta>=TH.theta_office_min&&v.theta<=TH.theta_office_max });
+    rules.push({ text: `omega=${v.omega}°/s  ${v.omega>=30?'≥ 30 有走路可能':'< 30 排除走路'}`, matched: v.omega>=30 });
+    rules.push({ text: `HR=${v.HR}  ${v.HR>=80?'≥ 80 支持走路判断':'< 80 可能是吃饭'}`, matched: v.HR>=80 });
+  } else {
+    rules.push({ text: `F=${v.F}N  ${v.F>=TH.F_strength_min?'≥ '+TH.F_strength_min+'N → 力量训练':'< '+TH.F_strength_min+'N → 有氧运动'}`, matched: true });
+    rules.push({ text: `HR=${v.HR} bpm  ${v.HR>=120?'≥ 120 支持高强度':'< 120 中等强度'}`, matched: v.HR>=120 });
+    rules.push({ text: `T=${v.T}°C  ${v.T>=35?'≥ 35 体温升高':'< 35 体温正常'}`, matched: v.T>=35 });
+  }
+
+  rules.push({ text: `SpO₂=${v.spo2}%  ${v.spo2<TH.spo2_warn?'< '+TH.spo2_warn+'% ⚠️ 触发预警':'≥ '+TH.spo2_warn+'% 正常'}`, matched: v.spo2 >= TH.spo2_warn });
+
+  return rules;
+}
+
+// ── Radar ──
 function drawRadar(v) {
-  var w=radarCanvas.width, h=radarCanvas.height, cx=w/2, cy=h/2, r=100;
-  rCtx.clearRect(0,0,w,h);
-  var n = SENSORS.length;
-  var angleStep = Math.PI*2/n;
+  const canvas = document.getElementById('radar');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2, r = 90;
+  ctx.clearRect(0, 0, W, H);
+
+  const labels = ['T','θ','ω','HR','SpO₂','G','F'];
+  const norms = [
+    (v.T - 28) / 10,
+    v.theta / 135,
+    v.omega / 300,
+    (v.HR - 55) / 125,
+    1 - (v.spo2 - 88) / 12,
+    v.G / 100,
+    v.F / 100,
+  ];
+  const n = labels.length;
 
   // Grid rings
-  [0.25,0.5,0.75,1.0].forEach(function(frac){
-    rCtx.beginPath();
-    for(var i=0;i<=n;i++){
-      var a = -Math.PI/2 + i*angleStep;
-      var x = cx + Math.cos(a)*r*frac, y = cy + Math.sin(a)*r*frac;
-      if(i===0) rCtx.moveTo(x,y); else rCtx.lineTo(x,y);
+  for (let ring = 1; ring <= 4; ring++) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const x = cx + Math.cos(angle) * r * (ring/4);
+      const y = cy + Math.sin(angle) * r * (ring/4);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
-    rCtx.strokeStyle="#2a2a2a"; rCtx.lineWidth=1; rCtx.stroke();
-  });
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
-  // Axes + labels
-  SENSORS.forEach(function(s,i){
-    var a = -Math.PI/2 + i*angleStep;
-    rCtx.beginPath(); rCtx.moveTo(cx,cy);
-    rCtx.lineTo(cx+Math.cos(a)*r*1.05, cy+Math.sin(a)*r*1.05);
-    rCtx.strokeStyle="#2a2a2a"; rCtx.stroke();
-    rCtx.fillStyle=s.color; rCtx.font="bold 10px sans-serif"; rCtx.textAlign="center";
-    rCtx.fillText(s.id, cx+Math.cos(a)*r*1.18, cy+Math.sin(a)*r*1.18+4);
-  });
+  // Spokes
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
   // Data polygon
-  rCtx.beginPath();
-  SENSORS.forEach(function(s,i){
-    var a = -Math.PI/2 + i*angleStep;
-    var norm = (v[s.id]-s.min)/(s.max-s.min);
-    norm = Math.max(0,Math.min(1,norm));
-    var x = cx + Math.cos(a)*r*norm, y = cy + Math.sin(a)*r*norm;
-    if(i===0) rCtx.moveTo(x,y); else rCtx.lineTo(x,y);
-  });
-  rCtx.closePath();
-  rCtx.fillStyle="rgba(102,126,234,0.15)"; rCtx.fill();
-  rCtx.strokeStyle="#667eea"; rCtx.lineWidth=2; rCtx.stroke();
+  const beh = classify(v);
+  const col = BEHAVIORS[beh]?.color || '#4f9cf9';
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const dist = r * Math.max(0, Math.min(1, norms[i]));
+    const x = cx + Math.cos(angle) * dist;
+    const y = cy + Math.sin(angle) * dist;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = col + '33';
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-  // Data points
-  SENSORS.forEach(function(s,i){
-    var a = -Math.PI/2 + i*angleStep;
-    var norm = Math.max(0,Math.min(1,(v[s.id]-s.min)/(s.max-s.min)));
-    rCtx.beginPath(); rCtx.arc(cx+Math.cos(a)*r*norm, cy+Math.sin(a)*r*norm, 4, 0, Math.PI*2);
-    rCtx.fillStyle=s.color; rCtx.fill();
-  });
+  // Labels
+  ctx.font = '11px DM Mono, monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(angle) * (r + 18);
+    const y = cy + Math.sin(angle) * (r + 18);
+    ctx.fillText(labels[i], x, y);
+  }
+
+  // Dots
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const dist = r * Math.max(0, Math.min(1, norms[i]));
+    const x = cx + Math.cos(angle) * dist;
+    const y = cy + Math.sin(angle) * dist;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+  }
+
+  // Norm bars
+  const normLabels = ['T 皮肤温度','θ 弯曲角度','ω 角速度','HR 心率','SpO₂ 血氧(反)','G 导电','F 肌肉力'];
+  const barsEl = document.getElementById('norm-bars');
+  barsEl.innerHTML = normLabels.map((lbl, i) => {
+    const pct = Math.round(Math.max(0, Math.min(1, norms[i])) * 100);
+    return `<div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:3px;font-family:'DM Mono',monospace;">
+        <span>${lbl}</span><span>${pct}%</span>
+      </div>
+      <div style="height:5px;background:var(--bg3);border-radius:3px;">
+        <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width 0.2s;"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-// ═══ UPDATE ═══
+// ── Main update ──
 function update() {
-  var result = detect(vals);
-  var b = BEHAVIORS[result.state];
+  const v = {
+    T:     parseFloat(document.getElementById('sl-T').value),
+    theta: parseFloat(document.getElementById('sl-theta').value),
+    omega: parseFloat(document.getElementById('sl-omega').value),
+    HR:    parseFloat(document.getElementById('sl-HR').value),
+    spo2:  parseFloat(document.getElementById('sl-spo2').value),
+    G:     parseFloat(document.getElementById('sl-G').value),
+    F:     parseFloat(document.getElementById('sl-F').value),
+  };
 
-  // Badge
-  document.getElementById("behaviorBadge").innerHTML =
-    '<div class="behavior-icon">'+b.icon+'</div>' +
-    '<div class="behavior-name" style="color:'+b.color+'">'+b.name+'</div>' +
-    '<div class="behavior-desc">'+b.desc+'</div>';
+  // Update value displays
+  document.getElementById('val-T').textContent = v.T.toFixed(1) + '°C';
+  document.getElementById('val-theta').textContent = v.theta + '°';
+  document.getElementById('val-omega').textContent = v.omega + '°/s';
+  document.getElementById('val-HR').textContent = v.HR + ' bpm';
+  document.getElementById('val-spo2').textContent = v.spo2.toFixed(1) + '%';
+  document.getElementById('val-G').textContent = v.G + ' µS';
+  document.getElementById('val-F').textContent = v.F + ' N';
+
+  // Classify
+  const beh = classify(v);
+  const bd = BEHAVIORS[beh];
+
+  // Update badge
+  document.getElementById('b-icon').textContent = bd.icon;
+  document.getElementById('b-name').textContent = bd.name;
+  document.getElementById('b-sub').textContent = bd.sub;
+  document.getElementById('behavior-badge').style.borderColor = bd.color + '55';
+  document.getElementById('b-name').style.color = bd.color;
+  document.getElementById('b-icon').style.background = bd.color + '22';
 
   // Safety
-  var safetyLevel = "safe", safetyColor = "#4ade80", safetyText = "All vitals normal";
-  if(vals.SpO2 < 93){ safetyLevel="danger"; safetyColor="#f87171"; safetyText="LOW OXYGEN — stop immediately"; }
-  else if(result.state==="FATIGUE_WARNING"){ safetyLevel="danger"; safetyColor="#f87171"; safetyText="FATIGUE DETECTED — risk of injury"; }
-  else if(vals.omega > 200){ safetyLevel="warning"; safetyColor="#facc15"; safetyText="Fast motion — high impact risk"; }
-  else if(vals.HR > 170){ safetyLevel="warning"; safetyColor="#facc15"; safetyText="Very high heart rate"; }
-  else if(vals.SpO2 < 95){ safetyLevel="caution"; safetyColor="#facc15"; safetyText="SpO2 slightly low — monitor closely"; }
-  document.getElementById("safetyCard").innerHTML =
-    '<div class="safety-bar" style="background:'+b.bg+'"><div class="safety-dot" style="background:'+safetyColor+'"></div><span style="color:'+safetyColor+'">'+safetyText+'</span></div>';
+  const dot = document.getElementById('safety-dot');
+  const lbl = document.getElementById('safety-label');
+  if (v.spo2 < 93 || beh === 'fatigue' || beh === 'oxygen') {
+    dot.style.background = '#ef4444';
+    lbl.textContent = '危险 — 立即停止';
+    lbl.style.color = '#ef4444';
+  } else if (v.spo2 < 96 || v.HR > 160) {
+    dot.style.background = '#fbbf24';
+    lbl.textContent = '注意 — 接近极限';
+    lbl.style.color = '#fbbf24';
+  } else {
+    dot.style.background = '#22d3ee';
+    lbl.textContent = '正常';
+    lbl.style.color = '#22d3ee';
+  }
 
-  // Rule breakdown
-  var html = "";
-  result.rules.forEach(function(r){
-    var color = r.match ? "#4ade80" : "#555";
-    var status = r.match ? (r.behavior===result.state ? "MATCH" : "TRUE") : "no";
-    html += '<div class="rule-item"><div class="rule-dot" style="background:'+color+'"></div><span class="rule-cond">'+r.label+'</span><span class="rule-status" style="color:'+color+'">'+status+'</span></div>';
-  });
-  document.getElementById("ruleBreakdown").innerHTML = html;
+  // Rules
+  const rules = getRules(v, beh);
+  document.getElementById('rules-list').innerHTML = rules.map(r =>
+    `<div class="rule-item ${r.matched?'matched':'unmatched'}">
+      <div class="rule-dot"></div>
+      <span>${r.text}</span>
+    </div>`
+  ).join('');
 
   // Radar
-  drawRadar(vals);
-}
+  drawRadar(v);
 
-update();
-
-// ═══ THRESHOLD EDITOR ═══
-function renderThreshTable() {
-  var keys = Object.keys(thresh);
-  var html = '<thead><tr><th>Parameter</th><th>Value</th><th>Description</th></tr></thead><tbody>';
-  var descs = {
-    fatigue_omega_drop:"Omega drops below this = fatigue",fatigue_hr_min:"HR must be above this for fatigue",
-    spo2_alert:"SpO2 below this triggers alert",
-    strength_omega:"Min omega for strength",strength_hr:"Min HR for strength",strength_f:"Min force for strength",strength_t:"Min temp for strength",
-    light_omega:"Min omega for light exercise",light_hr:"Min HR for light exercise",light_g:"Min sweat for light exercise",
-    walk_omega_min:"Walk omega lower bound",walk_omega_max:"Walk omega upper bound",walk_hr_min:"Walk HR lower",walk_hr_max:"Walk HR upper",
-    office_omega_max:"Max omega for office",office_theta_min:"Office theta lower",office_theta_max:"Office theta upper",office_hr_max:"Max HR for office",office_g_max:"Max sweat for office",
-    eat_theta_min:"Eating theta lower",eat_theta_max:"Eating theta upper",eat_omega_min:"Eating omega lower",eat_omega_max:"Eating omega upper",eat_g_max:"Max sweat for eating"
-  };
-  keys.forEach(function(k){
-    html += '<tr><td style="color:#ccc;font-family:monospace">'+k+'</td><td><input type="number" id="th_'+k+'" value="'+thresh[k]+'" step="1"></td><td style="color:#666">'+( descs[k]||"")+'</td></tr>';
-  });
-  html += '</tbody>';
-  document.getElementById("threshTable").innerHTML = html;
-  keys.forEach(function(k){
-    document.getElementById("th_"+k).addEventListener("input",function(){
-      thresh[k] = parseFloat(this.value)||0;
-      update();
-    });
+  // Slider fill
+  ['T','theta','omega','HR','spo2','G','F'].forEach(k => {
+    const sl = document.getElementById('sl-'+k);
+    const min = parseFloat(sl.min), max = parseFloat(sl.max), val = parseFloat(sl.value);
+    const pct = (val - min) / (max - min) * 100;
+    sl.style.background = `linear-gradient(to right, ${bd.color} ${pct}%, var(--bg3) ${pct}%)`;
   });
 }
-renderThreshTable();
 
-document.getElementById("resetThresh").addEventListener("click",function(){
-  thresh = JSON.parse(JSON.stringify(DEFAULT_THRESH));
-  renderThreshTable(); update();
-});
+// ── Presets ──
+function loadPreset(key) {
+  const p = PRESETS[key];
+  document.getElementById('sl-T').value = p.T;
+  document.getElementById('sl-theta').value = p.theta;
+  document.getElementById('sl-omega').value = p.omega;
+  document.getElementById('sl-HR').value = p.HR;
+  document.getElementById('sl-spo2').value = p.spo2;
+  document.getElementById('sl-G').value = p.G;
+  document.getElementById('sl-F').value = p.F;
+  update();
+}
 
-document.getElementById("exportThresh").addEventListener("click",function(){
-  var blob = new Blob([JSON.stringify(thresh,null,2)],{type:"application/json"});
-  var a = document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download="behavior_thresholds.json"; a.click();
-});
+// ── Tabs ──
+function switchTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
 
-// ═══ BOUNDARY LAB ═══
-var bndAnimId = null;
+// ── Threshold editor ──
+const THRESH_META = [
+  {key:'omega_static_max',  label:'静止组 omega 上限',  unit:'°/s', desc:'低于此值判为静止'},
+  {key:'omega_daily_max',   label:'日常组 omega 上限',  unit:'°/s', desc:'低于此值判为日常'},
+  {key:'HR_sleep_max',      label:'睡眠 HR 上限',       unit:'bpm', desc:'低于此值判为睡眠'},
+  {key:'theta_office_min',  label:'办公 theta 下限',    unit:'°',   desc:'办公时肘部角度范围'},
+  {key:'theta_office_max',  label:'办公 theta 上限',    unit:'°',   desc:'超出此范围不判为办公'},
+  {key:'F_strength_min',    label:'力量训练 F 下限',    unit:'N',   desc:'超过此值判为力量训练'},
+  {key:'spo2_warn',         label:'血氧预警阈值',       unit:'%',   desc:'低于此值触发预警'},
+];
+
+function buildThreshEditor() {
+  const grid = document.getElementById('thresh-grid');
+  grid.innerHTML = THRESH_META.map(m => `
+    <div class="thresh-card">
+      <h3><span style="font-size:16px;">⚙️</span> ${m.label}</h3>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:12px;">${m.desc}</p>
+      <div class="thresh-row">
+        <label>当前值</label>
+        <input type="number" id="th-${m.key}" value="${TH[m.key]}"
+          oninput="TH['${m.key}']=parseFloat(this.value)||TH['${m.key}']; update()">
+        <span>${m.unit}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function resetThresholds() {
+  TH = {omega_static_max:15,omega_daily_max:100,HR_sleep_max:68,theta_office_min:70,theta_office_max:100,F_strength_min:25,spo2_warn:93,omega_fatigue_drop:20};
+  buildThreshEditor();
+  update();
+}
+
+function exportThresholds() {
+  const json = JSON.stringify({thresholds: TH, generated: new Date().toISOString(), note: '软体护肘行为分类阈值 — 可直接用于ESP32固件'}, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'elbow_thresholds.json';
+  a.click();
+}
+
+// ── Reference table ──
+function buildRefTable() {
+  const tbody = document.getElementById('ref-tbody');
+  tbody.innerHTML = REF_DATA.map(r => {
+    const col = BEHAVIORS[r.id]?.color || '#888';
+    const layerBg = r.layer === '!!' ? '#ef444422' : r.layer.startsWith('A') ? '#6366f122' : r.layer.startsWith('B') ? '#22d3ee22' : '#f9731622';
+    return `<tr>
+      <td><span class="bcolor" style="background:${col}"></span>${BEHAVIORS[r.id]?.name || r.id}</td>
+      <td><span class="layer-badge" style="background:${layerBg};color:${col}">${r.layer}</span></td>
+      <td>${r.T}</td><td>${r.theta}</td><td>${r.omega}</td>
+      <td>${r.HR}</td><td>${r.spo2}</td><td>${r.G}</td><td>${r.F}</td>
+      <td style="color:var(--muted);font-size:11px">${r.key}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Boundary Lab ──
+var bndAnimId = null, bndTime = 0;
 
 function setupBoundaryLab() {
-  var params = ["bndWalkFreq","bndWalkAmp","bndEatFreq","bndEatAmp","bndFBound","bndHRBound",
-    "bndOffMean","bndOffNoise","bndRestMean","bndStabWin","bndFatOmegaPre","bndFatDropTime","bndFatWindow","bndFatRate"];
-  params.forEach(function(id) {
-    var el = document.getElementById(id);
+  ["bndWalkFreq","bndEatFreq","bndFBound","bndHRBound","bndOffMean","bndOffNoise","bndFatOmegaPre","bndFatDropTime","bndFatRate"].forEach(id => {
+    const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener("input", function() {
-      document.getElementById(id+"Val").textContent = el.value;
-      drawBoundaries();
-    });
+    el.addEventListener("input", () => { document.getElementById(id+"Val").textContent = el.value; });
   });
-  drawBoundaries();
-  startBoundaryAnim();
-}
-
-var bndTime = 0;
-function startBoundaryAnim() {
-  function tick() {
-    bndTime += 0.033;
-    drawBoundaries();
-    bndAnimId = requestAnimationFrame(tick);
-  }
+  function tick() { bndTime += 0.033; drawAllBoundaries(); bndAnimId = requestAnimationFrame(tick); }
   tick();
 }
 
-function drawBoundaries() {
-  drawBndWalkEat();
-  drawBndAeroStr();
-  drawBndOfficeRest();
-  drawBndFatigue();
-}
-
-function drawTimeline(canvasId, signals, duration, labels) {
-  var c = document.getElementById(canvasId);
-  if (!c) return;
-  var ctx = c.getContext("2d"), w = c.width, h = c.height;
-  ctx.clearRect(0,0,w,h);
-  ctx.fillStyle = "#111"; ctx.fillRect(0,0,w,h);
-  // Grid
-  ctx.strokeStyle = "#1f1f1f"; ctx.lineWidth = 0.5;
-  for (var gy = 0; gy < h; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
-  // Time axis
-  ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(40, h-20); ctx.lineTo(w-10, h-20); ctx.stroke();
-  ctx.fillStyle = "#555"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-  for (var ts = 0; ts <= duration; ts += 1) {
-    var tx = 40 + (ts/duration)*(w-50);
-    ctx.fillText(ts+"s", tx, h-6);
-  }
-  // Signals
-  var plotH = (h - 40) / signals.length;
-  signals.forEach(function(sig, si) {
-    var baseY = 10 + si * plotH;
-    var midY = baseY + plotH/2;
-    // Label
-    ctx.fillStyle = sig.color; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText(sig.label, 4, midY + 4);
-    // Signal line
-    ctx.beginPath(); ctx.strokeStyle = sig.color; ctx.lineWidth = 1.5;
-    var pts = sig.data;
-    for (var i = 0; i < pts.length; i++) {
-      var x = 40 + (i / pts.length) * (w - 50);
-      var y = midY - pts[i] * (plotH * 0.4);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  });
+function drawAllBoundaries() {
+  drawBndWalkEat(); drawBndAeroStr(); drawBndOfficeRest(); drawBndFatigue();
 }
 
 function drawBndWalkEat() {
-  var wFreq = parseFloat(document.getElementById("bndWalkFreq").value);
-  var wAmp = parseFloat(document.getElementById("bndWalkAmp").value);
-  var eFreq = parseFloat(document.getElementById("bndEatFreq").value);
-  var eAmp = parseFloat(document.getElementById("bndEatAmp").value);
-  var dur = 8, n = 240;
-  var walkOmega = [], eatTheta = [];
-  for (var i = 0; i < n; i++) {
-    var t = (i/n)*dur + bndTime;
-    walkOmega.push(Math.abs(Math.sin(2*Math.PI*wFreq*t)) * wAmp / 150 + (Math.random()-0.5)*0.05);
-    eatTheta.push(Math.sin(2*Math.PI*eFreq*t) * eAmp / 60 + (Math.random()-0.5)*0.03);
-  }
-  drawTimeline("bndWalkEat", [
-    {label:"\u03C9 walk", color:"#22d3ee", data:walkOmega},
-    {label:"\u03B8 eat", color:"#a78bfa", data:eatTheta}
-  ], dur);
+  const c = document.getElementById("bndWalkEat"); if (!c) return;
+  const ctx = c.getContext("2d"), w = c.width, h = c.height;
+  const wF = parseFloat(document.getElementById("bndWalkFreq")?.value||1.5);
+  const eF = parseFloat(document.getElementById("bndEatFreq")?.value||0.3);
+  ctx.clearRect(0,0,w,h); ctx.fillStyle = "var(--bg3)"; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = "#13161e"; ctx.fillRect(0,0,w,h);
+  // Grid
+  ctx.strokeStyle = "rgba(255,255,255,0.04)"; ctx.lineWidth = 0.5;
+  for (let y=0;y<h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  // Walk omega
+  ctx.beginPath(); ctx.strokeStyle = "#a3e635"; ctx.lineWidth = 1.5;
+  for (let i=0;i<w;i++){const t=(i/w)*8+bndTime; const v=Math.abs(Math.sin(2*Math.PI*wF*t))*0.8+(Math.random()-0.5)*0.05;
+    const y=h*0.25-v*(h*0.18); i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);} ctx.stroke();
+  // Eat theta
+  ctx.beginPath(); ctx.strokeStyle = "#34d399"; ctx.lineWidth = 1.5;
+  for (let i=0;i<w;i++){const t=(i/w)*8+bndTime; const v=Math.sin(2*Math.PI*eF*t)*0.7+(Math.random()-0.5)*0.03;
+    const y=h*0.75-v*(h*0.18); i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);} ctx.stroke();
+  ctx.fillStyle="#a3e635";ctx.font="bold 10px Outfit,sans-serif";ctx.fillText("ω 走路 ("+wF+"Hz)",4,h*0.15);
+  ctx.fillStyle="#34d399";ctx.fillText("θ 吃饭 ("+eF+"Hz)",4,h*0.65);
 }
 
 function drawBndAeroStr() {
-  var fBound = parseFloat(document.getElementById("bndFBound").value);
-  var hrBound = parseFloat(document.getElementById("bndHRBound").value);
-  var c = document.getElementById("bndAeroStr");
-  if (!c) return;
-  var ctx = c.getContext("2d"), w = c.width, h = c.height;
-  ctx.clearRect(0,0,w,h); ctx.fillStyle = "#111"; ctx.fillRect(0,0,w,h);
-  var pad = 40, pw = w-pad*2, ph = h-pad*2;
-  // Axes
-  ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
-  ctx.fillStyle = "#666"; ctx.font = "10px sans-serif";
-  ctx.textAlign = "center"; ctx.fillText("Muscle Force F (N)", w/2, h-4);
-  ctx.save(); ctx.translate(10, h/2); ctx.rotate(-Math.PI/2); ctx.fillText("Heart Rate (bpm)", 0, 0); ctx.restore();
-  // Axis ticks
-  [0,25,50,75,100].forEach(function(v) { var x=pad+v/100*pw; ctx.fillStyle="#555"; ctx.fillText(v,x,h-pad+14); });
-  [60,90,120,150,180].forEach(function(v) { var y=h-pad-(v-60)/140*ph; ctx.fillStyle="#555"; ctx.textAlign="right"; ctx.fillText(v,pad-6,y+4); });
-  ctx.textAlign = "center";
-  // Decision boundary
-  var bx = pad + fBound/100*pw, by = h-pad-(hrBound-60)/140*ph;
+  const c = document.getElementById("bndAeroStr"); if (!c) return;
+  const ctx = c.getContext("2d"), w = c.width, h = c.height;
+  const fB = parseFloat(document.getElementById("bndFBound")?.value||25);
+  const hrB = parseFloat(document.getElementById("bndHRBound")?.value||120);
+  ctx.clearRect(0,0,w,h); ctx.fillStyle="#13161e"; ctx.fillRect(0,0,w,h);
+  const pad=35, pw=w-pad*2, ph=h-pad*2;
+  ctx.strokeStyle="rgba(255,255,255,0.1)";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad,pad);ctx.lineTo(pad,h-pad);ctx.lineTo(w-pad,h-pad);ctx.stroke();
   // Zones
-  ctx.fillStyle = "rgba(250,204,21,0.06)"; ctx.fillRect(pad,by,bx-pad,pad+ph-by+pad-h+h-pad); // aerobic: low F, high HR — top-left
-  ctx.fillStyle = "rgba(251,146,60,0.06)"; ctx.fillRect(bx,by,w-pad-bx,pad+ph-by+pad-h+h-pad); // strength: high F, high HR — top-right
-  ctx.fillStyle = "rgba(74,222,128,0.06)"; ctx.fillRect(pad,h-pad-(hrBound-60)/140*ph,pw,h-pad-(h-pad-(hrBound-60)/140*ph)); // low HR zone
-  // Fix zones properly
-  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
-  // Redraw axes
-  ctx.strokeStyle="#333"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,h-pad); ctx.lineTo(w-pad,h-pad); ctx.stroke();
-  // Zone fills
-  // Aerobic: HR > hrBound, F < fBound
-  ctx.fillStyle="rgba(250,204,21,0.08)";
-  ctx.fillRect(pad, pad, (fBound/100)*pw, (h-pad)-pad-(180-hrBound)/140*ph);
-  // Strength: HR > hrBound, F > fBound
-  ctx.fillStyle="rgba(251,146,60,0.08)";
-  ctx.fillRect(pad+(fBound/100)*pw, pad, pw-(fBound/100)*pw, (h-pad)-pad-(180-hrBound)/140*ph);
-  // Low intensity: HR < hrBound
-  ctx.fillStyle="rgba(74,222,128,0.05)";
-  var hrLineY = h-pad-(hrBound-60)/140*ph;
-  ctx.fillRect(pad, hrLineY, pw, h-pad-hrLineY);
-  // Boundary lines
-  ctx.setLineDash([5,4]); ctx.strokeStyle="#f87171"; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(pad+(fBound/100)*pw, pad); ctx.lineTo(pad+(fBound/100)*pw, h-pad); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(pad, hrLineY); ctx.lineTo(w-pad, hrLineY); ctx.stroke();
+  const hrY=h-pad-(hrB-60)/140*ph;
+  const fX=pad+(fB/100)*pw;
+  ctx.fillStyle="rgba(251,191,36,0.06)";ctx.fillRect(pad,pad,fX-pad,hrY-pad);
+  ctx.fillStyle="rgba(249,115,22,0.06)";ctx.fillRect(fX,pad,w-pad-fX,hrY-pad);
+  ctx.fillStyle="rgba(129,140,248,0.04)";ctx.fillRect(pad,hrY,pw,h-pad-hrY);
+  ctx.setLineDash([4,4]);ctx.strokeStyle="#ef4444aa";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(fX,pad);ctx.lineTo(fX,h-pad);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad,hrY);ctx.lineTo(w-pad,hrY);ctx.stroke();
   ctx.setLineDash([]);
-  // Labels
-  ctx.fillStyle="#facc15"; ctx.font="bold 11px sans-serif";
-  ctx.fillText("Aerobic", pad+(fBound/100)*pw/2, pad+20);
-  ctx.fillStyle="#fb923c";
-  ctx.fillText("Strength", pad+(fBound/100)*pw + (pw-(fBound/100)*pw)/2, pad+20);
-  ctx.fillStyle="#4ade80";
-  ctx.fillText("Low intensity", w/2, hrLineY+16);
-  // Sample points (animated)
-  var pts = [
-    {f:15,hr:110,c:"#facc15",l:"jogging"},{f:45,hr:140,c:"#fb923c",l:"curls"},
-    {f:8,hr:72,c:"#4ade80",l:"rest"},{f:60,hr:155,c:"#fb923c",l:"squat"},
-    {f:20,hr:105,c:"#facc15",l:"cycling"},{f:3,hr:80,c:"#4ade80",l:"office"},
-  ];
-  pts.forEach(function(p) {
-    var px = pad+p.f/100*pw, py = h-pad-(p.hr-60)/140*ph;
-    ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fillStyle=p.c; ctx.fill();
-    ctx.fillStyle="#ddd"; ctx.font="9px sans-serif"; ctx.fillText(p.l,px,py-8);
+  ctx.fillStyle="#fbbf24";ctx.font="bold 10px Outfit";ctx.textAlign="center";ctx.fillText("有氧",(pad+fX)/2,pad+16);
+  ctx.fillStyle="#f97316";ctx.fillText("力量",(fX+w-pad)/2,pad+16);
+  ctx.fillStyle="#818cf8";ctx.fillText("低强度",w/2,hrY+16);
+  // Points
+  [{f:15,hr:115,c:"#fbbf24",l:"跑步"},{f:50,hr:145,c:"#f97316",l:"弯举"},{f:5,hr:72,c:"#818cf8",l:"休息"},{f:65,hr:160,c:"#f97316",l:"深蹲"}].forEach(p=>{
+    const px=pad+p.f/100*pw,py=h-pad-(p.hr-60)/140*ph;
+    ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fillStyle=p.c;ctx.fill();
+    ctx.fillStyle="#e8eaf0";ctx.font="9px Outfit";ctx.fillText(p.l,px,py-8);
   });
-  // Axis labels
-  ctx.fillStyle="#666"; ctx.font="10px sans-serif";
-  ctx.textAlign="center"; ctx.fillText("Muscle Force F (N)",w/2,h-4);
-  [0,25,50,75,100].forEach(function(v){ctx.fillText(v,pad+v/100*pw,h-pad+14);});
-  ctx.textAlign="right";
-  [60,90,120,150,180].forEach(function(v){ctx.fillText(v,pad-6,h-pad-(v-60)/140*ph+4);});
-  // Boundary value labels
-  ctx.fillStyle="#f87171"; ctx.font="bold 10px monospace"; ctx.textAlign="center";
-  ctx.fillText("F="+fBound+"N", pad+(fBound/100)*pw, h-pad+26);
-  ctx.fillText("HR="+hrBound, w-pad+2, hrLineY+4);
+  ctx.fillStyle="rgba(255,255,255,0.4)";ctx.font="9px DM Mono";ctx.textAlign="center";
+  ctx.fillText("F="+fB+"N",fX,h-pad+12);ctx.fillText("HR="+hrB,w-pad+4,hrY+4);
 }
 
 function drawBndOfficeRest() {
-  var offMean = parseFloat(document.getElementById("bndOffMean").value);
-  var offNoise = parseFloat(document.getElementById("bndOffNoise").value);
-  var restMean = parseFloat(document.getElementById("bndRestMean").value);
-  var stabWin = parseFloat(document.getElementById("bndStabWin").value);
-  var dur = 10, n = 300;
-  var offData = [], restData = [];
-  for (var i = 0; i < n; i++) {
-    var t = (i/n)*dur;
-    offData.push((offMean + (Math.random()-0.5)*2*offNoise - 60) / 80);
-    restData.push((restMean + (Math.random()-0.5)*2*6 - 60) / 80);
-  }
-  // Compute std for display
-  var offVals = offData.map(function(v){return v*80+60;});
-  var restVals = restData.map(function(v){return v*80+60;});
-  function std(arr){var m=arr.reduce(function(a,b){return a+b},0)/arr.length;return Math.sqrt(arr.reduce(function(a,b){return a+(b-m)*(b-m)},0)/arr.length);}
-
-  var c = document.getElementById("bndOfficeRest");
-  if (!c) return;
-  var ctx = c.getContext("2d"), w = c.width, h = c.height;
-  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
-  // Office zone highlight
-  ctx.fillStyle="rgba(102,126,234,0.06)";
-  var zoneTop = h*0.1 + (1-(100-60)/80)*h*0.35;
-  var zoneBot = h*0.1 + (1-(70-60)/80)*h*0.35;
-  ctx.fillRect(40, h*0.1, w-50, h*0.35);
-  // Draw both signals
-  [{data:offData,color:"#667eea",label:"Office \u03B8",baseY:h*0.28},{data:restData,color:"#4ade80",label:"Rest \u03B8",baseY:h*0.72}].forEach(function(sig){
-    ctx.beginPath(); ctx.strokeStyle=sig.color; ctx.lineWidth=1.5;
-    for(var i=0;i<sig.data.length;i++){
-      var x=40+(i/sig.data.length)*(w-50);
-      var y=sig.baseY-sig.data[i]*(h*0.18);
-      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-    ctx.fillStyle=sig.color; ctx.font="bold 10px sans-serif"; ctx.textAlign="left";
-    ctx.fillText(sig.label,4,sig.baseY+4);
-  });
-  // Std labels
-  ctx.fillStyle="#888"; ctx.font="11px monospace"; ctx.textAlign="right";
-  ctx.fillText("std="+std(offVals).toFixed(1)+"\u00B0 ("+offMean+"\u00B0 mean)", w-10, h*0.15);
-  ctx.fillText("std="+std(restVals).toFixed(1)+"\u00B0 ("+restMean+"\u00B0 mean)", w-10, h*0.6);
-  ctx.fillStyle="#555"; ctx.font="10px sans-serif"; ctx.textAlign="center";
-  ctx.fillText("Window: "+stabWin+"s", w/2, h-6);
+  const c = document.getElementById("bndOfficeRest"); if (!c) return;
+  const ctx = c.getContext("2d"), w = c.width, h = c.height;
+  const offM = parseFloat(document.getElementById("bndOffMean")?.value||85);
+  const offN = parseFloat(document.getElementById("bndOffNoise")?.value||4);
+  ctx.clearRect(0,0,w,h);ctx.fillStyle="#13161e";ctx.fillRect(0,0,w,h);
+  // Office theta
+  ctx.beginPath();ctx.strokeStyle="#22d3ee";ctx.lineWidth=1.5;
+  for(let i=0;i<w;i++){const y=h*0.3-(offM+(Math.random()-0.5)*2*offN-80)/40*(h*0.15);i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}ctx.stroke();
+  // Rest theta
+  ctx.beginPath();ctx.strokeStyle="#818cf8";ctx.lineWidth=1.5;
+  for(let i=0;i<w;i++){const y=h*0.7-(35+(Math.random()-0.5)*10-80)/40*(h*0.15);i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}ctx.stroke();
+  ctx.fillStyle="#22d3ee";ctx.font="bold 10px Outfit";ctx.fillText("办公 θ≈"+offM+"° std≈"+offN+"°",4,h*0.15);
+  ctx.fillStyle="#818cf8";ctx.fillText("静坐 θ≈35° std≈5°",4,h*0.58);
 }
 
 function drawBndFatigue() {
-  var omegaPre = parseFloat(document.getElementById("bndFatOmegaPre").value);
-  var dropTime = parseFloat(document.getElementById("bndFatDropTime").value);
-  var detectWin = parseFloat(document.getElementById("bndFatWindow").value);
-  var rateThresh = parseFloat(document.getElementById("bndFatRate").value);
-  var dur = 6, n = 300;
-
-  var c = document.getElementById("bndFatigue");
-  if (!c) return;
-  var ctx = c.getContext("2d"), w = c.width, h = c.height;
-  ctx.clearRect(0,0,w,h); ctx.fillStyle="#111"; ctx.fillRect(0,0,w,h);
-
-  var pad = 40, pw = w-pad-10, ph = h-40;
-  // Generate omega over time: training → sudden drop at t=3s → near zero
-  var dropStart = 3.0;
-  var data = [];
-  for (var i = 0; i < n; i++) {
-    var t = (i/n)*dur;
-    var v;
-    if (t < dropStart) {
-      v = omegaPre + Math.sin(t*8)*20 + (Math.random()-0.5)*15; // training oscillation
-    } else if (t < dropStart + dropTime) {
-      var frac = (t - dropStart) / dropTime;
-      v = omegaPre * (1 - frac) + (Math.random()-0.5)*5;
-    } else {
-      v = 5 + (Math.random()-0.5)*8; // near zero with noise
-    }
-    data.push(Math.max(0, v));
-  }
-
-  // Draw
-  ctx.strokeStyle="#333"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pad,20); ctx.lineTo(pad,h-20); ctx.lineTo(w-10,h-20); ctx.stroke();
-
+  const c = document.getElementById("bndFatigue"); if (!c) return;
+  const ctx = c.getContext("2d"), w = c.width, h = c.height;
+  const omPre = parseFloat(document.getElementById("bndFatOmegaPre")?.value||150);
+  const dropT = parseFloat(document.getElementById("bndFatDropTime")?.value||0.5);
+  const rateT = parseFloat(document.getElementById("bndFatRate")?.value||100);
+  ctx.clearRect(0,0,w,h);ctx.fillStyle="#13161e";ctx.fillRect(0,0,w,h);
+  const dur=6, dropAt=3, pad=30;
   // Omega line
-  ctx.beginPath(); ctx.strokeStyle="#22d3ee"; ctx.lineWidth=2;
-  for (var j=0;j<data.length;j++){
-    var x=pad+(j/n)*pw, y=(h-20)-data[j]/300*ph;
-    if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-
+  ctx.beginPath();ctx.strokeStyle="#22d3ee";ctx.lineWidth=2;
+  for(let i=0;i<w-pad;i++){const t=(i/(w-pad))*dur;let v;
+    if(t<dropAt)v=omPre+Math.sin(t*8)*20+(Math.random()-0.5)*12;
+    else if(t<dropAt+dropT)v=omPre*(1-(t-dropAt)/dropT)+(Math.random()-0.5)*5;
+    else v=5+(Math.random()-0.5)*8;
+    v=Math.max(0,v);const y=(h-20)-v/300*(h-40);(i===0)?ctx.moveTo(pad+i,y):ctx.lineTo(pad+i,y);}ctx.stroke();
   // Detection zone
-  var dropEndT = dropStart + dropTime;
-  var detectX = pad+(dropStart/dur)*pw;
-  var detectX2 = pad+((dropStart+detectWin)/dur)*pw;
-  ctx.fillStyle="rgba(248,113,113,0.1)";
-  ctx.fillRect(detectX, 20, detectX2-detectX, ph);
-  ctx.strokeStyle="#f8717166"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-  ctx.beginPath(); ctx.moveTo(detectX,20); ctx.lineTo(detectX,h-20); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Rate of change at drop point
-  var actualRate = omegaPre / dropTime;
-  var detected = actualRate > rateThresh;
-  ctx.fillStyle = detected ? "#f87171" : "#4ade80";
-  ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left";
-  ctx.fillText(detected ? "FATIGUE DETECTED" : "Normal stop", detectX + 4, 36);
-  ctx.fillStyle = "#888"; ctx.font = "10px monospace";
-  ctx.fillText("d\u03C9/dt = " + Math.round(actualRate) + " deg/s\u00B2", detectX + 4, 52);
-  ctx.fillText("threshold = " + rateThresh + " deg/s\u00B2", detectX + 4, 66);
-
-  // Labels
-  ctx.fillStyle="#22d3ee"; ctx.font="bold 10px sans-serif"; ctx.textAlign="left";
-  ctx.fillText("\u03C9 (deg/s)", 4, 30);
-  ctx.fillStyle="#555"; ctx.font="10px sans-serif"; ctx.textAlign="center";
-  for(var ts=0;ts<=dur;ts++){ctx.fillText(ts+"s",pad+(ts/dur)*pw,h-4);}
-  ctx.textAlign="right";
-  [0,100,200,300].forEach(function(v){ctx.fillText(v,pad-4,(h-20)-v/300*ph+4);});
+  const dx=pad+(dropAt/dur)*(w-pad);
+  ctx.fillStyle="rgba(239,68,68,0.1)";ctx.fillRect(dx,0,60,h);
+  const rate=omPre/dropT, detected=rate>rateT;
+  ctx.fillStyle=detected?"#ef4444":"#34d399";ctx.font="bold 11px Outfit";
+  ctx.fillText(detected?"⚠️ 力竭检测!":"正常停止",dx+4,16);
+  ctx.fillStyle="rgba(255,255,255,0.5)";ctx.font="10px DM Mono";
+  ctx.fillText("dω/dt="+Math.round(rate)+" | 阈值="+rateT,dx+4,32);
 }
 
-// Init boundary lab when tab is shown
-document.querySelector('[data-page="boundary"]').addEventListener("click", function() {
-  if (!bndAnimId) { setupBoundaryLab(); }
-});
-
-// ═══ EXPERIMENT LOG ═══
-var logData = JSON.parse(localStorage.getItem("sensor_log")||"[]");
+// ── Experiment Log ──
+let logData = JSON.parse(localStorage.getItem("sensor_log_v2")||"[]");
 
 function renderLog() {
-  var $entries = document.getElementById("logEntries");
-  var $empty = document.getElementById("logEmpty");
-  if(logData.length===0){ $entries.innerHTML=""; $empty.style.display="block"; return; }
-  $empty.style.display="none";
-  $entries.innerHTML = logData.map(function(entry,i){
-    var b = BEHAVIORS[entry.state]||BEHAVIORS.RESTING;
-    var vStr = SENSORS.map(function(s){return s.id+"="+entry.values[s.id];}).join("  ");
-    return '<div class="log-entry"><div class="log-header"><span class="log-state" style="color:'+b.color+'">'+b.icon+' '+b.name+'</span><span class="log-time">'+entry.time+'</span></div><div class="log-values">'+vStr+'</div>'+(entry.note?'<div class="log-note">"'+entry.note+'"</div>':'')+'<div class="log-actions"><button class="log-btn" data-load="'+i+'">Load values</button><button class="log-btn danger" data-del="'+i+'">Delete</button></div></div>';
+  const $entries = document.getElementById("logEntries");
+  const $empty = document.getElementById("logEmpty");
+  if (!logData.length) { $entries.innerHTML = ""; $empty.style.display = "block"; return; }
+  $empty.style.display = "none";
+  $entries.innerHTML = logData.map((entry, i) => {
+    const bd = BEHAVIORS[entry.state] || {name:entry.state, icon:"?", color:"#888"};
+    const vStr = ['T','theta','omega','HR','spo2','G','F'].map(k => k+"="+entry.values[k]).join("  ");
+    return `<div class="card" style="padding:14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:700;color:${bd.color}">${bd.icon} ${bd.name}</span>
+        <span style="font-size:11px;color:var(--muted)">${entry.time}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px">${vStr}</div>
+      ${entry.note ? `<div style="font-size:12px;color:var(--text);font-style:italic">"${entry.note}"</div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="preset-btn" style="font-size:11px;padding:4px 10px" onclick="loadLogEntry(${i})">加载</button>
+        <button class="preset-btn" style="font-size:11px;padding:4px 10px;border-color:#ef4444;color:#ef4444" onclick="deleteLogEntry(${i})">删除</button>
+      </div>
+    </div>`;
   }).join("");
-  $entries.querySelectorAll("[data-load]").forEach(function(btn){
-    btn.addEventListener("click",function(){
-      var entry = logData[parseInt(btn.dataset.load)];
-      SENSORS.forEach(function(s){
-        vals[s.id]=entry.values[s.id];
-        document.getElementById("slider_"+s.id).value=entry.values[s.id];
-        document.getElementById("val_"+s.id).textContent=entry.values[s.id];
-      });
-      update();
-      document.querySelector('[data-page="playground"]').click();
-    });
-  });
-  $entries.querySelectorAll("[data-del]").forEach(function(btn){
-    btn.addEventListener("click",function(){
-      logData.splice(parseInt(btn.dataset.del),1);
-      localStorage.setItem("sensor_log",JSON.stringify(logData));
-      renderLog();
-    });
-  });
 }
-renderLog();
 
-document.getElementById("saveSnapshotBtn").addEventListener("click",function(){
-  var note = document.getElementById("snapshotNote").value.trim();
-  var result = detect(vals);
-  logData.unshift({
-    time: new Date().toLocaleString(),
-    state: result.state,
-    values: JSON.parse(JSON.stringify(vals)),
-    thresholds: JSON.parse(JSON.stringify(thresh)),
-    note: note
-  });
-  localStorage.setItem("sensor_log",JSON.stringify(logData));
+window.loadLogEntry = function(i) {
+  const entry = logData[i];
+  document.getElementById('sl-T').value = entry.values.T;
+  document.getElementById('sl-theta').value = entry.values.theta;
+  document.getElementById('sl-omega').value = entry.values.omega;
+  document.getElementById('sl-HR').value = entry.values.HR;
+  document.getElementById('sl-spo2').value = entry.values.spo2;
+  document.getElementById('sl-G').value = entry.values.G;
+  document.getElementById('sl-F').value = entry.values.F;
+  update();
+  switchTab('playground');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab')[0].classList.add('active');
+};
+
+window.deleteLogEntry = function(i) {
+  logData.splice(i, 1);
+  localStorage.setItem("sensor_log_v2", JSON.stringify(logData));
+  renderLog();
+};
+
+document.getElementById("saveSnapshotBtn")?.addEventListener("click", function() {
+  const v = {
+    T: parseFloat(document.getElementById('sl-T').value),
+    theta: parseFloat(document.getElementById('sl-theta').value),
+    omega: parseFloat(document.getElementById('sl-omega').value),
+    HR: parseFloat(document.getElementById('sl-HR').value),
+    spo2: parseFloat(document.getElementById('sl-spo2').value),
+    G: parseFloat(document.getElementById('sl-G').value),
+    F: parseFloat(document.getElementById('sl-F').value),
+  };
+  const note = document.getElementById("snapshotNote").value.trim();
+  logData.unshift({ time: new Date().toLocaleString(), state: classify(v), values: v, note: note });
+  localStorage.setItem("sensor_log_v2", JSON.stringify(logData));
   document.getElementById("snapshotNote").value = "";
   renderLog();
-  // Flash confirmation
-  var btn = document.getElementById("saveSnapshotBtn");
-  btn.textContent = "Saved!"; btn.style.background = "#4ade80";
-  setTimeout(function(){ btn.textContent="Save Snapshot"; btn.style.background=""; }, 1200);
+  this.textContent = "已保存!"; this.style.background = "#22d3ee";
+  setTimeout(() => { this.textContent = "保存快照"; this.style.background = ""; }, 1200);
 });
 
-document.getElementById("exportLogCSV").addEventListener("click",function(){
-  if(!logData.length) return;
-  var header = ["time","state","note"].concat(SENSORS.map(function(s){return s.id}));
-  var rows = [header.join(",")];
-  logData.forEach(function(e){
-    rows.push(['"'+e.time+'"',e.state,'"'+(e.note||"").replace(/"/g,'""')+'"'].concat(SENSORS.map(function(s){return e.values[s.id]})).join(","));
-  });
-  var blob = new Blob([rows.join("\n")],{type:"text/csv"});
-  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sensor_experiments.csv";a.click();
+document.getElementById("exportLogCSV")?.addEventListener("click", function() {
+  if (!logData.length) return;
+  const header = ["time","state","note","T","theta","omega","HR","spo2","G","F"];
+  const rows = [header.join(",")];
+  logData.forEach(e => { rows.push(['"'+e.time+'"',e.state,'"'+(e.note||'')+'"',e.values.T,e.values.theta,e.values.omega,e.values.HR,e.values.spo2,e.values.G,e.values.F].join(",")); });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.join("\n")],{type:"text/csv"}));
+  a.download = "sensor_experiments.csv"; a.click();
 });
 
-document.getElementById("exportLogJSON").addEventListener("click",function(){
-  var blob = new Blob([JSON.stringify(logData,null,2)],{type:"application/json"});
-  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sensor_experiments.json";a.click();
+document.getElementById("exportLogJSON")?.addEventListener("click", function() {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(logData,null,2)],{type:"application/json"}));
+  a.download = "sensor_experiments.json"; a.click();
 });
 
-document.getElementById("clearLog").addEventListener("click",function(){
-  if(!confirm("Delete all saved experiments?")) return;
-  logData=[]; localStorage.removeItem("sensor_log"); renderLog();
+document.getElementById("clearLog")?.addEventListener("click", function() {
+  if (!confirm("删除所有实验记录?")) return;
+  logData = []; localStorage.removeItem("sensor_log_v2"); renderLog();
 });
 
-})();
+// Init
+buildThreshEditor();
+buildRefTable();
+renderLog();
+update();
+
+// Start boundary lab when its tab is shown
+const origSwitch = window.switchTab;
+const _switchTab = switchTab;
+window.switchTab = function(id) {
+  _switchTab(id);
+  if (id === 'boundary' && !bndAnimId) setupBoundaryLab();
+};
 </script>
 </body>
 </html>

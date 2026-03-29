@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0a;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px}
+  h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+  .sub{font-size:12px;color:#667eea;margin-bottom:16px}
+
+  /* Stats bar */
+  .stats{display:flex;gap:24px;margin-bottom:12px;font-size:13px}
+  .stat-item{display:flex;align-items:center;gap:6px}
+  .stat-label{color:#888}
+  .stat-val{font-weight:700;font-family:"SF Mono",monospace;min-width:40px}
+  .stat-val.score{color:#4ade80}
+  .stat-val.level{color:#facc15}
+  .stat-val.length{color:#22d3ee}
+  .stat-val.growth{color:#a78bfa}
+
+  /* Canvas */
+  .game-wrap{position:relative;border-radius:10px;overflow:hidden;border:2px solid #1a1a1a}
+  canvas{display:block;background:#111}
+
+  /* Overlay */
+  .overlay{position:absolute;inset:0;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;transition:opacity 0.3s}
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .overlay h2{font-size:28px;font-weight:800;color:#fff;margin-bottom:6px}
+  .overlay .msg{font-size:14px;color:#888;margin-bottom:20px}
+  .overlay .final-score{font-size:48px;font-weight:800;color:#4ade80;margin-bottom:4px}
+  .overlay .final-label{font-size:13px;color:#888;margin-bottom:20px}
+
+  /* Buttons */
+  .btn-row{display:flex;gap:10px;margin-top:12px}
+  .btn{padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s}
+  .btn-primary{background:#667eea;color:#fff}
+  .btn-primary:hover{background:#5a6fd6}
+  .btn-secondary{background:#1a1a1a;color:#ccc;border:1px solid #333}
+  .btn-secondary:hover{background:#222}
+  .btn-danger{background:#1a1a1a;color:#f87171;border:1px solid #333}
+  .btn-danger:hover{background:#1a1010}
+
+  /* Controls */
+  .controls{display:flex;gap:8px;margin-top:12px}
+  .ctrl-btn{width:48px;height:48px;border-radius:10px;background:#1a1a1a;border:1px solid #2a2a2a;color:#888;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s;user-select:none}
+  .ctrl-btn:hover{background:#222;color:#fff;border-color:#444}
+  .ctrl-btn:active{background:#333;transform:scale(0.95)}
+
+  /* D-pad layout */
+  .dpad{display:grid;grid-template-columns:48px 48px 48px;grid-template-rows:48px 48px;gap:4px;margin-top:12px}
+  .dpad .up{grid-column:2;grid-row:1}
+  .dpad .left{grid-column:1;grid-row:2}
+  .dpad .down{grid-column:2;grid-row:2}
+  .dpad .right{grid-column:3;grid-row:2}
+
+  /* Growth popup */
+  .growth-popup{position:absolute;pointer-events:none;font-size:14px;font-weight:700;color:#a78bfa;animation:floatUp 0.8s ease-out forwards;z-index:5}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-30px)}}
+
+  .info{font-size:11px;color:#555;margin-top:12px;text-align:center;max-width:400px}
+
+  @media(max-width:500px){
+    canvas{width:100%!important;height:auto!important}
+  }
+</style>
+</head>
+<body>
+
+<h1>Snake</h1>
+<div class="sub">Gaussian growth &middot; increasing difficulty</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-item"><span class="stat-label">Score</span><span class="stat-val score" id="score">0</span></div>
+  <div class="stat-item"><span class="stat-label">Level</span><span class="stat-val level" id="level">1</span></div>
+  <div class="stat-item"><span class="stat-label">Length</span><span class="stat-val length" id="length">3</span></div>
+  <div class="stat-item"><span class="stat-label">Growth</span><span class="stat-val growth" id="growthDisp">+1</span></div>
+</div>
+
+<!-- Game -->
+<div class="game-wrap" id="gameWrap">
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <!-- Start overlay -->
+  <div class="overlay" id="startOverlay">
+    <h2>Snake</h2>
+    <div class="msg">Arrow keys or WASD to move</div>
+    <button class="btn btn-primary" id="startBtn">Start Game</button>
+  </div>
+  <!-- Game over overlay -->
+  <div class="overlay hidden" id="gameOverOverlay">
+    <h2>Game Over</h2>
+    <div class="final-score" id="finalScore">0</div>
+    <div class="final-label">points</div>
+    <div class="msg" id="finalMsg"></div>
+    <button class="btn btn-primary" id="restartBtn">Play Again</button>
+  </div>
+  <!-- Paused overlay -->
+  <div class="overlay hidden" id="pauseOverlay">
+    <h2>Paused</h2>
+    <div class="msg">Press Space or click Resume</div>
+    <button class="btn btn-primary" id="resumeBtn">Resume</button>
+  </div>
+</div>
+
+<!-- Action buttons -->
+<div class="btn-row">
+  <button class="btn btn-secondary" id="pauseBtn" disabled>Pause</button>
+  <button class="btn btn-danger" id="resetBtn">Reset</button>
+</div>
+
+<!-- D-pad for mobile -->
+<div class="dpad">
+  <button class="ctrl-btn up" id="btnUp">&uarr;</button>
+  <button class="ctrl-btn left" id="btnLeft">&larr;</button>
+  <button class="ctrl-btn down" id="btnDown">&darr;</button>
+  <button class="ctrl-btn right" id="btnRight">&rarr;</button>
+</div>
+
+<div class="info">
+  Growth follows a Gaussian curve: early levels grow +1, peak growth at mid-levels, then plateaus.
+  Speed increases every 5 points. Food colors change with level.
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+var W = canvas.width, H = canvas.height;
+var GRID = 20;
+var COLS = W / GRID, ROWS = H / GRID;
+
+// ── State ──
+var snake, dir, nextDir, food, score, level, growPending, gameState;
+var baseInterval = 150; // ms per tick at level 1
+var interval, lastTick, animId;
+var highScore = parseInt(localStorage.getItem("snake_high") || "0");
+
+// ── Food colors (cycle through, always distinct from snake) ──
+var FOOD_COLORS = ["#f87171","#fb923c","#facc15","#4ade80","#22d3ee","#a78bfa","#f472b6","#e879f9"];
+var foodColorIdx = 0;
+
+// ── Snake colors by level ──
+var SNAKE_COLORS = [
+  {head:"#667eea",body:"#4a5bc7"},
+  {head:"#22d3ee",body:"#0ea5cf"},
+  {head:"#4ade80",body:"#2db864"},
+  {head:"#facc15",body:"#d4a70e"},
+  {head:"#f472b6",body:"#d4508a"},
+  {head:"#a78bfa",body:"#8b6fd6"},
+];
+
+// ── Gaussian growth function ──
+// Peak growth at level ~10, sigma ~4
+function gaussianGrowth(lvl) {
+  var mu = 10, sigma = 4, maxGrowth = 8;
+  var g = maxGrowth * Math.exp(-0.5 * Math.pow((lvl - mu) / sigma, 2));
+  return Math.max(1, Math.round(g));
+}
+
+// ── Init ──
+function init() {
+  var midX = Math.floor(COLS / 2);
+  var midY = Math.floor(ROWS / 2);
+  snake = [{x:midX,y:midY},{x:midX-1,y:midY},{x:midX-2,y:midY}];
+  dir = {x:1,y:0};
+  nextDir = {x:1,y:0};
+  score = 0;
+  level = 1;
+  growPending = 0;
+  interval = baseInterval;
+  foodColorIdx = 0;
+  spawnFood();
+  updateStats();
+}
+
+function spawnFood() {
+  var occupied = {};
+  snake.forEach(function(s){ occupied[s.x+","+s.y] = true; });
+  var empty = [];
+  for (var x=0;x<COLS;x++) for (var y=0;y<ROWS;y++) {
+    if (!occupied[x+","+y]) empty.push({x:x,y:y});
+  }
+  if (empty.length === 0) { gameOver(); return; }
+  food = empty[Math.floor(Math.random()*empty.length)];
+  // Pick food color that's different from current snake color
+  var sc = SNAKE_COLORS[(level-1) % SNAKE_COLORS.length];
+  do {
+    foodColorIdx = (foodColorIdx + 1) % FOOD_COLORS.length;
+  } while (FOOD_COLORS[foodColorIdx] === sc.head || FOOD_COLORS[foodColorIdx] === sc.body);
+}
+
+// ── Game loop ──
+function tick(ts) {
+  if (gameState !== "playing") return;
+  if (!lastTick) lastTick = ts;
+  if (ts - lastTick >= interval) {
+    lastTick = ts;
+    step();
+  }
+  draw();
+  animId = requestAnimationFrame(tick);
+}
+
+function step() {
+  dir = nextDir;
+  var head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+  // Wall collision
+  if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) { gameOver(); return; }
+  // Self collision
+  for (var i = 0; i < snake.length; i++) {
+    if (snake[i].x === head.x && snake[i].y === head.y) { gameOver(); return; }
+  }
+
+  snake.unshift(head);
+
+  // Eat food
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    level = Math.floor(score / 5) + 1;
+    var growth = gaussianGrowth(level);
+    growPending += growth;
+    showGrowthPopup(growth);
+
+    // Speed up every 5 points
+    interval = Math.max(50, baseInterval - (level - 1) * 8);
+
+    spawnFood();
+    updateStats();
+  }
+
+  // Grow or remove tail
+  if (growPending > 0) {
+    growPending--;
+  } else {
+    snake.pop();
+  }
+}
+
+// ── Drawing ──
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#161616";
+  ctx.lineWidth = 0.5;
+  for (var x = 0; x <= W; x += GRID) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (var y = 0; y <= H; y += GRID) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  var sc = SNAKE_COLORS[(level-1) % SNAKE_COLORS.length];
+
+  // Snake body
+  for (var i = snake.length - 1; i >= 0; i--) {
+    var s = snake[i];
+    var isHead = (i === 0);
+    var r = isHead ? GRID * 0.45 : GRID * 0.4;
+
+    if (isHead) {
+      // Head with glow
+      ctx.shadowColor = sc.head;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = sc.head;
+      roundRect(ctx, s.x * GRID + (GRID-r*2)/2, s.y * GRID + (GRID-r*2)/2, r*2, r*2, 5);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Eyes
+      var ex1 = s.x * GRID + GRID * 0.35, ex2 = s.x * GRID + GRID * 0.65;
+      var ey = s.y * GRID + GRID * 0.35;
+      if (dir.y !== 0) { ex1 = s.x*GRID+GRID*0.35; ex2 = s.x*GRID+GRID*0.65; ey = s.y*GRID + (dir.y>0?GRID*0.6:GRID*0.35); }
+      if (dir.x !== 0) { ey = s.y*GRID+GRID*0.35; var ey2 = s.y*GRID+GRID*0.65; ex1 = s.x*GRID + (dir.x>0?GRID*0.65:GRID*0.35); ex2 = ex1; }
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex1, ey, 2.5, 0, Math.PI*2); ctx.fill();
+      if (dir.x === 0) { ctx.beginPath(); ctx.arc(ex2, ey, 2.5, 0, Math.PI*2); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(ex2, ey2, 2.5, 0, Math.PI*2); ctx.fill(); }
+    } else {
+      // Body segment with fade
+      var frac = i / snake.length;
+      var alpha = 1 - frac * 0.4;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = sc.body;
+      roundRect(ctx, s.x * GRID + (GRID-r*2)/2, s.y * GRID + (GRID-r*2)/2, r*2, r*2, 4);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Food with pulse animation
+  var pulse = 1 + Math.sin(Date.now() * 0.006) * 0.15;
+  var fr = GRID * 0.35 * pulse;
+  var fx = food.x * GRID + GRID/2, fy = food.y * GRID + GRID/2;
+  ctx.shadowColor = FOOD_COLORS[foodColorIdx];
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = FOOD_COLORS[foodColorIdx];
+  ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Food inner shine
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.beginPath(); ctx.arc(fx - fr*0.2, fy - fr*0.2, fr*0.35, 0, Math.PI*2); ctx.fill();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// ── Growth popup ──
+function showGrowthPopup(amount) {
+  var head = snake[0];
+  var popup = document.createElement("div");
+  popup.className = "growth-popup";
+  popup.textContent = "+" + amount;
+  popup.style.left = (head.x * GRID + GRID/2) + "px";
+  popup.style.top = (head.y * GRID) + "px";
+  document.getElementById("gameWrap").appendChild(popup);
+  setTimeout(function(){ popup.remove(); }, 800);
+}
+
+// ── Stats ──
+function updateStats() {
+  document.getElementById("score").textContent = score;
+  document.getElementById("level").textContent = level;
+  document.getElementById("length").textContent = snake.length + growPending;
+  document.getElementById("growthDisp").textContent = "+" + gaussianGrowth(level);
+}
+
+// ── Game state management ──
+function startGame() {
+  init();
+  gameState = "playing";
+  lastTick = 0;
+  document.getElementById("startOverlay").classList.add("hidden");
+  document.getElementById("gameOverOverlay").classList.add("hidden");
+  document.getElementById("pauseOverlay").classList.add("hidden");
+  document.getElementById("pauseBtn").disabled = false;
+  animId = requestAnimationFrame(tick);
+}
+
+function pauseGame() {
+  if (gameState !== "playing") return;
+  gameState = "paused";
+  document.getElementById("pauseOverlay").classList.remove("hidden");
+  document.getElementById("pauseBtn").textContent = "Resume";
+}
+
+function resumeGame() {
+  if (gameState !== "paused") return;
+  gameState = "playing";
+  lastTick = 0;
+  document.getElementById("pauseOverlay").classList.add("hidden");
+  document.getElementById("pauseBtn").textContent = "Pause";
+  animId = requestAnimationFrame(tick);
+}
+
+function togglePause() {
+  if (gameState === "playing") pauseGame();
+  else if (gameState === "paused") resumeGame();
+}
+
+function gameOver() {
+  gameState = "over";
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem("snake_high", String(highScore));
+  }
+  document.getElementById("finalScore").textContent = score;
+  document.getElementById("finalMsg").textContent = "Level " + level + " \u00B7 Length " + snake.length + " \u00B7 High score: " + highScore;
+  document.getElementById("gameOverOverlay").classList.remove("hidden");
+  document.getElementById("pauseBtn").disabled = true;
+}
+
+function resetGame() {
+  cancelAnimationFrame(animId);
+  gameState = "idle";
+  init();
+  draw();
+  document.getElementById("startOverlay").classList.remove("hidden");
+  document.getElementById("gameOverOverlay").classList.add("hidden");
+  document.getElementById("pauseOverlay").classList.add("hidden");
+  document.getElementById("pauseBtn").disabled = true;
+  document.getElementById("pauseBtn").textContent = "Pause";
+}
+
+// ── Input ──
+document.addEventListener("keydown", function(e) {
+  var key = e.key.toLowerCase();
+  if (key === " " || key === "escape") { e.preventDefault(); togglePause(); return; }
+  if (key === "enter" && gameState !== "playing") { e.preventDefault(); startGame(); return; }
+  if (gameState !== "playing") return;
+
+  if ((key === "arrowup" || key === "w") && dir.y === 0) { nextDir = {x:0,y:-1}; e.preventDefault(); }
+  else if ((key === "arrowdown" || key === "s") && dir.y === 0) { nextDir = {x:0,y:1}; e.preventDefault(); }
+  else if ((key === "arrowleft" || key === "a") && dir.x === 0) { nextDir = {x:-1,y:0}; e.preventDefault(); }
+  else if ((key === "arrowright" || key === "d") && dir.x === 0) { nextDir = {x:1,y:0}; e.preventDefault(); }
+});
+
+// Buttons
+document.getElementById("startBtn").addEventListener("click", startGame);
+document.getElementById("restartBtn").addEventListener("click", startGame);
+document.getElementById("resumeBtn").addEventListener("click", resumeGame);
+document.getElementById("pauseBtn").addEventListener("click", togglePause);
+document.getElementById("resetBtn").addEventListener("click", resetGame);
+
+// D-pad
+document.getElementById("btnUp").addEventListener("click", function(){ if(gameState==="playing"&&dir.y===0) nextDir={x:0,y:-1}; });
+document.getElementById("btnDown").addEventListener("click", function(){ if(gameState==="playing"&&dir.y===0) nextDir={x:0,y:1}; });
+document.getElementById("btnLeft").addEventListener("click", function(){ if(gameState==="playing"&&dir.x===0) nextDir={x:-1,y:0}; });
+document.getElementById("btnRight").addEventListener("click", function(){ if(gameState==="playing"&&dir.x===0) nextDir={x:1,y:0}; });
+
+// ── Initial state ──
+gameState = "idle";
+init();
+draw();
+
+})();
+</script>
+</body>
+</html>

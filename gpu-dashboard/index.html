@@ -94,6 +94,11 @@
   .machine-type.workstation { background: #667eea22; color: #667eea; }
   .machine-type.runai { background: #a78bfa22; color: #a78bfa; }
   .machine-meta { display: flex; gap: 16px; align-items: center; font-size: 12px; color: #666; }
+  .remove-btn {
+    background: none; border: 1px solid #333; border-radius: 4px; color: #666;
+    font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .remove-btn:hover { border-color: #f87171; color: #f87171; }
   .freshness { font-weight: 500; }
   .freshness.fresh { color: #4ade80; }
   .freshness.warm { color: #facc15; }
@@ -435,6 +440,63 @@ async function fetchData() {
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
+// Remove a machine by deleting its file from the Gist
+async function removeMachine(key) {
+  if (!confirm('Remove "' + key + '" from the dashboard? The agent can re-add it on next push.')) return;
+  if (!config.token) { alert('Add your GitHub token in Settings to delete machines.'); return; }
+
+  // Find the gist filename for this machine
+  const m = machines[key];
+  if (!m) return;
+  const label = m.machine?.label || m.machine?.hostname || key;
+  const hostname = m.machine?.hostname || key;
+  // Try label-based filename first, then hostname-based
+  const safeName = (s) => s.replace(/[^a-zA-Z0-9_-]/g, '-');
+  const possibleFiles = [
+    'gpu-status-' + safeName(label) + '.json',
+    'gpu-status-' + safeName(hostname) + '.json',
+  ];
+
+  try {
+    // Fetch current gist to find exact filename
+    const resp = await fetch('https://api.github.com/gists/' + config.gistId, {
+      headers: { 'Authorization': 'token ' + config.token, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    const gist = await resp.json();
+    let fileToDelete = null;
+    for (const fn of Object.keys(gist.files)) {
+      if (possibleFiles.includes(fn)) { fileToDelete = fn; break; }
+    }
+    if (!fileToDelete) {
+      // Fallback: find by content match
+      for (const [fn, file] of Object.entries(gist.files)) {
+        if (!fn.startsWith('gpu-status-')) continue;
+        try {
+          const d = JSON.parse(file.content);
+          if (d.machine?.hostname === hostname || d.machine?.label === label) { fileToDelete = fn; break; }
+        } catch(e) {}
+      }
+    }
+    if (!fileToDelete) { alert('Could not find the gist file for this machine.'); return; }
+
+    // Delete by setting content to null
+    const delResp = await fetch('https://api.github.com/gists/' + config.gistId, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'token ' + config.token, 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ files: { [fileToDelete]: null } })
+    });
+    if (delResp.ok) {
+      delete machines[key];
+      renderDashboard();
+    } else {
+      alert('Failed to remove: HTTP ' + delResp.status);
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+window.removeMachine = removeMachine;
+
 function renderDashboard() {
   renderSummary();
   renderMachines();
@@ -526,6 +588,7 @@ function renderMachineCard(m) {
         <div class="machine-meta">
           <span class="freshness ${freshnessClass}">${age.text}</span>
           ${m.uptime_seconds ? `<span>uptime ${formatDuration(m.uptime_seconds)}</span>` : ''}
+          <button class="remove-btn" onclick="removeMachine('${esc(key)}')" title="Remove this machine from the Gist">Remove</button>
         </div>
       </div>
 

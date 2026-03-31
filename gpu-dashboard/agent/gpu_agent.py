@@ -475,9 +475,9 @@ def push_to_gist(cfg: dict, snapshot: dict) -> tuple[bool, int]:
     Returns (success, retry_after_seconds). retry_after_seconds > 0 means
     the caller should back off before the next attempt.
     """
-    hostname = snapshot["machine"]["hostname"]
-    # Sanitize hostname for filename
-    safe_name = "".join(c if c.isalnum() or c in "-_" else "-" for c in hostname)
+    # Use label for filename so RunAI restarts overwrite the same file
+    label = snapshot["machine"].get("label", snapshot["machine"]["hostname"])
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "-" for c in label)
     filename = f"gpu-status-{safe_name}.json"
 
     content = json.dumps(snapshot, indent=2)

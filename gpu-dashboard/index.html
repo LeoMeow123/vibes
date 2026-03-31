@@ -563,10 +563,13 @@ function renderMachines() {
     return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
   });
 
-  list.innerHTML = sorted.map(m => renderMachineCard(m)).join('');
+  list.innerHTML = sorted.map(m => {
+    const mKey = m.machine?.hostname || m.machine?.label || '?';
+    return renderMachineCard(m, mKey);
+  }).join('');
 }
 
-function renderMachineCard(m) {
+function renderMachineCard(m, machineKey) {
   const age = machineAge(m.timestamp);
   const freshnessClass = age.seconds < 120 ? 'fresh' : age.seconds < 600 ? 'warm' : 'stale';
   const cardClass = age.seconds > 600 ? 'stale' : age.seconds > 1800 ? 'offline' : '';
@@ -588,7 +591,7 @@ function renderMachineCard(m) {
         <div class="machine-meta">
           <span class="freshness ${freshnessClass}">${age.text}</span>
           ${m.uptime_seconds ? `<span>uptime ${formatDuration(m.uptime_seconds)}</span>` : ''}
-          <button class="remove-btn" onclick="removeMachine('${esc(key)}')" title="Remove this machine from the Gist">Remove</button>
+          <button class="remove-btn" onclick="removeMachine('${esc(machineKey)}')" title="Remove this machine from the Gist">Remove</button>
         </div>
       </div>
 

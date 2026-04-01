@@ -511,7 +511,7 @@ function renderSummary() {
     return s + (m.gpus || []).reduce((ps, g) => ps + (g.processes?.length || 0), 0);
   }, 0);
   const avgGpuUtil = totalGpus > 0
-    ? Math.round(all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.utilization_percent || 0), 0), 0) / totalGpus)
+    ? Math.round(all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.utilization_peak_percent ?? g.utilization_percent ?? 0), 0), 0) / totalGpus)
     : 0;
   const totalVramUsed = all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.memory_used_mb || 0), 0), 0);
   const totalVramTotal = all.reduce((s, m) => s + (m.gpus || []).reduce((gs, g) => gs + (g.memory_total_mb || 0), 0), 0);
@@ -542,7 +542,7 @@ function renderSummary() {
     </div>
     <div class="summary-card">
       <div class="val" style="color:${barColor(avgGpuUtil)};">${avgGpuUtil}%</div>
-      <div class="lbl">Avg GPU Util</div>
+      <div class="lbl">Peak GPU Util (30m)</div>
     </div>
     <div class="summary-card">
       <div class="val" style="color:#ccc;">${formatGB(totalVramUsed)} / ${formatGB(totalVramTotal)}</div>
@@ -632,6 +632,7 @@ function renderMachineCard(m, machineKey) {
 
 function renderGpuRow(g) {
   const util = g.utilization_percent || 0;
+  const peak = g.utilization_peak_percent ?? util;
   const memUsed = g.memory_used_mb || 0;
   const memTotal = g.memory_total_mb || 1;
   const memPct = Math.round(memUsed / memTotal * 100);
@@ -643,6 +644,8 @@ function renderGpuRow(g) {
     powerStr = `${Math.round(g.power_draw_w)}/${Math.round(g.power_limit_w)}W`;
   }
 
+  const utilLabel = peak > util ? `${util}% (peak ${peak}%)` : `${util}%`;
+
   return `
     <div class="gpu-row">
       <div>
@@ -650,8 +653,8 @@ function renderGpuRow(g) {
         <div class="gpu-name" title="${esc(g.name || '')}">${esc(name)}</div>
       </div>
       <div class="bar-group">
-        <div class="bar-label"><span>Util</span><span class="val">${util}%</span></div>
-        <div class="bar-track"><div class="bar-fill ${barColorClass(util)}" style="width:${util}%"></div></div>
+        <div class="bar-label"><span>Util</span><span class="val">${utilLabel}</span></div>
+        <div class="bar-track"><div class="bar-fill ${barColorClass(peak)}" style="width:${peak}%"></div></div>
       </div>
       <div class="bar-group">
         <div class="bar-label"><span>VRAM</span><span class="val">${formatMB(memUsed)} / ${formatMB(memTotal)}</span></div>

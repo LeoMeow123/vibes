@@ -21,6 +21,7 @@ Configuration (pick one):
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import glob as globmod
 import json
@@ -139,6 +140,37 @@ def collect_gpus() -> list[dict]:
         except (ValueError, IndexError):
             continue
     return gpus
+
+
+# ── Rolling GPU utilization tracker ───────────────────────────────────────────
+
+# Stores (timestamp, utilization%) tuples per GPU index.
+# With 120s push interval, 15 samples covers ~30 minutes.
+_UTIL_WINDOW = 1800  # 30 minutes in seconds
+_gpu_util_history: dict[int, collections.deque[tuple[float, int]]] = {}
+
+
+def _record_gpu_util(gpus: list[dict]) -> None:
+    """Record current utilization readings into the rolling buffer."""
+    now = time.time()
+    for gpu in gpus:
+        idx = gpu["index"]
+        if idx not in _gpu_util_history:
+            _gpu_util_history[idx] = collections.deque()
+        buf = _gpu_util_history[idx]
+        buf.append((now, gpu.get("utilization_percent", 0)))
+        # Evict old entries
+        cutoff = now - _UTIL_WINDOW
+        while buf and buf[0][0] < cutoff:
+            buf.popleft()
+
+
+def _get_peak_util(gpu_index: int) -> int | None:
+    """Return peak utilization for a GPU over the rolling window."""
+    buf = _gpu_util_history.get(gpu_index)
+    if not buf:
+        return None
+    return max(v for _, v in buf)
 
 
 def _safe_float(val: str) -> float | None:
@@ -435,6 +467,13 @@ def collect_snapshot(cfg: dict) -> dict:
     """Collect full machine snapshot."""
     gpus = collect_gpus()
     processes = collect_gpu_processes()
+
+    # Record utilization and attach peak (30-min max) to each GPU
+    _record_gpu_util(gpus)
+    for gpu in gpus:
+        peak = _get_peak_util(gpu["index"])
+        if peak is not None:
+            gpu["utilization_peak_percent"] = peak
 
     # Attach processes to their GPUs
     for proc in processes:

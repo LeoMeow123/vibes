@@ -110,6 +110,7 @@
 <header>
   <h1><span>🧠</span> Paper Brain</h1>
   <div class="header-actions">
+    <button class="btn btn-primary btn-sm" onclick="syncFromServer()">Sync</button>
     <button class="btn btn-secondary btn-sm" onclick="importJSON()">Import JSON</button>
     <button class="btn btn-secondary btn-sm" onclick="exportJSON()">Export JSON</button>
     <input type="file" id="importFile" accept=".json" style="display:none">
@@ -611,7 +612,48 @@ window.applyClaudeResponse = function() {
   }
 };
 
-// ═══ IMPORT / EXPORT ═══
+// ═══ SYNC / IMPORT / EXPORT ═══
+window.syncFromServer = async function() {
+  try {
+    const resp = await fetch("papers.json?t=" + Date.now());
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const serverPapers = await resp.json();
+    if (!Array.isArray(serverPapers)) throw new Error("Invalid format");
+
+    let added = 0, updated = 0;
+    serverPapers.forEach(sp => {
+      // Find existing by DOI or title
+      const existing = papers.find(p =>
+        (sp.doi && p.doi && sp.doi === p.doi) ||
+        (sp.title && p.title && sp.title.toLowerCase() === p.title.toLowerCase())
+      );
+      if (existing) {
+        // Update fields that are empty locally but filled on server
+        let changed = false;
+        ["title","authors","year","journal","doi","species","region","type",
+         "methods","funding","abstract","findings","notes","project"].forEach(f => {
+          if (sp[f] && (!existing[f] || existing[f] !== sp[f])) {
+            existing[f] = sp[f];
+            changed = true;
+          }
+        });
+        if (changed) updated++;
+      } else {
+        // New paper from server
+        if (!sp.id) sp.id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+        papers.push(sp);
+        added++;
+      }
+    });
+
+    save();
+    renderLibrary();
+    alert("Sync complete: " + added + " new, " + updated + " updated, " + papers.length + " total.");
+  } catch(e) {
+    alert("Sync failed: " + e.message);
+  }
+};
+
 window.exportJSON = function() {
   const blob = new Blob([JSON.stringify(papers, null, 2)], {type: 'application/json'});
   const a = document.createElement('a');

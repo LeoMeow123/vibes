@@ -211,7 +211,7 @@
     "status": "unread",
     "project": "AD-LC",
     "funding": "",
-    "abstract": "",
+    "abstract": "Noradrenergic signaling sensitizes pathological GSK3β/tau activation to nanomolar Aβ.",
     "findings": "",
     "notes": "Needs metadata fill via DOI lookup"
   },
@@ -229,7 +229,7 @@
     "status": "unread",
     "project": "AD-LC",
     "funding": "",
-    "abstract": "",
+    "abstract": "Amyotrophic lateral sclerosis (ALS) is a devastating neurodegenerative disease, characterized by the death of upper (UMN) and lower motor neurons (LMN) in the motor cortex, brainstem, and spinal cord. Despite decades of research, ALS remains incurable, challenging to diagnose, and of extremely rapid progression. A unifying feature of sporadic and familial forms of ALS is cortical hyperexcitability, which precedes symptom onset, negatively correlates with survival, and is sufficient to trigger neurodegeneration in rodents. Using electrocorticography in the\n            \n              Sod1\n              <jats:sup>G86R</jats:sup>\n            \n            and\n            Fus\n            <jats:sup>\n              Δ\n              NLS/+\n            </jats:sup>\n            ALS mouse models and stand",
     "findings": "",
     "notes": "Needs metadata fill via DOI lookup"
   },
@@ -247,7 +247,7 @@
     "status": "unread",
     "project": "AD-LC",
     "funding": "",
-    "abstract": "",
+    "abstract": "<jats:title>Abstract</jats:title>\n                  \n                    Alzheimer’s disease (AD) often begins with non-cognitive symptoms such as olfactory deficits, which can predict later cognitive decline, though the mechanisms remain unclear. Pathologically, the brainstem locus coeruleus (LC), the main source of the neurotransmitter noradrenalin (NA) modulating olfactory information processing is affected early. Here we show early and distinct loss of noradrenergic input to the olfactory bulb (OB) coinciding with impaired olfaction in an AD mouse model, before appearance of amyloid plaques. Mechanistically, OB microglia recognize and phagocytose LC axons. Reducing phagocytosis genetically preserves LC axons and olfaction. Prodromal AD patients display elevated TSPO-PET signals in the ",
     "findings": "",
     "notes": "Needs metadata fill via DOI lookup"
   },
@@ -283,7 +283,7 @@
     "status": "unread",
     "project": "AD-LC",
     "funding": "",
-    "abstract": "",
+    "abstract": "Locus ceruleus (LC)-supplied norepinephrine (NE) suppresses neuroinflammation in the brain. To elucidate the effect of LC degeneration and subsequent NE deficiency on Alzheimer's disease pathology, we evaluated NE effects on microglial key functions. NE stimulation of mouse microglia suppressed Aβ-induced cytokine and chemokine production and increased microglial migration and phagocytosis of Aβ. Induced degeneration of the locus ceruleus increased expression of inflammatory mediators in APP-transgenic mice and resulted in elevated Aβ deposition. In vivo laser microscopy confirmed a reduced recruitment of microglia to Aβ plaque sites and impaired microglial Aβ phagocytosis in NE-depleted APP-transgenic mice. Supplying the mice the norepinephrine precursor L-threo-DOPS restored microglial f",
     "findings": "",
     "notes": "PDF on local machine — LC-microglia-NE-AD connection"
   },
@@ -337,7 +337,7 @@
     "status": "unread",
     "project": "AD-LC",
     "funding": "",
-    "abstract": "",
+    "abstract": "<jats:title>Abstract</jats:title>Alzheimer's disease (AD) poses a significant global health concern over the next several decades. Multiple hypotheses have been put forth that attempt to explain the underlying pathophysiology of AD. Many of these are briefly reviewed here, but to‐date no disease‐altering therapy has been achieved. Despite this, recent work expanding on the role of noradrenergic system dysfunction in both the pathogenesis and symptomatic exacerbation of AD has shown promise. The role norepinephrine (NE) plays in AD remains complicated but pre‐tangle tau has consistently been shown to arise in the locus coeruleus (LC) of patients with AD decades before symptom onset. The current research reviewed here indicates NE can facilitate neuroprotective and memory‐enhancing effects t",
     "findings": "",
     "notes": "PDF on local machine — NE involvement in AD + electroceutical therapies"
   }

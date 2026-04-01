@@ -342,7 +342,7 @@ function renderLibrary() {
         <td><span class="status-dot status-${p.status||'unread'}"></span></td>
         <td><div class="paper-title">${esc(p.title||'Untitled')}</div><div class="paper-authors">${esc(p.authors||'')}</div></td>
         <td>${p.year||''}</td>
-        <td style="font-size:12px;color:var(--muted)">${esc(p.journal||'')}</td>
+        <td style="font-size:12px;color:var(--muted);white-space:nowrap">${esc(p.journal||'')}${p.doi ? ' <a href="https://doi.org/'+esc(p.doi)+'" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);font-size:10px">DOI</a>' : ''}</td>
         <td><span class="tag ${typeClass}">${p.type||'?'}</span></td>
         <td style="font-size:12px">${esc(p.species||'')}</td>
         <td style="font-size:12px">${esc(p.region||'')}</td>

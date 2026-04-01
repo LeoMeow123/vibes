@@ -13,7 +13,6 @@ from numpy.typing import ArrayLike
 
 try:
     from shapely.geometry import Point, Polygon
-    from shapely.geometry.base import BaseGeometry
     HAS_SHAPELY = True
 except ImportError:
     HAS_SHAPELY = False

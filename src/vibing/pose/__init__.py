@@ -9,25 +9,6 @@ This module provides tools for analyzing pose estimation data:
 - Quality assessment: Body-relative keypoint anomaly detection
 """
 
-from vibing.pose.region import (
-    bodypart_in_region,
-    bodyparts_in_region,
-    check_bodyparts_by_name,
-    count_bodyparts_in_region,
-    extract_bodyparts,
-)
-from vibing.pose.interpolate import (
-    count_gaps,
-    interpolate_gaps,
-    interpolate_track,
-)
-from vibing.pose.hull import (
-    body_hull,
-    body_hull_area,
-    body_hull_centroid,
-    body_hull_coverage,
-    body_hull_series,
-)
 from vibing.pose.analysis import (
     cumulative_distance,
     multi_region_dwell,
@@ -37,6 +18,18 @@ from vibing.pose.analysis import (
     track_speed,
     track_velocity,
 )
+from vibing.pose.hull import (
+    body_hull,
+    body_hull_area,
+    body_hull_centroid,
+    body_hull_coverage,
+    body_hull_series,
+)
+from vibing.pose.interpolate import (
+    count_gaps,
+    interpolate_gaps,
+    interpolate_track,
+)
 from vibing.pose.quality import (
     QualityConfig,
     QualityReport,
@@ -44,6 +37,13 @@ from vibing.pose.quality import (
     check_pose_quality,
     check_slp_quality,
     detect_skeleton,
+)
+from vibing.pose.region import (
+    bodypart_in_region,
+    bodyparts_in_region,
+    check_bodyparts_by_name,
+    count_bodyparts_in_region,
+    extract_bodyparts,
 )
 from vibing.pose.scan import scan_slp_quality
 

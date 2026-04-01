@@ -4,13 +4,13 @@ Track analysis utilities.
 Compute velocity, distance, and dwell time from pose tracking data.
 """
 
-from typing import Optional, Union
+from typing import Optional
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 try:
-    from shapely.geometry import Polygon, Point
+    from shapely.geometry import Point, Polygon
     HAS_SHAPELY = True
 except ImportError:
     HAS_SHAPELY = False

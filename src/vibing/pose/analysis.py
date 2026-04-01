@@ -5,6 +5,7 @@ Compute velocity, distance, and dwell time from pose tracking data.
 """
 
 from typing import Optional, Union
+
 import numpy as np
 from numpy.typing import ArrayLike
 

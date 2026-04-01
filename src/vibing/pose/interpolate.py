@@ -7,6 +7,7 @@ while long gaps usually indicate the subject leaving the field of view.
 """
 
 from typing import Optional
+
 import numpy as np
 from numpy.typing import ArrayLike
 

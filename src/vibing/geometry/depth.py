@@ -7,6 +7,7 @@ an animal has entered a specific zone.
 """
 
 from typing import Union
+
 import numpy as np
 from numpy.typing import ArrayLike
 

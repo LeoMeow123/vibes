@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
-from vibing.video.info import get_frame_count, get_video_info, VideoInfo
+from vibing.video.info import VideoInfo, get_frame_count, get_video_info
 
 
 @dataclass
@@ -154,7 +154,8 @@ def get_batch_summary(
 
     Example:
         >>> summary = get_batch_summary("/path/to/videos")
-        >>> print(f"{summary.total_frames:,} frames, {summary.total_duration/3600:.1f} hours")
+        >>> hours = summary.total_duration / 3600
+        >>> print(f"{summary.total_frames:,} frames, {hours:.1f} hours")
     """
     video_dir = Path(video_dir)
     total_frames = 0

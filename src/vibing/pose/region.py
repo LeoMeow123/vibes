@@ -7,6 +7,7 @@ to determine if specific body parts have entered a zone.
 """
 
 from typing import Union
+
 import numpy as np
 from numpy.typing import ArrayLike
 

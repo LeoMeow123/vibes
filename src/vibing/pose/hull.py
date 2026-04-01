@@ -7,6 +7,7 @@ to calculate region coverage, spatial extent, and body area.
 """
 
 from typing import Optional, Union
+
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.spatial import ConvexHull

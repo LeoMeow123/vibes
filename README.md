@@ -21,7 +21,10 @@ A collection of small but useful tools for scientific publications and projects.
 | **Quality Review Tool** | Batch scan results viewer with embedded SLP proofreading | [Launch](https://leomeow123.github.io/vibes/quality-review-tool/) |
 | **Camera Comparison Tool** | Compare DJI/GoPro/Basler cameras, interactive FOV calculator, setup wizard | [Launch](https://leomeow123.github.io/vibes/camera-fov-tool/) |
 | **Fitness Form Analyzer** | AI-powered exercise form analysis with personalized biomechanics | [Launch](https://leomeow123.github.io/vibes/fitness-analysis-tool/) |
+| **Sensor Playground** | 7-variable behavior classification explorer for soft robot elbow pad | [Launch](https://leomeow123.github.io/vibes/sensor-playground/) |
+| **Paper Brain** | Searchable research paper library with DOI lookup and Claude batch annotation | [Launch](https://leomeow123.github.io/vibes/paper-brain/) |
 | **GPU Dashboard** | Monitor GPUs across multiple workstations from one page | [Launch](https://leomeow123.github.io/vibes/gpu-dashboard/) |
+| **Snake Game** | Classic snake with Gaussian growth mechanic and increasing difficulty | [Launch](https://leomeow123.github.io/vibes/snake-game/) |
 
 ## Standalone Tools
 

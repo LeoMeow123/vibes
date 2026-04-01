@@ -620,35 +620,28 @@ window.syncFromServer = async function() {
     const serverPapers = await resp.json();
     if (!Array.isArray(serverPapers)) throw new Error("Invalid format");
 
-    let added = 0, updated = 0;
-    serverPapers.forEach(sp => {
-      // Find existing by DOI or title
-      const existing = papers.find(p =>
-        (sp.doi && p.doi && sp.doi === p.doi) ||
-        (sp.title && p.title && sp.title.toLowerCase() === p.title.toLowerCase())
+    // Server is source of truth for papers.json content.
+    // Keep any local-only papers (added via UI, not on server),
+    // but replace/update everything that came from the server.
+    const serverIds = new Set(serverPapers.map(sp => sp.id));
+    const serverDois = new Set(serverPapers.filter(sp => sp.doi).map(sp => sp.doi.toLowerCase()));
+
+    // Find local-only papers (not on server by id or doi)
+    const localOnly = papers.filter(p => {
+      if (serverIds.has(p.id)) return false;
+      if (p.doi && serverDois.has(p.doi.toLowerCase())) return false;
+      // Also check if title matches any server paper
+      return !serverPapers.some(sp =>
+        sp.title && p.title && sp.title.toLowerCase() === p.title.toLowerCase()
       );
-      if (existing) {
-        // Update fields that are empty locally but filled on server
-        let changed = false;
-        ["title","authors","year","journal","doi","species","region","type",
-         "methods","funding","abstract","findings","notes","project"].forEach(f => {
-          if (sp[f] && (!existing[f] || existing[f] !== sp[f])) {
-            existing[f] = sp[f];
-            changed = true;
-          }
-        });
-        if (changed) updated++;
-      } else {
-        // New paper from server
-        if (!sp.id) sp.id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-        papers.push(sp);
-        added++;
-      }
     });
+
+    // Merge: server papers + local-only papers
+    papers = [...serverPapers, ...localOnly];
 
     save();
     renderLibrary();
-    alert("Sync complete: " + added + " new, " + updated + " updated, " + papers.length + " total.");
+    alert("Sync complete: " + serverPapers.length + " from server, " + localOnly.length + " local-only kept. Total: " + papers.length);
   } catch(e) {
     alert("Sync failed: " + e.message);
   }

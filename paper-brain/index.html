@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper Brain</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
+  :root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);--text:#e8eaf0;--muted:#7a7f94;--accent:#4f9cf9;--green:#34d399;--yellow:#fbbf24;--red:#ef4444;--purple:#a78bfa}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* Header */
+  header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  header h1{font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px}
+  header h1 span{font-size:22px}
+  .header-actions{display:flex;gap:8px}
+
+  /* Buttons */
+  .btn{padding:8px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px}
+  .btn-primary{background:var(--accent);color:#000}
+  .btn-primary:hover{opacity:0.85}
+  .btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+  .btn-secondary:hover{background:#222638}
+  .btn-danger{background:var(--bg3);color:var(--red);border:1px solid var(--border2)}
+  .btn-danger:hover{background:#1a1015}
+  .btn-sm{padding:5px 12px;font-size:11px;border-radius:6px}
+
+  /* Tabs */
+  .tabs{display:flex;gap:2px;padding:10px 28px 0;border-bottom:1px solid var(--border)}
+  .tab{padding:8px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0;border:1px solid transparent;border-bottom:none;background:transparent;font-family:'Outfit',sans-serif;transition:all 0.2s}
+  .tab:hover{color:var(--text)}.tab.active{color:var(--text);background:var(--bg2);border-color:var(--border);margin-bottom:-1px;z-index:1}
+
+  /* Panels */
+  .panel{display:none;padding:20px 28px}.panel.active{display:block}
+
+  /* Search bar */
+  .search-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .search-input{flex:1;min-width:200px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:14px;font-family:'Outfit',sans-serif;outline:none}
+  .search-input:focus{border-color:var(--accent)}
+  .search-input::placeholder{color:var(--muted)}
+
+  /* Filter chips */
+  .filter-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .filter-label{font-size:11px;color:var(--muted);margin-right:4px}
+  .chip{padding:4px 12px;border-radius:16px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;font-family:'Outfit',sans-serif;transition:all 0.15s}
+  .chip:hover{color:var(--text);border-color:var(--accent)}
+  .chip.active{color:var(--accent);border-color:var(--accent);background:rgba(79,156,249,0.1)}
+
+  /* Paper table */
+  .paper-table{width:100%;border-collapse:collapse;font-size:13px}
+  .paper-table th{text-align:left;padding:10px 12px;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+  .paper-table th:hover{color:var(--text)}
+  .paper-table th .sort-arrow{font-size:10px;margin-left:4px;color:var(--accent)}
+  .paper-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  .paper-table tr:hover{background:var(--bg3)}
+  .paper-table tr{cursor:pointer}
+  .paper-title{font-weight:600;color:var(--text);max-width:350px}
+  .paper-authors{color:var(--muted);font-size:11px;max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-right:4px}
+  .tag-behavioral{background:rgba(79,156,249,0.15);color:var(--accent)}
+  .tag-genetic{background:rgba(167,139,250,0.15);color:var(--purple)}
+  .tag-both{background:rgba(52,211,153,0.15);color:var(--green)}
+  .tag-review{background:rgba(251,191,36,0.15);color:var(--yellow)}
+  .tag-methods{background:rgba(239,68,68,0.15);color:var(--red)}
+  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+  .status-read{background:var(--green)}.status-reading{background:var(--yellow)}.status-unread{background:var(--muted)}
+
+  /* Paper detail / editor */
+  .detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+  .detail-overlay.open{display:flex}
+  .detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:100%;max-width:750px;padding:28px;position:relative}
+  .detail-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .detail-close:hover{color:var(--text)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-group{display:flex;flex-direction:column}
+  .form-group.full{grid-column:1/-1}
+  .form-group label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px}
+  .form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Outfit',sans-serif;outline:none}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+  .form-group textarea{resize:vertical;min-height:70px}
+  .form-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+  /* DOI lookup */
+  .doi-bar{display:flex;gap:8px;margin-bottom:20px}
+  .doi-bar input{flex:1}
+  .doi-status{font-size:12px;margin-top:6px}
+  .doi-status.ok{color:var(--green)}.doi-status.err{color:var(--red)}.doi-status.loading{color:var(--yellow)}
+
+  /* Stats */
+  .stats-row{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;min-width:120px}
+  .stat-val{font-size:24px;font-weight:700;font-family:'DM Mono',monospace}
+  .stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+
+  /* Batch Claude */
+  .claude-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;margin-top:16px}
+  .claude-box pre{background:var(--bg3);border-radius:8px;padding:14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto;margin-top:10px}
+
+  /* Empty state */
+  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty h3{font-size:18px;color:var(--text);margin-bottom:8px}
+  .empty p{font-size:13px;margin-bottom:20px}
+
+  @media(max-width:768px){.form-grid{grid-template-columns:1fr}.search-bar{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>🧠</span> Paper Brain</h1>
+  <div class="header-actions">
+    <button class="btn btn-secondary btn-sm" onclick="importJSON()">Import JSON</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportJSON()">Export JSON</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('library')">Library</button>
+  <button class="tab" onclick="switchTab('add')">+ Add Paper</button>
+  <button class="tab" onclick="switchTab('claude')">Batch Claude</button>
+</div>
+
+<!-- ═══ LIBRARY ═══ -->
+<div class="panel active" id="tab-library">
+  <div class="stats-row" id="statsRow"></div>
+  <div class="search-bar">
+    <input class="search-input" id="searchInput" placeholder="Search title, authors, keywords, brain region, methods...">
+    <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Clear</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Type:</span>
+    <button class="chip active" data-filter="type" data-value="all">All</button>
+    <button class="chip" data-filter="type" data-value="behavioral">Behavioral</button>
+    <button class="chip" data-filter="type" data-value="genetic">Genetic</button>
+    <button class="chip" data-filter="type" data-value="both">Both</button>
+    <button class="chip" data-filter="type" data-value="review">Review</button>
+    <button class="chip" data-filter="type" data-value="methods">Methods</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Status:</span>
+    <button class="chip active" data-filter="status" data-value="all">All</button>
+    <button class="chip" data-filter="status" data-value="read">Read</button>
+    <button class="chip" data-filter="status" data-value="reading">Reading</button>
+    <button class="chip" data-filter="status" data-value="unread">Unread</button>
+  </div>
+  <div id="libraryContent"></div>
+</div>
+
+<!-- ═══ ADD PAPER ═══ -->
+<div class="panel" id="tab-add">
+  <div style="max-width:750px">
+    <h3 style="margin-bottom:4px">Add New Paper</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Paste a DOI to auto-fill, or enter details manually.</p>
+
+    <div class="doi-bar">
+      <input class="search-input" id="doiInput" placeholder="Paste DOI (e.g. 10.1038/s41586-023-06170-6) or title to search...">
+      <button class="btn btn-primary" onclick="lookupDOI()">Lookup</button>
+    </div>
+    <div class="doi-status" id="doiStatus"></div>
+
+    <div class="form-grid" id="addForm">
+      <div class="form-group full"><label>Title</label><input id="f-title"></div>
+      <div class="form-group"><label>Authors</label><input id="f-authors" placeholder="Last, First; Last, First"></div>
+      <div class="form-group"><label>Year</label><input type="number" id="f-year"></div>
+      <div class="form-group"><label>Journal</label><input id="f-journal"></div>
+      <div class="form-group"><label>DOI</label><input id="f-doi"></div>
+      <div class="form-group"><label>Species / Model</label><input id="f-species" placeholder="e.g. mouse, rat, human"></div>
+      <div class="form-group"><label>Brain Region / Topic</label><input id="f-region" placeholder="e.g. LC, VTA, PFC, spinal cord"></div>
+      <div class="form-group">
+        <label>Study Type</label>
+        <select id="f-type">
+          <option value="behavioral">Behavioral</option>
+          <option value="genetic">Genetic</option>
+          <option value="both">Both</option>
+          <option value="review">Review</option>
+          <option value="methods">Methods</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Methods</label><input id="f-methods" placeholder="e.g. SLEAP, optogenetics, calcium imaging"></div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="unread">Unread</option>
+          <option value="reading">Reading</option>
+          <option value="read">Read</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Project Tag</label><input id="f-project" placeholder="e.g. pub1, grant, thesis"></div>
+      <div class="form-group"><label>Funding</label><input id="f-funding" placeholder="e.g. NIH R01, NSF"></div>
+      <div class="form-group full"><label>Abstract</label><textarea id="f-abstract" rows="4"></textarea></div>
+      <div class="form-group full"><label>Key Findings</label><textarea id="f-findings" rows="2" placeholder="1-2 sentence summary of the main result"></textarea></div>
+      <div class="form-group full"><label>Your Notes</label><textarea id="f-notes" rows="2" placeholder="Why this paper matters to your work"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="clearAddForm()">Clear</button>
+      <button class="btn btn-primary" onclick="savePaper()">Save Paper</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BATCH CLAUDE ═══ -->
+<div class="panel" id="tab-claude">
+  <div style="max-width:800px">
+    <h3 style="margin-bottom:4px">Batch Extract with Claude</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Generate a prompt for Claude.ai to extract structured metadata from your papers' abstracts. Copy the prompt, paste into Claude, then paste the result back.</p>
+
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted)">Select papers to process:</label>
+      <select id="claudeFilter" style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;margin-left:8px">
+        <option value="no-findings">Papers missing key findings</option>
+        <option value="no-species">Papers missing species/model</option>
+        <option value="all">All papers</option>
+      </select>
+      <button class="btn btn-primary btn-sm" style="margin-left:8px" onclick="generateClaudePrompt()">Generate Prompt</button>
+    </div>
+
+    <div class="claude-box" id="claudeBox" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">Prompt for Claude.ai</span>
+        <button class="btn btn-secondary btn-sm" onclick="copyClaudePrompt()">Copy to Clipboard</button>
+      </div>
+      <pre id="claudePrompt"></pre>
+    </div>
+
+    <div class="claude-box" style="margin-top:16px">
+      <span style="font-size:13px;font-weight:600">Paste Claude's Response</span>
+      <p style="font-size:11px;color:var(--muted);margin:6px 0 10px">Paste the JSON array Claude returns. It will auto-update your papers.</p>
+      <textarea id="claudeResponse" rows="6" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;resize:vertical;outline:none" placeholder='[{"doi":"10.1038/...","species":"mouse","region":"LC","findings":"..."},...]'></textarea>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="applyClaudeResponse()">Apply to Library</button>
+      <div id="claudeApplyStatus" style="font-size:12px;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail / Edit overlay -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-card">
+    <button class="detail-close" onclick="closeDetail()">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ═══ DATA ═══
+let papers = JSON.parse(localStorage.getItem("paper_brain") || "[]");
+let editingId = null;
+let sortCol = "year", sortAsc = false;
+let activeTypeFilter = "all", activeStatusFilter = "all";
+
+// ═══ TABS ═══
+window.switchTab = function(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+};
+
+// ═══ RENDER LIBRARY ═══
+function renderLibrary() {
+  renderStats();
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  let filtered = papers.filter(p => {
+    if (activeTypeFilter !== 'all' && p.type !== activeTypeFilter) return false;
+    if (activeStatusFilter !== 'all' && p.status !== activeStatusFilter) return false;
+    if (query) {
+      const haystack = [p.title,p.authors,p.journal,p.species,p.region,p.methods,p.findings,p.notes,p.project,p.abstract,p.funding].join(' ').toLowerCase();
+      return query.split(/\s+/).every(w => haystack.includes(w));
+    }
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va = (a[sortCol] || ''), vb = (b[sortCol] || '');
+    if (sortCol === 'year') { va = parseInt(va)||0; vb = parseInt(vb)||0; }
+    else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  const el = document.getElementById('libraryContent');
+  if (papers.length === 0) {
+    el.innerHTML = '<div class="empty"><h3>No papers yet</h3><p>Click "+ Add Paper" to get started, or import a JSON file.</p></div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty"><p>No papers match your search/filters.</p></div>';
+    return;
+  }
+
+  const arrow = col => sortCol === col ? '<span class="sort-arrow">' + (sortAsc ? '\u25B2' : '\u25BC') + '</span>' : '';
+  el.innerHTML = `<table class="paper-table">
+    <thead><tr>
+      <th onclick="sortBy('status')" style="width:30px">St${arrow('status')}</th>
+      <th onclick="sortBy('title')">Title${arrow('title')}</th>
+      <th onclick="sortBy('year')" style="width:50px">Year${arrow('year')}</th>
+      <th onclick="sortBy('journal')">Journal${arrow('journal')}</th>
+      <th onclick="sortBy('type')">Type${arrow('type')}</th>
+      <th onclick="sortBy('species')">Model${arrow('species')}</th>
+      <th onclick="sortBy('region')">Region${arrow('region')}</th>
+      <th>Findings</th>
+    </tr></thead>
+    <tbody>${filtered.map(p => {
+      const typeClass = 'tag-' + (p.type || 'behavioral');
+      return `<tr onclick="openDetail('${p.id}')">
+        <td><span class="status-dot status-${p.status||'unread'}"></span></td>
+        <td><div class="paper-title">${esc(p.title||'Untitled')}</div><div class="paper-authors">${esc(p.authors||'')}</div></td>
+        <td>${p.year||''}</td>
+        <td style="font-size:12px;color:var(--muted)">${esc(p.journal||'')}</td>
+        <td><span class="tag ${typeClass}">${p.type||'?'}</span></td>
+        <td style="font-size:12px">${esc(p.species||'')}</td>
+        <td style="font-size:12px">${esc(p.region||'')}</td>
+        <td style="font-size:11px;color:var(--muted);max-width:250px">${esc((p.findings||'').substring(0,120))}${(p.findings||'').length>120?'...':''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+window.sortBy = function(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+  renderLibrary();
+};
+
+function renderStats() {
+  const total = papers.length;
+  const read = papers.filter(p => p.status === 'read').length;
+  const types = {};
+  papers.forEach(p => { types[p.type||'?'] = (types[p.type||'?']||0)+1; });
+  const regions = {};
+  papers.forEach(p => { if(p.region) p.region.split(/[,;/]/).forEach(r => { r=r.trim(); if(r) regions[r]=(regions[r]||0)+1; }); });
+  const topRegion = Object.entries(regions).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-val" style="color:var(--accent)">${total}</div><div class="stat-label">Total Papers</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--green)">${read}</div><div class="stat-label">Read</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--yellow)">${total-read}</div><div class="stat-label">Unread/Reading</div></div>
+    ${topRegion ? `<div class="stat-card"><div class="stat-val" style="color:var(--purple);font-size:16px">${esc(topRegion[0])}</div><div class="stat-label">Top Region (${topRegion[1]} papers)</div></div>` : ''}
+  `;
+}
+
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+// ═══ FILTERS ═══
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', function() {
+    const filterType = this.dataset.filter;
+    const val = this.dataset.value;
+    document.querySelectorAll(`.chip[data-filter="${filterType}"]`).forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+    if (filterType === 'type') activeTypeFilter = val;
+    if (filterType === 'status') activeStatusFilter = val;
+    renderLibrary();
+  });
+});
+document.getElementById('searchInput').addEventListener('input', renderLibrary);
+window.clearFilters = function() {
+  document.getElementById('searchInput').value = '';
+  activeTypeFilter = 'all'; activeStatusFilter = 'all';
+  document.querySelectorAll('.chip').forEach(c => { c.classList.toggle('active', c.dataset.value === 'all'); });
+  renderLibrary();
+};
+
+// ═══ DOI LOOKUP ═══
+window.lookupDOI = async function() {
+  const input = document.getElementById('doiInput').value.trim();
+  const status = document.getElementById('doiStatus');
+  if (!input) return;
+
+  // Extract DOI from URL or raw input
+  let doi = input;
+  const doiMatch = input.match(/10\.\d{4,}\/[^\s]+/);
+  if (doiMatch) doi = doiMatch[0];
+
+  status.className = 'doi-status loading';
+  status.textContent = 'Looking up...';
+
+  try {
+    let url;
+    if (doi.startsWith('10.')) {
+      url = 'https://api.crossref.org/works/' + encodeURIComponent(doi);
+    } else {
+      // Search by title
+      url = 'https://api.crossref.org/works?query=' + encodeURIComponent(input) + '&rows=1';
+    }
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('Not found');
+    const data = await resp.json();
+
+    let item;
+    if (data.message.items) item = data.message.items[0];
+    else item = data.message;
+
+    if (!item) throw new Error('No results');
+
+    document.getElementById('f-title').value = (item.title && item.title[0]) || '';
+    document.getElementById('f-authors').value = (item.author || []).map(a => (a.family||'') + ', ' + (a.given||'')).join('; ');
+    document.getElementById('f-year').value = item.published?.['date-parts']?.[0]?.[0] || item.created?.['date-parts']?.[0]?.[0] || '';
+    document.getElementById('f-journal').value = (item['container-title'] && item['container-title'][0]) || item.publisher || '';
+    document.getElementById('f-doi').value = item.DOI || doi;
+    document.getElementById('f-abstract').value = (item.abstract || '').replace(/<[^>]*>/g, '');
+
+    status.className = 'doi-status ok';
+    status.textContent = 'Found! Fill in the remaining fields below.';
+  } catch(e) {
+    status.className = 'doi-status err';
+    status.textContent = 'Not found. Try a different DOI or enter details manually.';
+  }
+};
+
+// ═══ SAVE PAPER ═══
+window.savePaper = function() {
+  const paper = {
+    id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    title: document.getElementById('f-title').value.trim(),
+    authors: document.getElementById('f-authors').value.trim(),
+    year: document.getElementById('f-year').value.trim(),
+    journal: document.getElementById('f-journal').value.trim(),
+    doi: document.getElementById('f-doi').value.trim(),
+    species: document.getElementById('f-species').value.trim(),
+    region: document.getElementById('f-region').value.trim(),
+    type: document.getElementById('f-type').value,
+    methods: document.getElementById('f-methods').value.trim(),
+    status: document.getElementById('f-status').value,
+    project: document.getElementById('f-project').value.trim(),
+    funding: document.getElementById('f-funding').value.trim(),
+    abstract: document.getElementById('f-abstract').value.trim(),
+    findings: document.getElementById('f-findings').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    added: new Date().toISOString(),
+  };
+  if (!paper.title) { alert('Title is required'); return; }
+
+  if (editingId) {
+    const idx = papers.findIndex(p => p.id === editingId);
+    if (idx >= 0) { paper.added = papers[idx].added; papers[idx] = paper; }
+    editingId = null;
+  } else {
+    papers.unshift(paper);
+  }
+  save();
+  clearAddForm();
+  switchTabDirect('library');
+  renderLibrary();
+};
+
+window.clearAddForm = function() {
+  editingId = null;
+  ['title','authors','year','journal','doi','species','region','methods','project','funding','abstract','findings','notes'].forEach(f => {
+    document.getElementById('f-'+f).value = '';
+  });
+  document.getElementById('f-type').value = 'behavioral';
+  document.getElementById('f-status').value = 'unread';
+  document.getElementById('doiStatus').textContent = '';
+};
+
+// ═══ DETAIL / EDIT ═══
+window.openDetail = function(id) {
+  const p = papers.find(x => x.id === id);
+  if (!p) return;
+  const el = document.getElementById('detailContent');
+  el.innerHTML = `
+    <h2 style="font-size:18px;margin-bottom:4px;padding-right:30px">${esc(p.title)}</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">${esc(p.authors||'')} ${p.year ? '('+p.year+')' : ''} &middot; <em>${esc(p.journal||'')}</em>
+      ${p.doi ? ' &middot; <a href="https://doi.org/'+esc(p.doi)+'" target="_blank" style="color:var(--accent)">DOI</a>' : ''}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span class="tag tag-${p.type||'behavioral'}">${p.type||'?'}</span>
+      <span class="status-dot status-${p.status||'unread'}"></span><span style="font-size:12px">${p.status||'unread'}</span>
+      ${p.species ? '<span style="font-size:12px;color:var(--muted)">Model: <strong style="color:var(--text)">'+esc(p.species)+'</strong></span>' : ''}
+      ${p.region ? '<span style="font-size:12px;color:var(--muted)">Region: <strong style="color:var(--text)">'+esc(p.region)+'</strong></span>' : ''}
+      ${p.project ? '<span style="font-size:12px;color:var(--muted)">Project: <strong style="color:var(--text)">'+esc(p.project)+'</strong></span>' : ''}
+    </div>
+    ${p.findings ? '<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--accent);font-weight:600;margin-bottom:4px">KEY FINDINGS</div><div style="font-size:13px">'+esc(p.findings)+'</div></div>' : ''}
+    ${p.methods ? '<div style="margin-bottom:8px;font-size:12px"><span style="color:var(--muted)">Methods:</span> '+esc(p.methods)+'</div>' : ''}
+    ${p.funding ? '<div style="margin-bottom:8px;font-size:12px"><span style="color:var(--muted)">Funding:</span> '+esc(p.funding)+'</div>' : ''}
+    ${p.abstract ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">ABSTRACT</div><div style="font-size:12px;color:#bbb;line-height:1.7">'+esc(p.abstract)+'</div></div>' : ''}
+    ${p.notes ? '<div style="background:rgba(251,191,36,0.06);border-radius:8px;padding:12px;border-left:3px solid var(--yellow)"><div style="font-size:11px;color:var(--yellow);font-weight:600;margin-bottom:4px">YOUR NOTES</div><div style="font-size:13px">'+esc(p.notes)+'</div></div>' : ''}
+    <div class="form-actions" style="margin-top:20px">
+      <button class="btn btn-danger btn-sm" onclick="deletePaper('${p.id}')">Delete</button>
+      <button class="btn btn-secondary btn-sm" onclick="editPaper('${p.id}')">Edit</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeDetail()">Close</button>
+    </div>
+  `;
+  document.getElementById('detailOverlay').classList.add('open');
+};
+
+window.closeDetail = function() {
+  document.getElementById('detailOverlay').classList.remove('open');
+};
+
+window.editPaper = function(id) {
+  const p = papers.find(x => x.id === id);
+  if (!p) return;
+  closeDetail();
+  editingId = id;
+  ['title','authors','year','journal','doi','species','region','methods','project','funding','abstract','findings','notes'].forEach(f => {
+    document.getElementById('f-'+f).value = p[f] || '';
+  });
+  document.getElementById('f-type').value = p.type || 'behavioral';
+  document.getElementById('f-status').value = p.status || 'unread';
+  switchTabDirect('add');
+};
+
+window.deletePaper = function(id) {
+  if (!confirm('Delete this paper?')) return;
+  papers = papers.filter(p => p.id !== id);
+  save(); closeDetail(); renderLibrary();
+};
+
+function switchTabDirect(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => { if(t.textContent.toLowerCase().includes(id==='add'?'add':id)) t.classList.add('active'); });
+}
+
+// ═══ BATCH CLAUDE ═══
+window.generateClaudePrompt = function() {
+  const filter = document.getElementById('claudeFilter').value;
+  let subset;
+  if (filter === 'no-findings') subset = papers.filter(p => !p.findings);
+  else if (filter === 'no-species') subset = papers.filter(p => !p.species);
+  else subset = papers;
+
+  if (subset.length === 0) { alert('No papers match this filter.'); return; }
+
+  const prompt = `I have ${subset.length} academic papers. For each, extract the following fields from the abstract/title. Return a JSON array.
+
+Fields to extract:
+- doi (string, keep as-is)
+- species (e.g. "mouse", "rat", "human", "in vitro")
+- region (brain region or topic, e.g. "LC", "VTA", "spinal cord")
+- type ("behavioral", "genetic", "both", "review", or "methods")
+- methods (key techniques used, comma-separated)
+- findings (1-2 sentence summary of main result)
+- funding (funding sources if mentioned in abstract, otherwise "")
+
+Papers:
+${subset.map((p, i) => `\n--- Paper ${i+1} ---\nDOI: ${p.doi || 'N/A'}\nTitle: ${p.title}\nAbstract: ${(p.abstract || 'No abstract available').substring(0, 500)}`).join('\n')}
+
+Return ONLY a JSON array like:
+[{"doi":"10.1038/...","species":"mouse","region":"LC","type":"behavioral","methods":"SLEAP, optogenetics","findings":"...","funding":"NIH R01..."},...]`;
+
+  document.getElementById('claudePrompt').textContent = prompt;
+  document.getElementById('claudeBox').style.display = 'block';
+};
+
+window.copyClaudePrompt = function() {
+  const text = document.getElementById('claudePrompt').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 1500);
+  });
+};
+
+window.applyClaudeResponse = function() {
+  const raw = document.getElementById('claudeResponse').value.trim();
+  const status = document.getElementById('claudeApplyStatus');
+  try {
+    // Try to extract JSON array from response (Claude sometimes wraps in markdown)
+    let jsonStr = raw;
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (match) jsonStr = match[0];
+    const data = JSON.parse(jsonStr);
+    if (!Array.isArray(data)) throw new Error('Expected an array');
+
+    let updated = 0;
+    data.forEach(d => {
+      // Match by DOI or title
+      let paper = null;
+      if (d.doi) paper = papers.find(p => p.doi === d.doi);
+      if (!paper && d.title) paper = papers.find(p => p.title && p.title.toLowerCase().includes(d.title.toLowerCase().substring(0,30)));
+
+      if (paper) {
+        if (d.species && !paper.species) paper.species = d.species;
+        if (d.region && !paper.region) paper.region = d.region;
+        if (d.type) paper.type = d.type;
+        if (d.methods && !paper.methods) paper.methods = d.methods;
+        if (d.findings && !paper.findings) paper.findings = d.findings;
+        if (d.funding && !paper.funding) paper.funding = d.funding;
+        updated++;
+      }
+    });
+
+    save();
+    renderLibrary();
+    status.style.color = 'var(--green)';
+    status.textContent = `Updated ${updated} of ${data.length} papers.`;
+  } catch(e) {
+    status.style.color = 'var(--red)';
+    status.textContent = 'Error: ' + e.message + '. Make sure Claude returned valid JSON.';
+  }
+};
+
+// ═══ IMPORT / EXPORT ═══
+window.exportJSON = function() {
+  const blob = new Blob([JSON.stringify(papers, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'paper_brain_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+};
+
+window.importJSON = function() {
+  document.getElementById('importFile').click();
+};
+
+document.getElementById('importFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('Expected an array');
+      // Merge: add papers that don't already exist (by DOI or title)
+      let added = 0;
+      data.forEach(d => {
+        const exists = papers.some(p =>
+          (d.doi && p.doi && d.doi === p.doi) ||
+          (d.title && p.title && d.title.toLowerCase() === p.title.toLowerCase())
+        );
+        if (!exists) {
+          if (!d.id) d.id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+          papers.push(d);
+          added++;
+        }
+      });
+      save();
+      renderLibrary();
+      alert(`Imported ${added} new papers (${data.length - added} duplicates skipped).`);
+    } catch(err) {
+      alert('Import error: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ═══ PERSISTENCE ═══
+function save() {
+  localStorage.setItem("paper_brain", JSON.stringify(papers));
+}
+
+// ═══ INIT ═══
+renderLibrary();
+
+// Close detail on escape or click outside
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+document.getElementById('detailOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeDetail(); });
+
+})();
+</script>
+</body>
+</html>

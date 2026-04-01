@@ -199,8 +199,15 @@ def test_report_to_manifest_entry_no_metadata():
 SLP_DIR = Path("/root/vast/leo/GoPro-Tmaze-pipline/test_output/pose")
 
 
+def _slp_dir_available():
+    try:
+        return SLP_DIR.exists() and bool(list(SLP_DIR.glob("*.slp")))
+    except (PermissionError, OSError):
+        return False
+
+
 @pytest.mark.skipif(
-    not SLP_DIR.exists() or not list(SLP_DIR.glob("*.slp")),
+    not _slp_dir_available(),
     reason="No .slp test files available",
 )
 def test_scan_slp_quality_end_to_end(tmp_path):
@@ -233,7 +240,7 @@ def test_scan_slp_quality_end_to_end(tmp_path):
 
 
 @pytest.mark.skipif(
-    not SLP_DIR.exists() or not list(SLP_DIR.glob("*.slp")),
+    not _slp_dir_available(),
     reason="No .slp test files available",
 )
 def test_scan_slp_quality_recursive(tmp_path):

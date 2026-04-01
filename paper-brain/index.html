@@ -248,6 +248,18 @@
 
 // ═══ DATA ═══
 let papers = JSON.parse(localStorage.getItem("paper_brain") || "[]");
+
+// Auto-load papers.json from server on first visit (or if localStorage is empty)
+if (papers.length === 0) {
+  fetch("papers.json").then(r => r.ok ? r.json() : []).then(data => {
+    if (Array.isArray(data) && data.length > 0 && papers.length === 0) {
+      papers = data;
+      save();
+      renderLibrary();
+      console.log("Auto-loaded " + data.length + " papers from papers.json");
+    }
+  }).catch(() => {});
+}
 let editingId = null;
 let sortCol = "year", sortAsc = false;
 let activeTypeFilter = "all", activeStatusFilter = "all";

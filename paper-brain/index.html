@@ -58,11 +58,13 @@
   .paper-title{font-weight:600;color:var(--text);max-width:350px}
   .paper-authors{color:var(--muted);font-size:11px;max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-right:4px}
-  .tag-behavioral{background:rgba(79,156,249,0.15);color:var(--accent)}
-  .tag-genetic{background:rgba(167,139,250,0.15);color:var(--purple)}
-  .tag-both{background:rgba(52,211,153,0.15);color:var(--green)}
-  .tag-review{background:rgba(251,191,36,0.15);color:var(--yellow)}
-  .tag-methods{background:rgba(239,68,68,0.15);color:var(--red)}
+  .tag-single-cell-atlas{background:rgba(79,156,249,0.15);color:#4f9cf9}
+  .tag-ad-neurodegeneration{background:rgba(239,68,68,0.15);color:#ef4444}
+  .tag-lc-norepinephrine{background:rgba(52,211,153,0.15);color:#34d399}
+  .tag-behavioral-methods{background:rgba(251,191,36,0.15);color:#fbbf24}
+  .tag-computational{background:rgba(167,139,250,0.15);color:#a78bfa}
+  .tag-aging{background:rgba(249,115,22,0.15);color:#f97316}
+  .tag-review{background:rgba(148,163,184,0.15);color:#94a3b8}
   .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
   .status-read{background:var(--green)}.status-reading{background:var(--yellow)}.status-unread{background:var(--muted)}
 
@@ -133,18 +135,29 @@
   <div class="filter-row">
     <span class="filter-label">Type:</span>
     <button class="chip active" data-filter="type" data-value="all">All</button>
-    <button class="chip" data-filter="type" data-value="behavioral">Behavioral</button>
-    <button class="chip" data-filter="type" data-value="genetic">Genetic</button>
-    <button class="chip" data-filter="type" data-value="both">Both</button>
+    <button class="chip" data-filter="type" data-value="single-cell atlas">Single-Cell Atlas</button>
+    <button class="chip" data-filter="type" data-value="AD/neurodegeneration">AD/Neurodegeneration</button>
+    <button class="chip" data-filter="type" data-value="LC/norepinephrine">LC/Norepinephrine</button>
+    <button class="chip" data-filter="type" data-value="behavioral methods">Behavioral Methods</button>
+    <button class="chip" data-filter="type" data-value="computational">Computational</button>
+    <button class="chip" data-filter="type" data-value="aging">Aging</button>
     <button class="chip" data-filter="type" data-value="review">Review</button>
-    <button class="chip" data-filter="type" data-value="methods">Methods</button>
   </div>
   <div class="filter-row">
-    <span class="filter-label">Status:</span>
-    <button class="chip active" data-filter="status" data-value="all">All</button>
-    <button class="chip" data-filter="status" data-value="read">Read</button>
-    <button class="chip" data-filter="status" data-value="reading">Reading</button>
-    <button class="chip" data-filter="status" data-value="unread">Unread</button>
+    <span class="filter-label">Model:</span>
+    <button class="chip active" data-filter="species" data-value="all">All</button>
+    <button class="chip" data-filter="species" data-value="mouse">Mouse</button>
+    <button class="chip" data-filter="species" data-value="human">Human</button>
+    <button class="chip" data-filter="species" data-value="rat">Rat</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label">Region:</span>
+    <button class="chip active" data-filter="region" data-value="all">All</button>
+    <button class="chip" data-filter="region" data-value="LC">LC</button>
+    <button class="chip" data-filter="region" data-value="PFC">PFC</button>
+    <button class="chip" data-filter="region" data-value="brain">Whole Brain</button>
+    <button class="chip" data-filter="region" data-value="amygdala">Amygdala</button>
+    <button class="chip" data-filter="region" data-value="entorhinal">Entorhinal</button>
   </div>
   <div id="libraryContent"></div>
 </div>
@@ -172,11 +185,13 @@
       <div class="form-group">
         <label>Study Type</label>
         <select id="f-type">
-          <option value="behavioral">Behavioral</option>
-          <option value="genetic">Genetic</option>
-          <option value="both">Both</option>
+          <option value="single-cell atlas">Single-Cell Atlas</option>
+          <option value="AD/neurodegeneration">AD/Neurodegeneration</option>
+          <option value="LC/norepinephrine">LC/Norepinephrine</option>
+          <option value="behavioral methods">Behavioral Methods</option>
+          <option value="computational">Computational</option>
+          <option value="aging">Aging</option>
           <option value="review">Review</option>
-          <option value="methods">Methods</option>
         </select>
       </div>
       <div class="form-group"><label>Methods</label><input id="f-methods" placeholder="e.g. SLEAP, optogenetics, calcium imaging"></div>
@@ -263,7 +278,7 @@ if (papers.length === 0) {
 }
 let editingId = null;
 let sortCol = "year", sortAsc = false;
-let activeTypeFilter = "all", activeStatusFilter = "all";
+let activeTypeFilter = "all", activeStatusFilter = "all", activeSpeciesFilter = "all", activeRegionFilter = "all";
 
 // ═══ TABS ═══
 window.switchTab = function(id) {
@@ -280,6 +295,8 @@ function renderLibrary() {
   let filtered = papers.filter(p => {
     if (activeTypeFilter !== 'all' && p.type !== activeTypeFilter) return false;
     if (activeStatusFilter !== 'all' && p.status !== activeStatusFilter) return false;
+    if (activeSpeciesFilter !== 'all' && !(p.species || '').toLowerCase().includes(activeSpeciesFilter.toLowerCase())) return false;
+    if (activeRegionFilter !== 'all' && !(p.region || '').toLowerCase().includes(activeRegionFilter.toLowerCase())) return false;
     if (query) {
       const haystack = [p.title,p.authors,p.journal,p.species,p.region,p.methods,p.findings,p.notes,p.project,p.abstract,p.funding].join(' ').toLowerCase();
       return query.split(/\s+/).every(w => haystack.includes(w));
@@ -320,7 +337,7 @@ function renderLibrary() {
       <th>Findings</th>
     </tr></thead>
     <tbody>${filtered.map(p => {
-      const typeClass = 'tag-' + (p.type || 'behavioral');
+      const typeClass = 'tag-' + (p.type || 'review').replace(/[\/\s]+/g, '-').toLowerCase();
       return `<tr onclick="openDetail('${p.id}')">
         <td><span class="status-dot status-${p.status||'unread'}"></span></td>
         <td><div class="paper-title">${esc(p.title||'Untitled')}</div><div class="paper-authors">${esc(p.authors||'')}</div></td>
@@ -368,13 +385,15 @@ document.querySelectorAll('.chip').forEach(chip => {
     this.classList.add('active');
     if (filterType === 'type') activeTypeFilter = val;
     if (filterType === 'status') activeStatusFilter = val;
+    if (filterType === 'species') activeSpeciesFilter = val;
+    if (filterType === 'region') activeRegionFilter = val;
     renderLibrary();
   });
 });
 document.getElementById('searchInput').addEventListener('input', renderLibrary);
 window.clearFilters = function() {
   document.getElementById('searchInput').value = '';
-  activeTypeFilter = 'all'; activeStatusFilter = 'all';
+  activeTypeFilter = 'all'; activeStatusFilter = 'all'; activeSpeciesFilter = 'all'; activeRegionFilter = 'all';
   document.querySelectorAll('.chip').forEach(c => { c.classList.toggle('active', c.dataset.value === 'all'); });
   renderLibrary();
 };
@@ -483,7 +502,7 @@ window.openDetail = function(id) {
     <p style="font-size:13px;color:var(--muted);margin-bottom:16px">${esc(p.authors||'')} ${p.year ? '('+p.year+')' : ''} &middot; <em>${esc(p.journal||'')}</em>
       ${p.doi ? ' &middot; <a href="https://doi.org/'+esc(p.doi)+'" target="_blank" style="color:var(--accent)">DOI</a>' : ''}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <span class="tag tag-${p.type||'behavioral'}">${p.type||'?'}</span>
+      <span class="tag tag-${(p.type||'review').replace(/[\/\s]+/g, '-').toLowerCase()}">${p.type||'?'}</span>
       <span class="status-dot status-${p.status||'unread'}"></span><span style="font-size:12px">${p.status||'unread'}</span>
       ${p.species ? '<span style="font-size:12px;color:var(--muted)">Model: <strong style="color:var(--text)">'+esc(p.species)+'</strong></span>' : ''}
       ${p.region ? '<span style="font-size:12px;color:var(--muted)">Region: <strong style="color:var(--text)">'+esc(p.region)+'</strong></span>' : ''}

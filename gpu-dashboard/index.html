@@ -99,6 +99,22 @@
     font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
   }
   .remove-btn:hover { border-color: #f87171; color: #f87171; }
+  .rename-btn {
+    background: none; border: 1px solid #333; border-radius: 4px; color: #666;
+    font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .rename-btn:hover { border-color: #667eea; color: #667eea; }
+  .drag-handle {
+    cursor: move; user-select: none; padding: 0 6px; color: #555; font-size: 16px;
+  }
+  .drag-handle:hover { color: #888; }
+  .machine-card.dragging { opacity: 0.4; }
+  .machine-card.drag-over { border-top: 3px solid #667eea; }
+  .rename-input {
+    background: #222; border: 1px solid #667eea; border-radius: 4px;
+    color: #fff; padding: 2px 8px; font-size: 15px; font-weight: 600;
+    font-family: inherit; outline: none; width: 200px;
+  }
   .freshness { font-weight: 500; }
   .freshness.fresh { color: #4ade80; }
   .freshness.warm { color: #facc15; }
@@ -558,39 +574,140 @@ function renderSummary() {
 
 function renderMachines() {
   const list = document.getElementById('machinesList');
-  // Sort: most recently updated first
-  const sorted = Object.values(machines).sort((a, b) => {
-    return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
-  });
+
+  // Load user's custom order from localStorage
+  const customOrder = JSON.parse(localStorage.getItem('gpu_dash_order') || '[]');
+  const allMachines = Object.values(machines);
+
+  // Sort: custom order first (in saved sequence), then rest by recency
+  const ordered = [];
+  const used = new Set();
+  for (const key of customOrder) {
+    const m = allMachines.find(x => (x.machine?.hostname || x.machine?.label) === key);
+    if (m) { ordered.push(m); used.add(key); }
+  }
+  const rest = allMachines
+    .filter(m => !used.has(m.machine?.hostname || m.machine?.label))
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+  const sorted = [...ordered, ...rest];
 
   list.innerHTML = sorted.map(m => {
     const mKey = m.machine?.hostname || m.machine?.label || '?';
     return renderMachineCard(m, mKey);
   }).join('');
+
+  // Wire up drag-and-drop
+  setupDragAndDrop();
 }
+
+function setupDragAndDrop() {
+  const cards = document.querySelectorAll('.machine-card');
+  let dragged = null;
+
+  cards.forEach(card => {
+    card.draggable = true;
+    card.addEventListener('dragstart', e => {
+      dragged = card;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      cards.forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    card.addEventListener('dragenter', e => {
+      if (card !== dragged) card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      if (card !== dragged && dragged) {
+        const list = document.getElementById('machinesList');
+        const cardsArr = Array.from(list.children);
+        const draggedIdx = cardsArr.indexOf(dragged);
+        const targetIdx = cardsArr.indexOf(card);
+        if (draggedIdx < targetIdx) {
+          card.parentNode.insertBefore(dragged, card.nextSibling);
+        } else {
+          card.parentNode.insertBefore(dragged, card);
+        }
+        saveCustomOrder();
+      }
+      card.classList.remove('drag-over');
+    });
+  });
+}
+
+function saveCustomOrder() {
+  const keys = Array.from(document.querySelectorAll('.machine-card'))
+    .map(c => c.dataset.machineKey)
+    .filter(k => k);
+  localStorage.setItem('gpu_dash_order', JSON.stringify(keys));
+}
+
+function renameMachine(key) {
+  const h2 = document.querySelector(`.machine-card[data-machine-key="${key}"] h2`);
+  if (!h2) return;
+  const currentName = h2.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = currentName;
+  h2.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const save = () => {
+    const newName = input.value.trim();
+    const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
+    if (newName && newName !== currentName) {
+      renames[key] = newName;
+    } else {
+      delete renames[key];
+    }
+    localStorage.setItem('gpu_dash_renames', JSON.stringify(renames));
+    renderDashboard();
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Escape') { renderDashboard(); }
+  });
+}
+window.renameMachine = renameMachine;
 
 function renderMachineCard(m, machineKey) {
   const age = machineAge(m.timestamp);
   const freshnessClass = age.seconds < 120 ? 'fresh' : age.seconds < 600 ? 'warm' : 'stale';
   const cardClass = age.seconds > 600 ? 'stale' : age.seconds > 1800 ? 'offline' : '';
   const machineType = m.machine?.type || 'workstation';
-  const label = m.machine?.label || m.machine?.hostname || '?';
+  const origLabel = m.machine?.label || m.machine?.hostname || '?';
+  // Apply custom rename if set
+  const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
+  const label = renames[machineKey] || origLabel;
   const hostname = m.machine?.hostname || '';
 
   const gpus = m.gpus || [];
   const allProcesses = gpus.flatMap(g => (g.processes || []).map(p => ({ ...p, gpu_index: g.index })));
 
   return `
-    <div class="machine-card ${cardClass}">
+    <div class="machine-card ${cardClass}" data-machine-key="${esc(machineKey)}">
       <div class="machine-header">
         <div class="machine-title">
+          <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
           <h2>${esc(label)}</h2>
           <span class="machine-type ${machineType}">${machineType}</span>
-          ${hostname !== label ? `<span style="color:#555;font-size:12px;">${esc(hostname)}</span>` : ''}
+          ${hostname !== label && hostname !== origLabel ? `<span style="color:#555;font-size:12px;">${esc(hostname)}</span>` : ''}
         </div>
         <div class="machine-meta">
           <span class="freshness ${freshnessClass}">${age.text}</span>
           ${m.uptime_seconds ? `<span>uptime ${formatDuration(m.uptime_seconds)}</span>` : ''}
+          <button class="rename-btn" onclick="renameMachine('${esc(machineKey)}')" title="Rename this machine (saved locally)">Rename</button>
           <button class="remove-btn" onclick="removeMachine('${esc(machineKey)}')" title="Remove this machine from the Gist">Remove</button>
         </div>
       </div>

@@ -28,6 +28,7 @@ A collection of small but useful tools for scientific publications and projects.
 | Tool | Description | Link |
 |------|-------------|------|
 | **Fitness Form Analyzer** | AI-powered exercise form analysis with personalized biomechanics | [Launch](https://leomeow123.github.io/vibes/fitness-analysis-tool/) |
+| **IMSES Template** | Portfolio website template for the Intelligent Multi-Sensor Elbow Sleeve project | [Launch](https://leomeow123.github.io/vibes/imses-template/) |
 | **Sensor Playground** | 7-variable behavior classification explorer for soft robot elbow pad | [Launch](https://leomeow123.github.io/vibes/sensor-playground/) |
 | **Snake Game** | Classic snake with Gaussian growth mechanic and increasing difficulty | [Launch](https://leomeow123.github.io/vibes/snake-game/) |
 

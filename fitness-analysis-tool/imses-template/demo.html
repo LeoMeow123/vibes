@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMSES — Live Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Inter", -apple-system, sans-serif; background: #0f1420; color: #fff; min-height: 100vh; }
+  .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+
+  /* ── Landing ──────────────────────────────────── */
+  .landing {
+    position: fixed; inset: 0; z-index: 500;
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f1420 50%, #164e63 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 24px;
+  }
+  .landing-credit { position: absolute; top: 20px; right: 24px; display: flex; align-items: center; gap: 10px; background: #ffffff11; padding: 8px 14px 8px 8px; border-radius: 24px; backdrop-filter: blur(10px); border: 1px solid #ffffff22; }
+  .landing-credit .av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .landing-credit .lb { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; }
+  .landing-credit .nm { font-size: 12px; font-weight: 600; color: #fff; margin-top: 1px; }
+  .landing-content { text-align: center; max-width: 400px; }
+  .landing-logo { width: 96px; height: 96px; border-radius: 28px; margin: 0 auto 20px; overflow: hidden; box-shadow: 0 12px 40px rgba(99, 102, 241, 0.4); }
+  .landing-logo img { width: 100%; height: 100%; object-fit: contain; background: #111827; }
+  .landing-hello { font-size: 16px; color: #a5b4fc; margin-bottom: 6px; }
+  .landing-title { font-size: 42px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .landing-tagline { font-size: 14px; color: #94a3b8; margin-top: 6px; margin-bottom: 40px; }
+  .landing-btn { width: 100%; padding: 18px 24px; font-size: 15px; font-weight: 700; border: none; border-radius: 18px; cursor: pointer; transition: all 0.15s; font-family: inherit; margin-bottom: 12px; }
+  .landing-btn.primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4); }
+  .landing-btn.primary:hover { transform: translateY(-2px); }
+  .landing-btn.secondary { background: #ffffff11; color: #fff; border: 1px solid #ffffff22; }
+  .landing-btn.secondary:hover { background: #ffffff22; }
+  .landing-hint { margin-top: 12px; font-size: 12px; color: #64748b; }
+  .landing-hint span { color: #a5b4fc; }
+
+  /* Scanning overlay */
+  .scanning { display: none; text-align: center; }
+  .scanning.active { display: block; }
+  .scan-rings { position: relative; width: 160px; height: 160px; margin: 0 auto 24px; }
+  .scan-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #6366f1; opacity: 0; animation: scanPulse 2s ease-out infinite; }
+  .scan-ring:nth-child(2) { animation-delay: 0.5s; }
+  .scan-ring:nth-child(3) { animation-delay: 1s; }
+  .scan-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border-radius: 50%; background: #6366f1; box-shadow: 0 0 20px #6366f1; }
+  @keyframes scanPulse { 0% { transform: scale(0.3); opacity: 0.8; } 100% { transform: scale(1.2); opacity: 0; } }
+  .scan-text { font-size: 16px; font-weight: 600; color: #a5b4fc; }
+  .scan-sub { font-size: 12px; color: #64748b; margin-top: 6px; }
+  .scan-retry { margin-top: 24px; }
+
+  /* ── App shell ────────────────────────────────── */
+  .app-shell { display: none; }
+  .app-shell.active { display: block; }
+  .header { padding: 20px 20px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-logo { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
+  .header-logo img { width: 100%; height: 100%; object-fit: contain; background: #111827; }
+  .header-title { font-size: 18px; font-weight: 700; }
+  .header-badge { font-size: 9px; padding: 3px 8px; border-radius: 6px; background: #6366f122; color: #a5b4fc; font-weight: 600; letter-spacing: 0.5px; }
+  .container { max-width: 520px; margin: 0 auto; padding: 0 20px 90px; }
+
+  /* ── Tab content ──────────────────────────────── */
+  .tab-content { display: none; animation: fadeIn 0.3s; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Live tab (existing styles) ───────────────── */
+  .demo-banner { background: linear-gradient(135deg, #3b82f633, #06b6d433); border: 1px solid #3b82f666; border-radius: 14px; padding: 10px 16px; font-size: 12px; color: #93c5fd; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .demo-banner::before { content: "●"; color: #3b82f6; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .hero-card { background: var(--beh-bg, linear-gradient(135deg, #f97316, #ea580c)); border-radius: 24px; padding: 24px; margin-bottom: 20px; position: relative; overflow: hidden; transition: background 0.8s; }
+  .hero-card::before { content: ""; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, #ffffff33 0%, transparent 70%); pointer-events: none; }
+  .hero-label { font-size: 11px; color: #ffffffcc; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+  .hero-title { font-size: 28px; font-weight: 800; margin-top: 4px; display: flex; align-items: center; gap: 12px; }
+  .hero-emoji { font-size: 38px; }
+  .hero-stats { display: flex; gap: 20px; margin-top: 18px; position: relative; }
+  .hero-stat { flex: 1; background: #ffffff1a; border-radius: 12px; padding: 12px; backdrop-filter: blur(10px); }
+  .hero-stat-label { font-size: 10px; color: #ffffffbb; text-transform: uppercase; letter-spacing: 1px; }
+  .hero-stat-value { font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
+  .hero-stat-unit { font-size: 12px; color: #ffffffbb; font-weight: 500; }
+  .section-label { font-size: 14px; font-weight: 600; color: #fff; margin: 20px 4px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .section-label-sub { font-size: 11px; color: #64748b; font-weight: 400; }
+  .vitals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .vital-card { background: #1a2033; border-radius: 18px; padding: 14px 16px; border: 1px solid #2a3348; }
+  .vital-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .vital-emoji { width: 32px; height: 32px; border-radius: 10px; background: var(--vital-bg, #3b82f622); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .vital-status { font-size: 9px; padding: 2px 8px; border-radius: 8px; background: #10b98122; color: #10b981; font-weight: 600; }
+  .vital-status.warn { background: #ef444422; color: #ef4444; }
+  .vital-label { font-size: 11px; color: #64748b; margin-top: 6px; font-weight: 500; }
+  .vital-value { font-size: 22px; font-weight: 700; color: #fff; margin-top: 2px; }
+  .vital-unit { font-size: 12px; color: #64748b; font-weight: 500; margin-left: 2px; }
+  .vital-spark { height: 24px; margin-top: 6px; }
+  .card { background: #1a2033; border: 1px solid #2a3348; border-radius: 18px; padding: 18px 20px; margin-top: 12px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #fff; }
+  .badge { font-size: 10px; padding: 4px 10px; border-radius: 10px; font-weight: 600; }
+  .badge-safe { background: #10b98122; color: #10b981; }
+  .badge-warn { background: #f59e0b22; color: #f59e0b; }
+  .badge-danger { background: #ef444422; color: #ef4444; }
+  .big-val { font-size: 36px; font-weight: 800; color: #fff; display: flex; align-items: baseline; gap: 6px; }
+  .big-unit { font-size: 14px; color: #64748b; font-weight: 500; }
+  .progress { height: 8px; background: #0f1420; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .safety-card { background: linear-gradient(135deg, #10b98133, #10b98111); border: 1px solid #10b98155; border-radius: 18px; padding: 16px 20px; display: flex; align-items: center; gap: 14px; margin-top: 12px; transition: all 0.5s; }
+  .safety-card.alert { background: linear-gradient(135deg, #ef444433, #ef444411); border-color: #ef444455; }
+  .safety-icon { width: 42px; height: 42px; border-radius: 12px; background: #10b98133; color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .safety-card.alert .safety-icon { background: #ef444433; color: #ef4444; }
+  .safety-text { flex: 1; }
+  .safety-title { font-size: 14px; font-weight: 600; color: #fff; }
+  .safety-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+  /* ── Daily / Weekly / Feedback ─────────────────── */
+  .summary-card { background: #1a2033; border: 1px solid #2a3348; border-radius: 18px; padding: 20px; margin-bottom: 14px; }
+  .summary-title { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 14px; }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1f2a3c; font-size: 13px; }
+  .summary-row:last-child { border: none; }
+  .summary-row .label { color: #94a3b8; display: flex; align-items: center; gap: 8px; }
+  .summary-row .value { font-weight: 600; color: #fff; }
+  .pie-container { display: flex; justify-content: center; margin: 16px 0; }
+  .bar-chart { display: flex; gap: 6px; align-items: flex-end; height: 120px; margin: 16px 0; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar { width: 100%; border-radius: 6px 6px 0 0; transition: height 0.5s; min-height: 4px; }
+  .bar-label { font-size: 10px; color: #64748b; }
+  .bar-value { font-size: 9px; color: #94a3b8; }
+  .feedback-item { background: #1a2033; border: 1px solid #2a3348; border-radius: 16px; padding: 16px 18px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .feedback-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .feedback-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .feedback-desc { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  .trend { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+  .trend-up { background: #10b98122; color: #10b981; }
+  .trend-down { background: #ef444422; color: #ef4444; }
+  .trend-flat { background: #3b82f622; color: #60a5fa; }
+
+  /* ── Tab bar ──────────────────────────────────── */
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #1a2033; border-top: 1px solid #2a3348; display: flex; justify-content: space-around; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 50; }
+  .tab { flex: 1; text-align: center; cursor: pointer; color: #64748b; transition: color 0.15s; padding: 4px 0; }
+  .tab.active { color: #60a5fa; }
+  .tab-icon { font-size: 20px; }
+  .tab-label { font-size: 10px; font-weight: 500; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════ LANDING ═══════ -->
+<div class="landing" id="landing">
+  <div class="landing-credit">
+    <div class="av">J</div>
+    <div><div class="lb">Founder & Engineer</div><div class="nm">[Your Name]</div></div>
+  </div>
+  <div class="landing-content" id="landing-main">
+    <div class="landing-logo"><img src="assets/logo.png" alt="IMSES"></div>
+    <div class="landing-hello">Welcome to</div>
+    <div class="landing-title">IMSES</div>
+    <div class="landing-tagline">Intelligent Multi-Sensor Elbow Sleeve</div>
+    <button class="landing-btn primary" onclick="startScan()">📡 Search for nearby devices</button>
+    <button class="landing-btn secondary" onclick="enterDevMode()">🎮 Developer Mode</button>
+    <div class="landing-hint">No device? Try <span>Developer Mode</span> to explore the full interface</div>
+  </div>
+  <div class="scanning" id="scanning">
+    <div class="scan-rings">
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+      <div class="scan-ring"></div>
+      <div class="scan-dot"></div>
+    </div>
+    <div class="scan-text" id="scan-text">Scanning for IMSES devices...</div>
+    <div class="scan-sub" id="scan-sub">Make sure Bluetooth is enabled</div>
+    <div class="scan-retry" id="scan-retry" style="display:none;">
+      <button class="landing-btn primary" onclick="startScan()" style="margin-bottom:8px;">📡 Scan again</button>
+      <button class="landing-btn secondary" onclick="enterDevMode()">🎮 Enter Developer Mode instead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ APP ═══════ -->
+<div class="app-shell" id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo"><img src="assets/logo.png" alt="IMSES"></div>
+      <div class="header-title">IMSES</div>
+    </div>
+    <div class="header-badge">DEVELOPER MODE</div>
+  </div>
+
+  <div class="container">
+
+    <!-- ── TAB: Live ── -->
+    <div class="tab-content active" id="tab-live">
+      <div class="demo-banner">Live demo — cycling through 8 detected behaviors</div>
+
+      <div class="hero-card" id="hero">
+        <div class="hero-label">Current Activity</div>
+        <div class="hero-title">
+          <span class="hero-emoji" id="beh-emoji">🏋️</span>
+          <span id="beh-name">Strength Training</span>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-label">EMG</div>
+            <div class="hero-stat-value mono"><span id="hero-emg">3.8</span> <span class="hero-stat-unit">mV</span></div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-label">Angle</div>
+            <div class="hero-stat-value mono"><span id="hero-theta">120</span> <span class="hero-stat-unit">°</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label"><span>Live Sensors</span><span class="section-label-sub">10 Hz</span></div>
+      <div class="vitals" id="vitals"></div>
+
+      <div class="section-label">Performance</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Elbow Joint Torque</div>
+          <div class="badge badge-safe" id="torque-badge">Safe</div>
+        </div>
+        <div class="big-val mono"><span id="torque">12.4</span> <span class="big-unit">N·m</span></div>
+        <div class="progress"><div class="progress-fill" id="torque-fill" style="width:12%; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);"></div></div>
+        <div style="font-size:11px; color:#64748b; margin-top:6px;" class="mono">M = EMG × k × L × sin(θ)</div>
+      </div>
+
+      <div class="safety-card" id="safety">
+        <div class="safety-icon" id="safety-icon">✓</div>
+        <div class="safety-text">
+          <div class="safety-title" id="safety-title">All clear</div>
+          <div class="safety-sub" id="safety-sub">Keep going — your vitals look great</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Daily ── -->
+    <div class="tab-content" id="tab-daily">
+      <div class="section-label"><span>Today's Summary</span><span class="section-label-sub">Apr 19, 2026</span></div>
+
+      <div class="summary-card">
+        <div class="summary-title">Activity breakdown</div>
+        <div class="pie-container">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#6366f1" stroke-width="24" stroke-dasharray="66 374" stroke-dashoffset="0" transform="rotate(-90 90 90)"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#818cf8" stroke-width="24" stroke-dasharray="44 396" stroke-dashoffset="-66" transform="rotate(-90 90 90)"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#22d3ee" stroke-width="24" stroke-dasharray="110 330" stroke-dashoffset="-110" transform="rotate(-90 90 90)"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#a3e635" stroke-width="24" stroke-dasharray="44 396" stroke-dashoffset="-220" transform="rotate(-90 90 90)"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#fbbf24" stroke-width="24" stroke-dasharray="44 396" stroke-dashoffset="-264" transform="rotate(-90 90 90)"/>
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#f97316" stroke-width="24" stroke-dasharray="88 352" stroke-dashoffset="-308" transform="rotate(-90 90 90)"/>
+            <text x="90" y="85" text-anchor="middle" fill="#fff" font-size="28" font-weight="700" font-family="Inter, sans-serif">6.2</text>
+            <text x="90" y="105" text-anchor="middle" fill="#64748b" font-size="11" font-family="Inter, sans-serif">hours tracked</text>
+          </svg>
+        </div>
+        <div class="summary-row"><span class="label">😴 Sleeping</span><span class="value">15%</span></div>
+        <div class="summary-row"><span class="label">🪑 Resting</span><span class="value">10%</span></div>
+        <div class="summary-row"><span class="label">💻 Office</span><span class="value">25%</span></div>
+        <div class="summary-row"><span class="label">🚶 Walking</span><span class="value">10%</span></div>
+        <div class="summary-row"><span class="label">🏃 Aerobic</span><span class="value">10%</span></div>
+        <div class="summary-row"><span class="label">🏋️ Strength</span><span class="value">20%</span></div>
+        <div class="summary-row"><span class="label">⚠️ Fatigue alerts</span><span class="value" style="color:#ef4444;">2</span></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-title">Sensor averages</div>
+        <div class="summary-row"><span class="label">💪 EMG (peak)</span><span class="value mono">3.8 mV</span></div>
+        <div class="summary-row"><span class="label">🌡️ Avg temperature</span><span class="value mono">34.2 °C</span></div>
+        <div class="summary-row"><span class="label">🫁 Min SpO₂</span><span class="value mono" style="color:#ef4444;">91%</span></div>
+        <div class="summary-row"><span class="label">📐 Max flex angle</span><span class="value mono">142°</span></div>
+        <div class="summary-row"><span class="label">🔄 Peak angular vel.</span><span class="value mono">268 °/s</span></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-title">Training metrics</div>
+        <div class="summary-row"><span class="label">Active minutes</span><span class="value">74 min <span class="trend trend-up">↑ 12%</span></span></div>
+        <div class="summary-row"><span class="label">Strength sessions</span><span class="value">3</span></div>
+        <div class="summary-row"><span class="label">Avg session length</span><span class="value">18 min</span></div>
+        <div class="summary-row"><span class="label">Peak torque</span><span class="value mono">14.6 N·m</span></div>
+        <div class="summary-row"><span class="label">Calories (est.)</span><span class="value">320 kcal</span></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Weekly ── -->
+    <div class="tab-content" id="tab-weekly">
+      <div class="section-label"><span>Weekly Overview</span><span class="section-label-sub">Apr 13–19</span></div>
+
+      <div class="summary-card">
+        <div class="summary-title">Daily active minutes</div>
+        <div class="bar-chart">
+          <div class="bar-col"><div class="bar-value">42</div><div class="bar" style="height:42%; background: #6366f1;"></div><div class="bar-label">Mon</div></div>
+          <div class="bar-col"><div class="bar-value">65</div><div class="bar" style="height:65%; background: #818cf8;"></div><div class="bar-label">Tue</div></div>
+          <div class="bar-col"><div class="bar-value">38</div><div class="bar" style="height:38%; background: #6366f1;"></div><div class="bar-label">Wed</div></div>
+          <div class="bar-col"><div class="bar-value">72</div><div class="bar" style="height:72%; background: #a78bfa;"></div><div class="bar-label">Thu</div></div>
+          <div class="bar-col"><div class="bar-value">55</div><div class="bar" style="height:55%; background: #818cf8;"></div><div class="bar-label">Fri</div></div>
+          <div class="bar-col"><div class="bar-value">88</div><div class="bar" style="height:88%; background: #f97316;"></div><div class="bar-label">Sat</div></div>
+          <div class="bar-col"><div class="bar-value">74</div><div class="bar" style="height:74%; background: #60a5fa;"></div><div class="bar-label">Sun</div></div>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-title">Week vs. last week</div>
+        <div class="summary-row"><span class="label">Total active time</span><span class="value">7.2 hrs <span class="trend trend-up">↑ 18%</span></span></div>
+        <div class="summary-row"><span class="label">Strength sessions</span><span class="value">12 <span class="trend trend-up">↑ 3</span></span></div>
+        <div class="summary-row"><span class="label">Avg session length</span><span class="value">16 min <span class="trend trend-flat">→ same</span></span></div>
+        <div class="summary-row"><span class="label">Fatigue alerts</span><span class="value" style="color:#ef4444;">5 <span class="trend trend-down">↑ 2</span></span></div>
+        <div class="summary-row"><span class="label">Min SpO₂ (week)</span><span class="value mono">91%</span></div>
+        <div class="summary-row"><span class="label">Avg peak EMG</span><span class="value mono">3.4 mV <span class="trend trend-up">↑ 8%</span></span></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-title">Behavior distribution this week</div>
+        <div class="summary-row"><span class="label">🏋️ Strength</span><span class="value">32%</span></div>
+        <div class="summary-row"><span class="label">🏃 Aerobic</span><span class="value">18%</span></div>
+        <div class="summary-row"><span class="label">🚶 Walking</span><span class="value">15%</span></div>
+        <div class="summary-row"><span class="label">💻 Office</span><span class="value">20%</span></div>
+        <div class="summary-row"><span class="label">🪑 Resting</span><span class="value">10%</span></div>
+        <div class="summary-row"><span class="label">😴 Sleeping</span><span class="value">5%</span></div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Feedback ── -->
+    <div class="tab-content" id="tab-feedback">
+      <div class="section-label"><span>Personalized Feedback</span><span class="section-label-sub">Based on today's data</span></div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #ef444422; color: #ef4444;">⚠</div>
+        <div>
+          <div class="feedback-title">SpO₂ dropped below 93% twice today</div>
+          <div class="feedback-desc">Your blood oxygen dipped to 91% during your second strength set. Consider shorter sets with more rest between them. If this happens regularly, consult a doctor.</div>
+        </div>
+      </div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #f59e0b22; color: #f59e0b;">💪</div>
+        <div>
+          <div class="feedback-title">EMG peak is increasing — good progress</div>
+          <div class="feedback-desc">Your peak EMG this week (3.8 mV) is 8% higher than last week. Your muscles are generating more force. Make sure to balance intensity with recovery days.</div>
+        </div>
+      </div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #10b98122; color: #10b981;">⏱</div>
+        <div>
+          <div class="feedback-title">Strength sessions average 18 min — try extending to 20</div>
+          <div class="feedback-desc">Your sessions are effective but slightly short for optimal hypertrophy. Adding one more set per exercise could push you into the 20–25 min sweet spot.</div>
+        </div>
+      </div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #6366f122; color: #a5b4fc;">🔄</div>
+        <div>
+          <div class="feedback-title">2 fatigue warnings this session</div>
+          <div class="feedback-desc">Angular velocity dropped from 180°/s to 15°/s within 2 seconds — twice. This pattern suggests sudden muscle failure. Reduce weight by 10% on your final sets.</div>
+        </div>
+      </div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #22d3ee22; color: #22d3ee;">🌡️</div>
+        <div>
+          <div class="feedback-title">Skin temperature stable at 34.2°C</div>
+          <div class="feedback-desc">Your temperature stayed within the normal exercise range throughout the session. No signs of overheating or hypothermia. Good thermoregulation.</div>
+        </div>
+      </div>
+
+      <div class="feedback-item">
+        <div class="feedback-icon" style="background: #a78bfa22; color: #a78bfa;">📐</div>
+        <div>
+          <div class="feedback-title">Full range of motion achieved</div>
+          <div class="feedback-desc">Your elbow flex angle reached 142° today — close to the anatomical maximum. Your joint mobility is excellent. Keep stretching to maintain this range.</div>
+        </div>
+      </div>
+
+      <div class="summary-card" style="margin-top: 20px;">
+        <div class="summary-title">Overall session score</div>
+        <div style="text-align: center; padding: 12px 0;">
+          <div style="font-size: 64px; font-weight: 800; background: linear-gradient(135deg, #10b981, #60a5fa); -webkit-background-clip: text; background-clip: text; color: transparent; line-height: 1;">78</div>
+          <div style="font-size: 14px; color: #10b981; font-weight: 600; margin-top: 6px;">Good</div>
+          <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Watch your SpO₂ and extend session length for a higher score</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Tab bar ── -->
+<div class="tabbar hidden" id="tabbar">
+  <div class="tab active" data-tab="live"><div class="tab-icon">📡</div><div class="tab-label">Live</div></div>
+  <div class="tab" data-tab="daily"><div class="tab-icon">📊</div><div class="tab-label">Daily</div></div>
+  <div class="tab" data-tab="weekly"><div class="tab-icon">📈</div><div class="tab-label">Weekly</div></div>
+  <div class="tab" data-tab="feedback"><div class="tab-icon">💬</div><div class="tab-label">Feedback</div></div>
+</div>
+
+<script>
+// ── Landing logic ──────────────────────────────
+function startScan() {
+  document.getElementById('landing-main').style.display = 'none';
+  const scan = document.getElementById('scanning');
+  scan.classList.add('active');
+  document.getElementById('scan-text').textContent = 'Scanning for IMSES devices...';
+  document.getElementById('scan-sub').textContent = 'Make sure Bluetooth is enabled';
+  document.getElementById('scan-retry').style.display = 'none';
+
+  setTimeout(() => {
+    document.getElementById('scan-text').textContent = 'No devices found';
+    document.getElementById('scan-sub').textContent = 'Make sure IMSES is powered on and within range';
+    document.getElementById('scan-retry').style.display = 'block';
+    // Stop ring animation
+    document.querySelectorAll('.scan-ring').forEach(r => r.style.animation = 'none');
+  }, 3500);
+}
+
+function enterDevMode() {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('app').classList.add('active');
+  document.getElementById('tabbar').classList.remove('hidden');
+}
+
+// ── Tab switching ──────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + target).classList.add('active');
+  });
+});
+
+// ── Live sensor data ───────────────────────────
+const sensors = [
+  { key: 'EMG',   name: 'EMG',   unit: 'mV',  emoji: '💪', bg: '#f9731622', color: '#f97316', min: 0,  max: 5,   danger: 4 },
+  { key: 'T',     name: 'Temp',  unit: '°C',  emoji: '🌡️', bg: '#f59e0b22', color: '#f59e0b', min: 28, max: 38,  danger: 36 },
+  { key: 'omega', name: 'Speed', unit: '°/s', emoji: '🔄', bg: '#06b6d422', color: '#06b6d4', min: 0,  max: 300, danger: 250 },
+  { key: 'spo2',  name: 'SpO₂',  unit: '%',   emoji: '🫁', bg: '#3b82f622', color: '#3b82f6', min: 88, max: 100, danger: 93, invert: true },
+  { key: 'theta', name: 'Angle', unit: '°',   emoji: '📐', bg: '#a78bfa22', color: '#a78bfa', min: 0,  max: 150, danger: 140 },
+];
+
+const presets = [
+  { name: 'Sleeping',          emoji: '😴', bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', values: { EMG: 0.1, T: 32, theta: 20, omega: 2,   spo2: 97 } },
+  { name: 'Resting',           emoji: '🪑', bg: 'linear-gradient(135deg, #818cf8, #6366f1)', values: { EMG: 0.3, T: 33, theta: 90, omega: 5,   spo2: 98 } },
+  { name: 'Office',            emoji: '💻', bg: 'linear-gradient(135deg, #22d3ee, #0891b2)', values: { EMG: 0.5, T: 33, theta: 85, omega: 25,  spo2: 98 } },
+  { name: 'Eating',            emoji: '🍜', bg: 'linear-gradient(135deg, #34d399, #10b981)', values: { EMG: 0.6, T: 33, theta: 110,omega: 50,  spo2: 98 } },
+  { name: 'Walking',           emoji: '🚶', bg: 'linear-gradient(135deg, #a3e635, #84cc16)', values: { EMG: 0.8, T: 34, theta: 95, omega: 75,  spo2: 97 } },
+  { name: 'Aerobic',           emoji: '🏃', bg: 'linear-gradient(135deg, #fbbf24, #f59e0b)', values: { EMG: 1.2, T: 35, theta: 100,omega: 150, spo2: 96 } },
+  { name: 'Strength Training', emoji: '🏋️', bg: 'linear-gradient(135deg, #f97316, #ea580c)', values: { EMG: 3.8, T: 36, theta: 120,omega: 110, spo2: 95 } },
+  { name: 'Fatigue Warning',   emoji: '⚠️', bg: 'linear-gradient(135deg, #ef4444, #dc2626)', values: { EMG: 1.5, T: 37, theta: 90, omega: 10,  spo2: 92 } },
+];
+
+// Build vital cards
+const vitalsEl = document.getElementById('vitals');
+sensors.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'vital-card';
+  el.innerHTML = `
+    <div class="vital-top">
+      <div class="vital-emoji" style="--vital-bg:${s.bg};">${s.emoji}</div>
+      <div class="vital-status" id="status-${s.key}">OK</div>
+    </div>
+    <div class="vital-label">${s.name}</div>
+    <div class="vital-value mono"><span id="val-${s.key}">--</span><span class="vital-unit">${s.unit}</span></div>
+    <svg class="vital-spark" viewBox="0 0 200 24" preserveAspectRatio="none">
+      <polyline id="spark-${s.key}" fill="none" stroke="${s.color}" stroke-width="2" points=""/>
+    </svg>
+  `;
+  vitalsEl.appendChild(el);
+});
+
+const hist = {};
+sensors.forEach(s => hist[s.key] = []);
+let pi = 6, fr = 0;
+
+function update() {
+  fr++;
+  const cur = presets[pi], nxt = presets[(pi + 1) % presets.length];
+  const t = (fr % 80) / 80, ease = 0.5 - Math.cos(Math.PI * t) / 2;
+
+  sensors.forEach(s => {
+    const c = cur.values[s.key], n = nxt.values[s.key];
+    const val = c + (n - c) * ease + (Math.random() - 0.5) * Math.max(c, 0.1) * 0.05;
+    document.getElementById('val-' + s.key).textContent = s.key === 'theta' ? Math.round(val) : val.toFixed(1);
+    hist[s.key].push(val);
+    if (hist[s.key].length > 50) hist[s.key].shift();
+    const pts = hist[s.key].map((v, i) => `${(i/49)*200},${24-((v-s.min)/(s.max-s.min))*22-1}`).join(' ');
+    document.getElementById('spark-' + s.key).setAttribute('points', pts);
+    const bad = s.invert ? val < s.danger : val > s.danger;
+    const st = document.getElementById('status-' + s.key);
+    st.textContent = bad ? 'WARN' : 'OK';
+    st.className = 'vital-status' + (bad ? ' warn' : '');
+  });
+
+  const sh = ease < 0.5 ? cur : nxt;
+  document.getElementById('beh-name').textContent = sh.name;
+  document.getElementById('beh-emoji').textContent = sh.emoji;
+  document.getElementById('hero').style.setProperty('--beh-bg', sh.bg);
+  document.getElementById('hero-emg').textContent = sh.values.EMG.toFixed(1);
+  document.getElementById('hero-theta').textContent = Math.round(sh.values.theta);
+
+  const F = sh.values.EMG * 15, theta = sh.values.theta;
+  const torque = F * 0.27 * Math.sin(theta * Math.PI / 180);
+  document.getElementById('torque').textContent = torque.toFixed(1);
+  document.getElementById('torque-fill').style.width = Math.min(100, torque * 2) + '%';
+  const b = document.getElementById('torque-badge');
+  b.className = 'badge ' + (torque > 20 ? 'badge-danger' : torque > 10 ? 'badge-warn' : 'badge-safe');
+  b.textContent = torque > 20 ? 'High' : torque > 10 ? 'Moderate' : 'Safe';
+
+  const sp = sh.values.spo2, sf = document.getElementById('safety'), si = document.getElementById('safety-icon');
+  const st = document.getElementById('safety-title'), ss = document.getElementById('safety-sub');
+  if (sh.name === 'Fatigue Warning') { sf.classList.add('alert'); si.textContent='⚠'; st.textContent='Take a break'; ss.textContent='Fatigue detected — rest for 2-3 minutes'; }
+  else if (sp < 93) { sf.classList.add('alert'); si.textContent='⚠'; st.textContent='Low oxygen'; ss.textContent=`SpO₂ at ${sp.toFixed(0)}% — slow down`; }
+  else { sf.classList.remove('alert'); si.textContent='✓'; st.textContent='All clear'; ss.textContent='Keep going — your vitals look great'; }
+
+  if (fr % 80 === 0) pi = (pi + 1) % presets.length;
+}
+setInterval(update, 100);
+update();
+</script>
+</body>
+</html>

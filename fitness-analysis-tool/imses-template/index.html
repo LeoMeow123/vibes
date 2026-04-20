@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMSES — [Your Name] | Research Portfolio</title>
+<meta name="description" content="A wearable health monitoring system combining physics, bioengineering, and computer science. High school research project by [Your Name].">
+
+<style>
+  :root {
+    --bg: #fafbfc;
+    --bg-elev: #ffffff;
+    --bg-alt: #f3f4f7;
+    --border: #e5e7eb;
+    --border-light: #f1f2f5;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #94a3b8;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --purple: #7c3aed;
+    --green: #059669;
+    --red: #dc2626;
+    --amber: #d97706;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, "Inter", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+  .serif { font-family: "Instrument Serif", "Source Serif 4", Georgia, serif; }
+
+  /* ── Layout ─────────────────────────────────────── */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ────────────────────────────────────── */
+  .sidebar {
+    position: fixed;
+    width: 280px; height: 100vh;
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px 20px;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 8px 22px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .side-mark {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 17px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  }
+  .side-brand-text { flex: 1; }
+  .side-brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .side-brand-sub { font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+
+  .side-credit {
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 10px;
+  }
+  .side-credit-label {
+    font-size: 10px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .side-credit-name {
+    font-size: 14px; color: var(--text); font-weight: 600;
+    margin-top: 3px;
+  }
+  .side-credit-role {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .side-section {
+    padding: 8px 0;
+  }
+  .side-section-label {
+    font-size: 10px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 600;
+    padding: 8px 12px 6px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+    margin-bottom: 2px;
+    border: none;
+    background: none;
+    width: 100%; text-align: left;
+    font-family: inherit;
+  }
+  .nav-item:hover {
+    background: var(--bg-alt);
+    color: var(--text);
+  }
+  .nav-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .nav-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--text-faint);
+    background: var(--bg-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+  }
+  .nav-item.active .nav-num { background: #dbeafe; color: var(--accent); }
+
+  .side-footer {
+    margin-top: auto;
+    padding: 16px 12px 0;
+    border-top: 1px solid var(--border-light);
+  }
+  .side-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.12s;
+  }
+  .side-link:hover { color: var(--accent); }
+  .side-link-icon { width: 14px; font-size: 13px; }
+
+  .side-version {
+    font-size: 10px; color: var(--text-faint);
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* ── Main content ──────────────────────────────── */
+  .main {
+    grid-column: 2;
+    padding: 60px 60px 80px;
+    max-width: 900px;
+  }
+
+  /* Page header */
+  .page-header { margin-bottom: 48px; }
+  .page-num {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .page-title {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 52px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .page-title em { color: var(--accent); font-style: italic; }
+  .page-sub {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 680px;
+    line-height: 1.6;
+  }
+
+  /* Page sections */
+  .page { display: none; animation: fadeIn 0.35s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Shared components ─────────────────────────── */
+  .lead {
+    font-size: 16px;
+    color: var(--text-muted);
+    line-height: 1.75;
+    margin-bottom: 32px;
+    max-width: 720px;
+  }
+  .lead strong { color: var(--text); font-weight: 600; }
+
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+
+  .cards-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) { .cards-3 { grid-template-columns: 1fr; } }
+
+  .stat-big {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--text);
+  }
+  .stat-big .unit { font-size: 18px; color: var(--text-muted); margin-left: 2px; }
+  .stat-big.red { color: var(--red); }
+  .stat-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  /* Hero / Overview page */
+  .overview-hero {
+    padding: 40px 0 60px;
+  }
+  .overview-hero h1 {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: clamp(42px, 6vw, 68px);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+  }
+  .overview-hero h1 em {
+    color: var(--accent);
+    font-style: italic;
+  }
+  .overview-hero .lead {
+    font-size: 18px; max-width: 640px; margin-bottom: 32px;
+  }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 9px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: all 0.12s;
+    font-family: inherit;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg-alt); border-color: var(--text-faint); }
+  .btn-arrow::after { content: "→"; transition: transform 0.15s; }
+  .btn-arrow:hover::after { transform: translateX(3px); }
+
+  /* Key facts grid on overview */
+  .key-facts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 40px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .key-fact {
+    padding: 24px 0 24px 24px;
+    border-left: 1px solid var(--border);
+  }
+  .key-fact:first-child { border-left: none; padding-left: 0; }
+  .key-fact-label {
+    font-size: 10px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .key-fact-value { font-size: 14px; color: var(--text); font-weight: 500; }
+  @media (max-width: 900px) {
+    .key-facts { grid-template-columns: 1fr 1fr; }
+    .key-fact:nth-child(3) { border-left: none; padding-left: 0; }
+  }
+
+  /* Disciplines */
+  .disciplines {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .discipline {
+    font-size: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    background: var(--bg-elev);
+  }
+
+  /* Solution — stats row */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .stat-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 20px;
+    text-align: center;
+  }
+  .stat-card .stat-big {
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+  @media (max-width: 700px) {
+    .stat-row { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Sensor table */
+  h2.sub {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 28px;
+    font-weight: 400;
+    margin: 44px 0 14px;
+    color: var(--text);
+  }
+  .sensors-table {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .sensors-head, .sensor-row {
+    display: grid;
+    grid-template-columns: 48px 1.2fr 1fr 0.8fr 1.5fr;
+    gap: 14px;
+    padding: 12px 20px;
+    align-items: center;
+    font-size: 13px;
+  }
+  .sensors-head {
+    background: var(--bg-alt);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .sensor-row { border-bottom: 1px solid var(--border-light); }
+  .sensor-row:last-child { border-bottom: none; }
+  .sensor-row:hover { background: #fafbfc; }
+  .s-sym {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 22px; color: var(--accent);
+  }
+  .s-name { color: var(--text); font-weight: 500; }
+  .s-range, .s-unit { color: var(--text-muted); font-family: "JetBrains Mono", monospace; font-size: 12px; }
+  .s-hw { color: var(--text-muted); font-size: 12px; }
+
+  /* Behavior tree (light) */
+  .behavior-tree {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 16px;
+  }
+  .tree-level { margin-top: 22px; padding-top: 22px; border-top: 1px dashed var(--border); }
+  .tree-level:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .tree-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+  .tree-level.safety .tree-label { color: var(--red); }
+  .tree-branches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .tree-branch {
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+  }
+  .tree-level.safety .tree-branch { border-color: #fecaca; background: #fef2f2; }
+  .tree-branch-cond {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--text-faint);
+  }
+  .tree-branch-name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    margin-top: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* Formulas */
+  .formula-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 14px;
+  }
+  .formula-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .formula-subtitle {
+    font-size: 11px; color: var(--text-faint);
+    margin-bottom: 14px;
+  }
+  .formula-math {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12.5px; color: var(--text);
+    background: #f8f9fc;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .formula-math .comment { color: var(--text-faint); font-style: italic; }
+  .formula-math .var { color: var(--purple); font-weight: 600; }
+  .formula-desc {
+    font-size: 13px; color: var(--text-muted);
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  /* App showcase */
+  .app-showcase {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .app-showcase h3 {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 26px; font-weight: 400;
+    margin-bottom: 8px;
+  }
+  .app-showcase p { color: var(--text-muted); font-size: 14px; line-height: 1.7; margin-bottom: 16px; }
+
+  .app-features {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 18px;
+    margin-bottom: 24px;
+  }
+  .app-feat {
+    font-size: 13px; color: var(--text-muted);
+    padding-left: 18px; position: relative;
+  }
+  .app-feat::before {
+    content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700;
+  }
+
+  .app-mock {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 18px;
+    margin-top: 20px;
+    border: 1px solid var(--border);
+    color: #e2e8f0;
+    font-family: "Inter", sans-serif;
+  }
+  .app-mock-head {
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 14px; border-bottom: 1px solid #1e293b;
+    margin-bottom: 14px;
+  }
+  .app-mock-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #f97316; box-shadow: 0 0 6px #f97316;
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.4; } }
+  .app-mock-title { font-size: 10px; color: #64748b; letter-spacing: 1px; }
+  .app-mock-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+  .app-mock-beh {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 24px; color: #f97316;
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px;
+  }
+  .app-mock-gauges {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-top: 16px;
+  }
+  .app-mock-g {
+    background: #1e293b;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+  }
+  .app-mock-g-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .app-mock-g-value {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 18px; color: #e2e8f0; margin-top: 2px;
+  }
+  .app-mock-g-unit { font-size: 10px; color: #64748b; }
+  @media (max-width: 700px) {
+    .app-mock-gauges { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* About */
+  .about-block { display: grid; grid-template-columns: 160px 1fr; gap: 40px; align-items: start; margin-bottom: 32px; }
+  .about-avatar {
+    width: 140px; height: 140px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 60px; color: #fff;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+  }
+  .about-text h3 {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 38px;
+    font-weight: 400;
+    margin-bottom: 2px;
+  }
+  .about-role {
+    font-size: 14px; color: var(--text-muted);
+    margin-bottom: 18px;
+  }
+  .about-text p {
+    color: var(--text-muted); font-size: 15px; line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .about-skills {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px;
+  }
+  .skill {
+    font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    background: var(--bg-alt); border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  @media (max-width: 700px) {
+    .about-block { grid-template-columns: 1fr; text-align: center; }
+    .about-avatar { margin: 0 auto; }
+    .about-skills { justify-content: center; }
+  }
+
+  /* Contact */
+  .contact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .contact-card {
+    padding: 28px 24px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .contact-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+    transform: translateY(-2px);
+  }
+  .contact-icon { font-size: 28px; margin-bottom: 10px; }
+  .contact-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .contact-value { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  @media (max-width: 700px) {
+    .contact-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: auto;
+      padding: 14px 16px;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      flex-direction: row; align-items: center;
+      overflow-x: auto;
+    }
+    .side-brand { padding: 0 12px 0 0; border: none; border-right: 1px solid var(--border-light); margin-right: 8px; }
+    .side-credit, .side-section-label, .side-footer, .side-version { display: none; }
+    .side-section { display: flex; gap: 4px; padding: 0; }
+    .nav-item { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
+    .nav-num { display: none; }
+    .nav-icon { display: none; }
+    .main { grid-column: 1; padding: 90px 20px 60px; }
+    .page-title { font-size: 36px; }
+    .stat-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═════════ SIDEBAR ═════════ -->
+  <aside class="sidebar">
+    <div class="side-brand">
+      <img src="assets/logo.png" alt="IMSES" style="width: 36px; height: 36px; border-radius: 9px; object-fit: contain; background: #111827;">
+      <div class="side-brand-text">
+        <div class="side-brand-name">IMSES</div>
+        <div class="side-brand-sub">Research Portfolio · 2026</div>
+      </div>
+    </div>
+
+    <div class="side-credit">
+      <div class="side-credit-label">Founder & Engineer</div>
+      <div class="side-credit-name">[Your Name]</div>
+      <div class="side-credit-role">High school researcher</div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-section-label">Project</div>
+      <button class="nav-item active" data-page="overview">
+        <span class="nav-icon">◎</span>
+        <span>Overview & Prototype</span>
+        <span class="nav-num">01</span>
+      </button>
+      <button class="nav-item" data-page="engineering">
+        <span class="nav-icon">◈</span>
+        <span>Engineering Design</span>
+        <span class="nav-num">02</span>
+      </button>
+      <button class="nav-item" data-page="novelty">
+        <span class="nav-icon">◇</span>
+        <span>Motivation & Novelty</span>
+        <span class="nav-num">03</span>
+      </button>
+      <button class="nav-item" data-page="science">
+        <span class="nav-icon">∑</span>
+        <span>The Science</span>
+        <span class="nav-num">04</span>
+      </button>
+      <button class="nav-item" data-page="app">
+        <span class="nav-icon">◻</span>
+        <span>The App</span>
+        <span class="nav-num">05</span>
+      </button>
+      <button class="nav-item" data-page="future">
+        <span class="nav-icon">◇</span>
+        <span>Future Development</span>
+        <span class="nav-num">06</span>
+      </button>
+    </div>
+
+    <div class="side-section">
+      <div class="side-section-label">Personal</div>
+      <button class="nav-item" data-page="about">
+        <span class="nav-icon">◉</span>
+        <span>About Me</span>
+        <span class="nav-num">07</span>
+      </button>
+      <button class="nav-item" data-page="contact">
+        <span class="nav-icon">◐</span>
+        <span>Contact</span>
+        <span class="nav-num">08</span>
+      </button>
+    </div>
+
+    <div class="side-footer">
+      <a href="https://github.com/[username]/imses" target="_blank" class="side-link"><span class="side-link-icon">↗</span> GitHub</a>
+      <div class="side-version">v1.0 · Single-page app</div>
+    </div>
+  </aside>
+
+  <!-- ═════════ MAIN ═════════ -->
+  <main class="main">
+
+    <!-- ───── 01 Overview ───── -->
+    <section class="page active" id="page-overview">
+      <div class="overview-hero">
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 18px;">
+          <img src="assets/logo.png" alt="IMSES Logo" style="width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(37, 99, 235, 0.15));">
+          <div class="page-num" style="margin-bottom: 0;">01 · Overview & Prototype</div>
+        </div>
+        <h1>A wearable that knows when your body is <em>about to fail</em>.</h1>
+        <p class="lead">
+          IMSES is an intelligent multi-sensor elbow sleeve with <strong>5 biosensors and a motor actuator</strong> that classifies human behaviors in real time and warns users before fatigue causes injury. It bridges the gap between consumer fitness trackers and clinical monitoring.
+        </p>
+        <div class="actions">
+          <button class="btn btn-primary btn-arrow" onclick="goto('engineering')">Explore the project</button>
+          <a href="demo.html" target="_blank" class="btn btn-ghost">Try the live demo</a>
+        </div>
+      </div>
+
+      <div class="key-facts">
+        <div class="key-fact">
+          <div class="key-fact-label">Hardware</div>
+          <div class="key-fact-value">XIAO nRF52840 Sense</div>
+        </div>
+        <div class="key-fact">
+          <div class="key-fact-label">Sensors</div>
+          <div class="key-fact-value">5 sensors + motor · 10 Hz</div>
+        </div>
+        <div class="key-fact">
+          <div class="key-fact-label">Interface</div>
+          <div class="key-fact-value">Web Bluetooth + Serial</div>
+        </div>
+        <div class="key-fact">
+          <div class="key-fact-label">Status</div>
+          <div class="key-fact-value">Working prototype</div>
+        </div>
+      </div>
+
+      <div class="disciplines">
+        <div class="discipline">Physics</div>
+        <div class="discipline">Bioengineering</div>
+        <div class="discipline">Computer Science</div>
+        <div class="discipline">Embedded Systems</div>
+        <div class="discipline">Biomechanics</div>
+        <div class="discipline">Signal Processing</div>
+      </div>
+
+      <h2 class="sub">Project at a glance</h2>
+      <p class="lead" style="margin-bottom: 32px;">
+        This research project combines three disciplines into a single wearable: the <strong>physics</strong> of sensor transduction, the <strong>bioengineering</strong> of physiological signal interpretation, and the <strong>computer science</strong> of real-time classification and wireless communication. Navigate to any section to see the details — each page stands on its own.
+      </p>
+
+      <h2 class="sub">Prototype</h2>
+      <div style="background: #111827; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;">
+        <img src="assets/structure-handdrawn.png" alt="IMSES prototype — sensor layout and wiring" style="width: 100%; display: block;">
+      </div>
+    </section>
+
+    <!-- ───── 02 Engineering Design ───── -->
+    <section class="page" id="page-engineering">
+      <div class="page-header">
+        <div class="page-num">02 · Engineering Design</div>
+        <h1 class="page-title">5 sensors, one microcontroller, and a classification brain.</h1>
+        <p class="page-sub">
+          Five biosensors and a motor actuator stream to a Seeed XIAO nRF52840 Sense microcontroller, which runs a three-tier classification algorithm and broadcasts results over Bluetooth Low Energy at 10 Hz.
+        </p>
+      </div>
+
+      <div style="background: var(--bg-alt); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 32px;">
+        <img src="assets/structure-schematic.jpg" alt="IMSES technical schematic — exploded view of smart elbow sleeve with embedded sensors" style="width: 100%; display: block;">
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-big">5</div>
+          <div class="stat-label">Biosensors</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-big">1</div>
+          <div class="stat-label">Motor actuator</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-big">10<span class="unit">Hz</span></div>
+          <div class="stat-label">Sample rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-big">2<span class="unit">ways</span></div>
+          <div class="stat-label">BLE + Serial</div>
+        </div>
+      </div>
+
+      <h2 class="sub">Sensor array</h2>
+      <div class="sensors-table">
+        <div class="sensors-head">
+          <span>Sym</span><span>Measurement</span><span>Range</span><span>Unit</span><span>Hardware</span>
+        </div>
+        <div class="sensor-row"><span class="s-sym">EMG</span><span class="s-name">Muscle electrical activity</span><span class="s-range">0–5</span><span class="s-unit">mV</span><span class="s-hw">EMG sensor module</span></div>
+        <div class="sensor-row"><span class="s-sym">T</span><span class="s-name">Skin temperature</span><span class="s-range">28–38</span><span class="s-unit">°C</span><span class="s-hw">NTC 10kΩ thermistor</span></div>
+        <div class="sensor-row"><span class="s-sym">ω</span><span class="s-name">Angular velocity</span><span class="s-range">0–300</span><span class="s-unit">°/s</span><span class="s-hw">IMU LSM6DS3 (built-in)</span></div>
+        <div class="sensor-row"><span class="s-sym">SpO₂</span><span class="s-name">Blood oxygen saturation</span><span class="s-range">88–100</span><span class="s-unit">%</span><span class="s-hw">MAX30102</span></div>
+        <div class="sensor-row"><span class="s-sym">θ</span><span class="s-name">Elbow flex angle</span><span class="s-range">0–150</span><span class="s-unit">°</span><span class="s-hw">Flex sensor 2.2"</span></div>
+      </div>
+
+      <h2 class="sub">Actuator</h2>
+      <div class="sensors-table">
+        <div class="sensors-head">
+          <span>Sym</span><span>Component</span><span>Function</span><span></span><span>Hardware</span>
+        </div>
+        <div class="sensor-row"><span class="s-sym">M</span><span class="s-name">Motor</span><span class="s-range">Haptic feedback & assisted motion</span><span class="s-unit"></span><span class="s-hw">DC motor / servo</span></div>
+      </div>
+
+      <h2 class="sub">Behavior classification algorithm</h2>
+      <p class="lead" style="margin-bottom: 16px;">
+        A three-tier decision tree uses angular velocity (ω) as the primary discriminator, with sub-classification by heart rate, joint angle pattern, or muscle force. Safety alerts take highest priority and override all other classifications.
+      </p>
+
+      <div class="behavior-tree">
+        <div class="tree-level safety">
+          <div class="tree-label">Priority 0 · Safety override (checked first)</div>
+          <div class="tree-branches">
+            <div class="tree-branch"><div class="tree-branch-cond">SpO₂ &lt; 93%</div><div class="tree-branch-name">⚠ Low oxygen alert</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">ω drop 100→20 in 3s</div><div class="tree-branch-name">⚠ Fatigue warning</div></div>
+          </div>
+        </div>
+        <div class="tree-level">
+          <div class="tree-label">Tier 1 · Primary classification by angular velocity</div>
+          <div class="tree-branches">
+            <div class="tree-branch"><div class="tree-branch-cond">ω &lt; 15°/s</div><div class="tree-branch-name">Group A · Static</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">15 ≤ ω &lt; 100°/s</div><div class="tree-branch-name">Group B · Daily activity</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">ω ≥ 100°/s</div><div class="tree-branch-name">Group C · Exercise</div></div>
+          </div>
+        </div>
+        <div class="tree-level">
+          <div class="tree-label">Tier 2 · Sub-classification</div>
+          <div class="tree-branches">
+            <div class="tree-branch"><div class="tree-branch-cond">A · HR &lt; 68</div><div class="tree-branch-name">😴 Sleeping</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">A · HR ≥ 68</div><div class="tree-branch-name">🪑 Resting</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">B · θ stable 70–100°</div><div class="tree-branch-name">💻 Office / Typing</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">B · ω rhythmic</div><div class="tree-branch-name">🚶 Walking</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">B · else</div><div class="tree-branch-name">🍜 Eating</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">C · EMG low</div><div class="tree-branch-name">🏃 Aerobic exercise</div></div>
+            <div class="tree-branch"><div class="tree-branch-cond">C · EMG high</div><div class="tree-branch-name">🏋️ Strength training</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── 03 Motivation & Novelty ───── -->
+    <section class="page" id="page-novelty">
+      <div class="page-header">
+        <div class="page-num">03 · Motivation & Novelty</div>
+        <h1 class="page-title">Why this project exists, and what makes it different.</h1>
+      </div>
+
+      <h2 class="sub">The inspiration</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; align-items: center;">
+        <div>
+          <p class="lead" style="margin-bottom: 16px;">
+            The idea for IMSES started with a scene from <strong><em>Ready Player One</em></strong> — the haptic suit that lets the wearer feel every punch, every touch, every impact in the virtual world. A full-body wearable covered in sensors and actuators that understands what the human body is doing in real time.
+          </p>
+          <p class="lead" style="margin-bottom: 0;">
+            I thought: <em>what if we built something like that, but for the real world?</em> Not for gaming — for safety. A wearable sleeve that senses your muscles, your joints, your vital signs, and tells you when to stop before your body breaks down. That question became IMSES.
+          </p>
+        </div>
+        <div style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #000;">
+          <img
+            src="assets/ready-player-one-suit.webp"
+            alt="Ready Player One — Haptic Suit"
+            style="width: 100%; height: 100%; object-fit: cover; display: block;"
+          />
+        </div>
+      </div>
+
+      <div style="background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 40px; display: flex; align-items: center; gap: 16px;">
+        <div style="font-size: 36px;">🎬</div>
+        <div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--text);">From fiction to physics</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+            The haptic suit in <em>Ready Player One</em> uses an array of sensors and actuators to create a feedback loop between body and machine. IMSES takes the same core idea — multi-sensor fusion on a wearable — and applies it to a real engineering problem: preventing injury during strength training.
+          </div>
+        </div>
+      </div>
+
+      <h2 class="sub">The problem</h2>
+      <p class="lead">
+        Over 530,000 weightlifting injuries occur in the US annually, many caused by loading past the fatigue threshold without warning. Commercial wearables like the Apple Watch carry only 3 sensors (heart rate, accelerometer, SpO₂) — none measuring muscle force, joint angle, or real fatigue onset. Clinical-grade EMG rigs that can detect these signals cost upwards of $5,000 and are confined to research labs. There is no affordable, wearable device that monitors both biomechanical and physiological signals during strength training and provides real-time safety feedback.
+      </p>
+
+      <div class="cards-3">
+        <div class="card">
+          <div class="stat-big red">530K<span class="unit">/yr</span></div>
+          <div class="card-title" style="margin-top: 10px;">Weightlifting injuries</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Annual injuries in the US alone. Most occur at the fatigue threshold — exactly when feedback is needed most.
+          </p>
+        </div>
+        <div class="card">
+          <div class="stat-big">3</div>
+          <div class="card-title" style="margin-top: 10px;">Sensors on a smartwatch</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Heart rate, accelerometer, SpO₂. No muscle force, no joint kinematics, no fatigue detection.
+          </p>
+        </div>
+        <div class="card">
+          <div class="stat-big">$5K+</div>
+          <div class="card-title" style="margin-top: 10px;">Clinical EMG setup</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Gold-standard muscle monitoring exists — but only in labs, never in the gym where it's needed.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">What makes IMSES novel</h2>
+      <p class="lead" style="margin-bottom: 18px;">
+        IMSES addresses this gap not through a single technological breakthrough, but through the <strong>integration of seven complementary sensing modalities</strong> into a single wearable form factor — an elbow sleeve — with on-device behavior classification. Three aspects distinguish this work:
+      </p>
+
+      <div class="cards-3">
+        <div class="card">
+          <div class="card-title">Multi-modal sensor fusion</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Unlike single-signal devices, IMSES fuses physiological signals (SpO₂, temperature, EMG) with kinematic signals (flex angle, angular velocity) to achieve behavior classification that neither modality can accomplish alone.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Real-time edge classification</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            The three-tier decision tree runs entirely on the nRF52840 microcontroller at 10 Hz — no cloud, no phone dependency, no latency. Classification happens at the edge, enabling sub-second safety alerts during exercise.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Accessible & open design</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Built entirely from off-the-shelf components (total hardware cost under $50), with an open-source web dashboard that connects via Web Bluetooth — no app store, no backend, no subscription. Designed to be reproducible by other researchers.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── 04 Science ───── -->
+    <section class="page" id="page-science">
+      <div class="page-header">
+        <div class="page-num">04 · The Science</div>
+        <h1 class="page-title">Real physics. Real biomechanics. Real code.</h1>
+        <p class="page-sub">
+          Every sensor value is converted from raw signals using closed-form equations derived from device physics — not canned library calls. Here are six of the core formulas, spanning thermodynamics, optics, signal processing, and biomechanics.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">Temperature · Steinhart–Hart equation</div>
+        <div class="formula-subtitle">NTC 10kΩ thermistor, β = 3950</div>
+<pre class="formula-math">R_sensor = R_ref × (V_out / (3.3 − V_out))
+1/T = 1/T₀ + (1/B) × <span class="var">ln</span>(R_sensor / R₀)
+T<sub>°C</sub> = T<sub>K</sub> − 273.15
+
+<span class="comment">// T₀ = 298.15 K, R₀ = 10 kΩ, B = 3950 K</span></pre>
+        <p class="formula-desc">
+          The NTC thermistor's resistance varies non-linearly with temperature. The β-parameter form of the Steinhart–Hart equation gives absolute temperature in kelvin, which is then converted to Celsius.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">Flex angle · Linear resistance</div>
+        <div class="formula-subtitle">Flex Sensor 2.2" (25 kΩ nominal)</div>
+<pre class="formula-math">R_flex = 10000 × (V_out / (3.3 − V_out))
+<span class="var">θ</span> = (R_flex − 10000) / 0.044
+
+<span class="comment">// Output: 0° to 150° elbow angle</span></pre>
+        <p class="formula-desc">
+          The flex sensor's conductive ink increases in resistance as it bends. A voltage divider converts this to analog voltage; linear calibration gives angle in degrees.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">EMG · Muscle electrical activity</div>
+        <div class="formula-subtitle">Surface electromyography signal processing</div>
+<pre class="formula-math">V_raw = ADC × (3.3 / 4096)
+V_filtered = <span class="var">bandpass</span>(V_raw, 20 Hz, 450 Hz)
+<span class="var">RMS</span> = √(Σ V_filtered² / N)
+
+<span class="comment">// RMS envelope in mV, window N = 50 samples</span></pre>
+        <p class="formula-desc">
+          Raw EMG signals are bandpass-filtered to isolate muscle activation frequencies (20–450 Hz), then converted to an RMS envelope that represents contraction intensity. Higher RMS indicates stronger muscle engagement.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">Blood oxygen · Pulse oximetry (SpO₂)</div>
+        <div class="formula-subtitle">MAX30102 dual-wavelength photoplethysmography</div>
+<pre class="formula-math">AC_red = <span class="var">peak</span>(red) − <span class="var">trough</span>(red)
+DC_red = <span class="var">mean</span>(red)
+AC_ir  = <span class="var">peak</span>(ir) − <span class="var">trough</span>(ir)
+DC_ir  = <span class="var">mean</span>(ir)
+
+<span class="var">R</span> = (AC_red / DC_red) / (AC_ir / DC_ir)
+<span class="var">SpO₂</span> = 110 − 25 × R
+
+<span class="comment">// Beer–Lambert law: ratio of pulsatile (AC) to
+// baseline (DC) absorption at 660nm vs 880nm</span></pre>
+        <p class="formula-desc">
+          The MAX30102 emits red (660 nm) and infrared (880 nm) light through the skin. Oxygenated and deoxygenated hemoglobin absorb these wavelengths differently. The ratio R of the AC/DC components at each wavelength is mapped to SpO₂ via an empirical linear calibration derived from the Beer–Lambert law.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">Heart rate · PPG peak detection</div>
+        <div class="formula-subtitle">MAX30102 infrared photoplethysmography</div>
+<pre class="formula-math">signal = <span class="var">lowpass</span>(ir_raw, 5 Hz)
+peaks[] = <span class="var">findPeaks</span>(signal, min_distance=300ms)
+
+IBI = peaks[i] − peaks[i−1]
+<span class="var">HR</span> = 60000 / <span class="var">mean</span>(IBI)
+
+<span class="comment">// IBI = inter-beat interval in ms
+// HR in beats per minute (bpm)</span></pre>
+        <p class="formula-desc">
+          The infrared PPG waveform tracks blood volume changes with each heartbeat. After low-pass filtering to remove motion artifacts, peaks are detected to find inter-beat intervals. Heart rate is computed as 60 seconds divided by the mean interval between peaks.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <div class="formula-title">Joint torque · Biomechanics</div>
+        <div class="formula-subtitle">Personalized by user's forearm length</div>
+<pre class="formula-math">F_load = m<sub>weight</sub> × g
+<span class="var">M</span> = F_load × L<sub>forearm</sub> × <span class="var">sin</span>(θ)
+
+<span class="comment">// M in N·m, elbow torque under load</span></pre>
+        <p class="formula-desc">
+          Torque at the elbow joint is the load force times the moment arm (forearm length times sine of the elbow angle). Cross-referenced with safe thresholds to warn about dangerous combinations of weight and joint angle.
+        </p>
+      </div>
+    </section>
+
+    <!-- ───── 05 App ───── -->
+    <section class="page" id="page-app">
+      <div class="page-header">
+        <div class="page-num">05 · The App</div>
+        <h1 class="page-title">A dashboard that runs in your browser.</h1>
+        <p class="page-sub">
+          Built in React and TypeScript. Connects to the device via Web Bluetooth — no app store, no installation. Pairs with the phone in your pocket or the laptop on your desk.
+        </p>
+      </div>
+
+      <div class="app-showcase">
+        <h3>Live sensor streaming, behavior detection, and safety alerts</h3>
+        <p>
+          Open the dashboard, tap Connect, and the elbow sleeve streams 5 sensor channels at 10 Hz. Real-time gauges, behavior classification, safety override alerts, and joint torque analysis — everything visible at a glance during training.
+        </p>
+        <div class="app-features">
+          <div class="app-feat">Web Bluetooth pairing (no app store)</div>
+          <div class="app-feat">5 live sensor gauges with sparklines</div>
+          <div class="app-feat">Behavior timeline history</div>
+          <div class="app-feat">Safety override alerts (SpO₂, fatigue)</div>
+          <div class="app-feat">Real-time joint torque risk analysis</div>
+          <div class="app-feat">CSV session export</div>
+          <div class="app-feat">Mobile-first responsive design</div>
+          <div class="app-feat">Demo mode (no hardware required)</div>
+        </div>
+        <a href="demo.html" target="_blank" class="btn btn-primary btn-arrow">Launch live demo</a>
+
+        <div class="app-mock">
+          <div class="app-mock-head">
+            <div class="app-mock-dot"></div>
+            <div class="app-mock-title">IMSES · LIVE</div>
+          </div>
+          <div class="app-mock-label">Current Activity</div>
+          <div class="app-mock-beh">
+            <span id="mock-emoji">🏋️</span>
+            <span id="mock-beh">Strength Training</span>
+          </div>
+          <div class="app-mock-gauges">
+            <div class="app-mock-g">
+              <div class="app-mock-g-label">Heart Rate</div>
+              <div class="app-mock-g-value mono"><span id="mock-hr">155</span></div>
+              <div class="app-mock-g-unit">bpm</div>
+            </div>
+            <div class="app-mock-g">
+              <div class="app-mock-g-label">EMG</div>
+              <div class="app-mock-g-value mono"><span id="mock-f">2.4</span></div>
+              <div class="app-mock-g-unit">mV</div>
+            </div>
+            <div class="app-mock-g">
+              <div class="app-mock-g-label">Angle</div>
+              <div class="app-mock-g-value mono"><span id="mock-theta">120</span></div>
+              <div class="app-mock-g-unit">°</div>
+            </div>
+            <div class="app-mock-g">
+              <div class="app-mock-g-label">Torque</div>
+              <div class="app-mock-g-value mono"><span id="mock-torque">15.2</span></div>
+              <div class="app-mock-g-unit">N·m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── 06 Future Development ───── -->
+    <section class="page" id="page-future">
+      <div class="page-header">
+        <div class="page-num">06 · Future Development</div>
+        <h1 class="page-title">Where IMSES goes from here.</h1>
+        <p class="page-sub">
+          The current prototype demonstrates the core concept — multi-modal sensing with real-time classification. Several planned improvements would bring IMSES closer to a deployable system.
+        </p>
+      </div>
+
+      <h2 class="sub">Additional sensors</h2>
+      <p class="lead" style="margin-bottom: 16px;">
+        Two sensor modalities were explored during the design phase but not included in the current prototype due to time and integration constraints. Both remain strong candidates for the next revision.
+      </p>
+
+      <div class="cards-3">
+        <div class="card">
+          <div class="card-title">Force-sensitive resistor (FSR)</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            An FSR 402 was tested for direct muscle contraction force measurement. While the sensor worked in isolation, integrating it into the sleeve fabric without affecting comfort and signal quality proved challenging. A future revision with a custom flexible PCB could solve this.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Galvanic skin response (GSR)</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Silver electrode pairs for measuring skin conductance (sweat response) were prototyped for stress and exertion detection. Electrode contact reliability during dynamic movement needs further work — a conductive fabric electrode design is planned.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Heart rate via MAX30102</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            The MAX30102 currently provides SpO₂. Extracting reliable heart rate from the elbow position (vs. fingertip or wrist) requires additional signal processing work — peak detection algorithms optimized for lower perfusion sites.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">Engineering improvements</h2>
+      <div class="cards-3">
+        <div class="card">
+          <div class="card-title">Custom flexible PCB</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Replace the current breadboard wiring with a thin, flexible PCB that conforms to the elbow's curvature. This would improve reliability, reduce bulk, and enable additional sensor placement.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Machine learning classification</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            The current rule-based decision tree works well for the defined behavior set. A future version could train a lightweight neural network (e.g., TensorFlow Lite Micro) on collected data to improve accuracy and detect nuanced patterns.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Closed-loop motor control</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            The motor actuator currently provides haptic feedback. Future work aims to implement closed-loop control — where the motor actively assists or resists motion based on detected fatigue level, creating a truly adaptive system.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">Long-term vision</h2>
+      <p class="lead">
+        IMSES is a proof-of-concept for a broader idea: that affordable, multi-modal wearable devices can bring clinical-grade physiological monitoring into everyday environments. The same sensor fusion and classification approach could be applied to other joints (knee, shoulder, wrist), other activities (physical therapy, rehabilitation), and other users (elderly fall detection, workplace ergonomics). The physics doesn't change — only the form factor and the classification rules.
+      </p>
+    </section>
+
+    <!-- ───── 07 About Me ───── -->
+    <section class="page" id="page-about">
+      <div class="page-header">
+        <div class="page-num">07 · About Me</div>
+        <h1 class="page-title">Why I built this.</h1>
+      </div>
+
+      <div class="about-block">
+        <div class="about-avatar">[Y]</div><!-- Replace with: <img src="assets/your-photo.jpg" alt="Your Name" class="about-avatar" style="object-fit: cover;"> -->
+        <div class="about-text">
+          <h3>[Your Name]</h3>
+          <div class="about-role">[Your School] · Applying to study Physics</div>
+          <p>
+            I'm a high school student passionate about physics — not just the equations on a chalkboard, but physics applied to real systems. IMSES started as a question: can the same principles I learn in class — thermodynamics, electromagnetism, kinematics — be used to build something that actually protects people during exercise?
+          </p>
+          <p>
+            The answer became this project. I used the Steinhart–Hart equation to convert thermistor resistance into skin temperature. I applied signal processing to extract muscle activation from raw EMG. I taught myself C++ and Arduino programming with the help of OpenAI Codex, wrote the firmware on an ARM Cortex-M4, built the dashboard in React and TypeScript over Web Bluetooth, and designed the classification algorithm from first principles.
+          </p>
+          <p>
+            I'm applying to study physics, where I want to keep working at the intersection of fundamental science and engineering — particularly robotics and AI. I believe the most impactful physics happens when theory leaves the textbook and enters a device someone can actually wear.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">Research & projects</h2>
+      <div class="cards-3" style="grid-template-columns: 1fr 1fr;">
+        <div class="card">
+          <div class="card-title">Research paper</div>
+          <p style="color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.5; margin-bottom: 8px;">
+            Applications and Challenges of Intelligent Robot Systems in On-orbit Collaboration and Planetary Surface
+          </p>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Co-author. Explored the engineering challenges of deploying autonomous robotic systems in space environments — orbital assembly, surface exploration, and multi-agent coordination under communication constraints.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Flight simulator</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Built a physics-based flight simulator game on the 编玩编学 coding education platform. Implemented aerodynamic lift, drag, and thrust models to create realistic flight dynamics — an early exercise in translating physics equations into interactive software.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">Community & leadership</h2>
+      <div class="cards-3" style="grid-template-columns: 1fr 1fr;">
+        <div class="card">
+          <div class="card-title">Fitness club · Founder</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Founded and lead the school fitness club. Organized training sessions, introduced safe lifting techniques, and saw firsthand the gap in real-time injury prevention — the direct motivation behind IMSES.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">Dongying Aid-Xinjiang program · Co-founder & volunteer</div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            Co-founded and organized the Dongying Aid-Xinjiang volunteer initiative, coordinating resources and volunteers to support communities in Xinjiang.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="sub">Strengths & skills</h2>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+        <span class="skill" style="background: var(--accent-soft); border-color: #bfdbfe; color: var(--accent);">Physics</span>
+        <span class="skill" style="background: var(--accent-soft); border-color: #bfdbfe; color: var(--accent);">Chemistry</span>
+        <span class="skill" style="background: var(--accent-soft); border-color: #bfdbfe; color: var(--accent);">Biology</span>
+        <span class="skill" style="background: var(--accent-soft); border-color: #bfdbfe; color: var(--accent);">Computer Science</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span class="skill">C++ / Arduino</span>
+        <span class="skill">React / TypeScript</span>
+        <span class="skill">Circuit design</span>
+        <span class="skill">BLE / GATT</span>
+        <span class="skill">EMG signal processing</span>
+        <span class="skill">Robotics</span>
+        <span class="skill">AI / Classification</span>
+        <span class="skill">PCB prototyping</span>
+        <span class="skill">3D printing</span>
+      </div>
+    </section>
+
+    <!-- ───── 07 Contact ───── -->
+    <section class="page" id="page-contact">
+      <div class="page-header">
+        <div class="page-num">08 · Contact</div>
+        <h1 class="page-title">Let's talk.</h1>
+        <p class="page-sub">
+          Try the live demo in your browser, read the source code, or get in touch directly. I'd love to hear what you think.
+        </p>
+      </div>
+
+      <div class="contact-grid">
+        <a href="mailto:your-email@example.com" class="contact-card">
+          <div class="contact-icon">✉</div>
+          <div class="contact-label">Email</div>
+          <div class="contact-value">your-email@example.com</div>
+        </a>
+        <a href="https://github.com/[username]/imses" target="_blank" class="contact-card">
+          <div class="contact-icon">{ }</div>
+          <div class="contact-label">GitHub</div>
+          <div class="contact-value">Source code + documentation</div>
+        </a>
+      </div>
+
+      <div style="margin-top: 60px; padding-top: 30px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-faint); text-align: center;">
+        IMSES · A research project by [Your Name] · 2026 · Physics · Bioengineering · Computer Science
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ── Page navigation ─────────────────────────────
+function goto(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + pageId).classList.add('active');
+  document.querySelector('.nav-item[data-page="' + pageId + '"]').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => goto(btn.dataset.page));
+});
+
+// ── Mock app animation ──────────────────────────
+const presets = [
+  { name: 'Sleeping',          emoji: '😴', color: '#6366f1', hr: 55,  f: 0.1, theta: 20  },
+  { name: 'Resting',           emoji: '🪑', color: '#818cf8', hr: 72,  f: 0.3, theta: 90  },
+  { name: 'Office / Typing',   emoji: '💻', color: '#22d3ee', hr: 78,  f: 0.5, theta: 85  },
+  { name: 'Eating',            emoji: '🍜', color: '#34d399', hr: 85,  f: 0.6, theta: 110 },
+  { name: 'Walking',           emoji: '🚶', color: '#a3e635', hr: 95,  f: 0.8, theta: 95  },
+  { name: 'Aerobic Exercise',  emoji: '🏃', color: '#fbbf24', hr: 140, f: 1.2, theta: 100 },
+  { name: 'Strength Training', emoji: '🏋️', color: '#f97316', hr: 155, f: 3.8, theta: 120 },
+];
+let pi = 6, frame = 0;
+function animateMock() {
+  frame++;
+  const cur = presets[pi];
+  const nxt = presets[(pi + 1) % presets.length];
+  const t = (frame % 80) / 80;
+  const ease = 0.5 - Math.cos(Math.PI * t) / 2;
+  const lerp = (a, b) => a + (b - a) * ease + (Math.random() - 0.5) * a * 0.04;
+
+  document.getElementById('mock-hr').textContent = Math.round(lerp(cur.hr, nxt.hr));
+  document.getElementById('mock-f').textContent = lerp(cur.f, nxt.f).toFixed(1);
+  document.getElementById('mock-theta').textContent = Math.round(lerp(cur.theta, nxt.theta));
+  const F = lerp(cur.f, nxt.f), theta = lerp(cur.theta, nxt.theta);
+  document.getElementById('mock-torque').textContent = (F * 0.27 * Math.sin(theta * Math.PI / 180)).toFixed(1);
+
+  const showing = ease < 0.5 ? cur : nxt;
+  document.getElementById('mock-emoji').textContent = showing.emoji;
+  document.getElementById('mock-beh').textContent = showing.name;
+  document.querySelector('.app-mock-beh').style.color = showing.color;
+
+  if (frame % 80 === 0) pi = (pi + 1) % presets.length;
+}
+setInterval(animateMock, 100);
+animateMock();
+</script>
+
+</body>
+</html>

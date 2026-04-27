@@ -464,6 +464,16 @@
   }
   .formula-math .comment { color: var(--text-faint); font-style: italic; }
   .formula-math .var { color: var(--purple); font-weight: 600; }
+  .math-block {
+    font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+    font-size: 16px; line-height: 2.2; color: var(--text);
+    background: #f8f9fc; padding: 18px 20px; border-radius: 8px;
+    border: 1px solid var(--border-light); overflow-x: auto;
+  }
+  .math-block .eq { display: block; }
+  .math-block .frac { display: inline-block; text-align: center; vertical-align: middle; }
+  .math-block .frac-num { display: block; border-bottom: 1px solid var(--text); padding: 0 4px 2px; }
+  .math-block .frac-den { display: block; padding: 2px 4px 0; }
   .formula-desc {
     font-size: 13px; color: var(--text-muted);
     margin-top: 12px;
@@ -742,7 +752,7 @@
         </div>
         <h1>A wearable that knows when your body is <em>about to fail</em>.</h1>
         <p class="lead">
-          IMSES is an intelligent multi-sensor elbow sleeve with <strong>5 biosensors and a motor actuator</strong> that classifies human behaviors in real time and warns users before fatigue causes injury. It bridges the gap between consumer fitness trackers and clinical monitoring.
+          IMSES is an intelligent multi-sensor elbow sleeve with <strong>5 biosensors and a motor actuator</strong> that classifies human behaviors in real time, warns users before fatigue causes injury, and provides active protection through motor-driven sleeve contraction. It bridges the gap between consumer fitness trackers and clinical monitoring.
         </p>
         <div class="actions">
           <button class="btn btn-primary btn-arrow" onclick="goto('engineering')">Explore the project</button>
@@ -784,11 +794,19 @@
         This research project combines three disciplines into a single wearable: the <strong>physics</strong> of sensor transduction, the <strong>bioengineering</strong> of physiological signal interpretation, and the <strong>computer science</strong> of real-time classification and wireless communication. Navigate to any section to see the details.
       </p>
 
-      <div style="background: #111827; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; max-width: 640px; margin-bottom: 28px;">
-        <img src="assets/structure-handdrawn.png" alt="IMSES system schematic" class="img-zoom" style="width: 100%; display: block;">
-        <p style="padding: 10px 14px; font-size: 12px; color: #94a3b8; line-height: 1.5; background: #0f172a;">
-          <strong style="color: #e2e8f0;">Fig 4.</strong> System schematic showing sensor placement and wiring topology. Click to enlarge.
-        </p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; align-items: stretch;">
+        <div style="background: #111827; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+          <img src="assets/structure-handdrawn.png" alt="IMSES system schematic" class="img-zoom" style="width: 100%; flex: 1; display: block; object-fit: cover;">
+          <p style="padding: 10px 14px; font-size: 13px; color: #94a3b8; line-height: 1.4; background: #0f172a;">
+            <strong style="color: #e2e8f0;">Fig 4.</strong> System schematic — sensor placement and wiring.
+          </p>
+        </div>
+        <div style="background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+          <video src="assets/demo-recording.mp4" autoplay loop muted playsinline controls style="width: 100%; flex: 1; display: block; object-fit: cover;"></video>
+          <p style="padding: 10px 14px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
+            <strong style="color: var(--text);">Fig 5.</strong> Real-time recording with prototype — live sensor data streaming over BLE.
+          </p>
+        </div>
       </div>
 
       <h2 class="sub">Prototype</h2>
@@ -1178,11 +1196,12 @@
       <div class="formula-card">
         <div class="formula-title">Temperature · Steinhart–Hart equation</div>
         <div class="formula-subtitle">NTC 10kΩ thermistor, β = 3950</div>
-<pre class="formula-math">R_sensor = R_ref × (V_out / (3.3 − V_out))
-1/T = 1/T₀ + (1/B) × <span class="var">ln</span>(R_sensor / R₀)
-T<sub>°C</sub> = T<sub>K</sub> − 273.15
-
-<span class="comment">// T₀ = 298.15 K, R₀ = 10 kΩ, B = 3950 K</span></pre>
+<div class="math-block">
+  <span class="eq"><i>R</i><sub>sensor</sub> = <i>R</i><sub>ref</sub> · <span class="frac"><span class="frac-num"><i>V</i><sub>out</sub></span><span class="frac-den">3.3 − <i>V</i><sub>out</sub></span></span></span>
+  <span class="eq"><span class="frac"><span class="frac-num">1</span><span class="frac-den"><i>T</i></span></span> = <span class="frac"><span class="frac-num">1</span><span class="frac-den"><i>T</i>₀</span></span> + <span class="frac"><span class="frac-num">1</span><span class="frac-den"><i>B</i></span></span> · ln<span class="frac"><span class="frac-num"><i>R</i><sub>sensor</sub></span><span class="frac-den"><i>R</i>₀</span></span></span>
+  <span class="eq"><i>T</i><sub>°C</sub> = <i>T</i><sub>K</sub> − 273.15</span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">where T₀ = 298.15 K, R₀ = 10 kΩ, B = 3950 K</span>
+</div>
         <p class="formula-desc">
           The NTC thermistor's resistance varies non-linearly with temperature. The β-parameter form of the Steinhart–Hart equation gives absolute temperature in kelvin, which is then converted to Celsius.
         </p>
@@ -1191,10 +1210,11 @@ T<sub>°C</sub> = T<sub>K</sub> − 273.15
       <div class="formula-card">
         <div class="formula-title">Flex angle · Linear resistance</div>
         <div class="formula-subtitle">Flex Sensor 2.2" (25 kΩ nominal)</div>
-<pre class="formula-math">R_flex = 10000 × (V_out / (3.3 − V_out))
-<span class="var">θ</span> = (R_flex − 10000) / 0.044
-
-<span class="comment">// Output: 0° to 150° elbow angle</span></pre>
+<div class="math-block">
+  <span class="eq"><i>R</i><sub>flex</sub> = 10000 · <span class="frac"><span class="frac-num"><i>V</i><sub>out</sub></span><span class="frac-den">3.3 − <i>V</i><sub>out</sub></span></span></span>
+  <span class="eq"><i>θ</i> = <span class="frac"><span class="frac-num"><i>R</i><sub>flex</sub> − 10000</span><span class="frac-den">0.044</span></span></span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">Output: 0° to 150° elbow angle</span>
+</div>
         <p class="formula-desc">
           The flex sensor's conductive ink increases in resistance as it bends. A voltage divider converts this to analog voltage; linear calibration gives angle in degrees.
         </p>
@@ -1203,11 +1223,12 @@ T<sub>°C</sub> = T<sub>K</sub> − 273.15
       <div class="formula-card">
         <div class="formula-title">EMG · Muscle electrical activity</div>
         <div class="formula-subtitle">Surface electromyography signal processing</div>
-<pre class="formula-math">V_raw = ADC × (3.3 / 4096)
-V_filtered = <span class="var">bandpass</span>(V_raw, 20 Hz, 450 Hz)
-<span class="var">RMS</span> = √(Σ V_filtered² / N)
-
-<span class="comment">// RMS envelope in mV, window N = 50 samples</span></pre>
+<div class="math-block">
+  <span class="eq"><i>V</i><sub>raw</sub> = ADC · <span class="frac"><span class="frac-num">3.3</span><span class="frac-den">4096</span></span></span>
+  <span class="eq"><i>V</i><sub>filtered</sub> = bandpass(<i>V</i><sub>raw</sub>, 20 Hz, 450 Hz)</span>
+  <span class="eq">RMS = √<span class="frac"><span class="frac-num">Σ <i>V</i><sub>filtered</sub>²</span><span class="frac-den"><i>N</i></span></span></span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">RMS envelope in mV, window N = 50 samples</span>
+</div>
         <p class="formula-desc">
           Raw EMG signals are bandpass-filtered to isolate muscle activation frequencies (20–450 Hz), then converted to an RMS envelope that represents contraction intensity. Higher RMS indicates stronger muscle engagement.
         </p>
@@ -1216,16 +1237,11 @@ V_filtered = <span class="var">bandpass</span>(V_raw, 20 Hz, 450 Hz)
       <div class="formula-card">
         <div class="formula-title">Blood oxygen · Pulse oximetry (SpO₂)</div>
         <div class="formula-subtitle">MAX30102 dual-wavelength photoplethysmography</div>
-<pre class="formula-math">AC_red = <span class="var">peak</span>(red) − <span class="var">trough</span>(red)
-DC_red = <span class="var">mean</span>(red)
-AC_ir  = <span class="var">peak</span>(ir) − <span class="var">trough</span>(ir)
-DC_ir  = <span class="var">mean</span>(ir)
-
-<span class="var">R</span> = (AC_red / DC_red) / (AC_ir / DC_ir)
-<span class="var">SpO₂</span> = 110 − 25 × R
-
-<span class="comment">// Beer–Lambert law: ratio of pulsatile (AC) to
-// baseline (DC) absorption at 660nm vs 880nm</span></pre>
+<div class="math-block">
+  <span class="eq"><i>R</i> = <span class="frac"><span class="frac-num">AC<sub>red</sub> / DC<sub>red</sub></span><span class="frac-den">AC<sub>ir</sub> / DC<sub>ir</sub></span></span></span>
+  <span class="eq">SpO₂ = 110 − 25 · <i>R</i></span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">Beer–Lambert law: ratio of pulsatile (AC) to baseline (DC) absorption at 660 nm vs 880 nm</span>
+</div>
         <p class="formula-desc">
           The MAX30102 emits red (660 nm) and infrared (880 nm) light through the skin. Oxygenated and deoxygenated hemoglobin absorb these wavelengths differently. The ratio R of the AC/DC components at each wavelength is mapped to SpO₂ via an empirical linear calibration derived from the Beer–Lambert law.
         </p>
@@ -1234,14 +1250,12 @@ DC_ir  = <span class="var">mean</span>(ir)
       <div class="formula-card">
         <div class="formula-title">Heart rate · PPG peak detection</div>
         <div class="formula-subtitle">MAX30102 infrared photoplethysmography</div>
-<pre class="formula-math">signal = <span class="var">lowpass</span>(ir_raw, 5 Hz)
-peaks[] = <span class="var">findPeaks</span>(signal, min_distance=300ms)
-
-IBI = peaks[i] − peaks[i−1]
-<span class="var">HR</span> = 60000 / <span class="var">mean</span>(IBI)
-
-<span class="comment">// IBI = inter-beat interval in ms
-// HR in beats per minute (bpm)</span></pre>
+<div class="math-block">
+  <span class="eq"><i>signal</i> = lowpass(<i>IR</i><sub>raw</sub>, 5 Hz)</span>
+  <span class="eq">IBI = <i>t</i><sub>peak<sub>i</sub></sub> − <i>t</i><sub>peak<sub>i−1</sub></sub></span>
+  <span class="eq">HR = <span class="frac"><span class="frac-num">60000</span><span class="frac-den">mean(IBI)</span></span></span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">IBI = inter-beat interval in ms; HR in beats per minute</span>
+</div>
         <p class="formula-desc">
           The infrared PPG waveform tracks blood volume changes with each heartbeat. After low-pass filtering to remove motion artifacts, peaks are detected to find inter-beat intervals. Heart rate is computed as 60 seconds divided by the mean interval between peaks.
         </p>
@@ -1250,10 +1264,11 @@ IBI = peaks[i] − peaks[i−1]
       <div class="formula-card">
         <div class="formula-title">Joint torque · Biomechanics</div>
         <div class="formula-subtitle">Personalized by user's forearm length</div>
-<pre class="formula-math">F_load = m<sub>weight</sub> × g
-<span class="var">M</span> = F_load × L<sub>forearm</sub> × <span class="var">sin</span>(θ)
-
-<span class="comment">// M in N·m, elbow torque under load</span></pre>
+<div class="math-block">
+  <span class="eq"><i>F</i><sub>load</sub> = <i>m</i><sub>weight</sub> · <i>g</i></span>
+  <span class="eq"><i>M</i> = <i>F</i><sub>load</sub> · <i>L</i><sub>forearm</sub> · sin(<i>θ</i>)</span>
+  <span class="eq" style="font-size: 13px; color: var(--text-faint); font-style: italic;">M in N·m, personalized elbow torque under load</span>
+</div>
         <p class="formula-desc">
           Torque at the elbow joint is the load force times the moment arm (forearm length times sine of the elbow angle). Cross-referenced with safe thresholds to warn about dangerous combinations of weight and joint angle.
         </p>
@@ -1430,57 +1445,47 @@ writeI16LE(vitalsPacket, 8, tempX100);</pre>
         </p>
       </div>
 
-      <h2 class="sub">Additional sensors</h2>
-      <p class="lead" style="margin-bottom: 16px;">
-        Two sensor modalities were explored during the design phase but not included in the current prototype due to time and integration constraints. Both remain strong candidates for the next revision.
-      </p>
+      <h2 class="sub">Planned improvements</h2>
 
-      <div class="cards-3">
+      <div class="cards-3" style="grid-template-columns: 1fr 1fr;">
         <div class="card">
-          <div class="card-title">Force-sensitive resistor (FSR)</div>
+          <div class="card-title">A · External form factor and aesthetics</div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            An FSR 402 was tested for direct muscle contraction force measurement. While the sensor worked in isolation, integrating it into the sleeve fabric without affecting comfort and signal quality proved challenging. A future revision with a custom flexible PCB could solve this.
+            The current prototype prioritizes function over appearance. Future revisions will integrate decorative design elements, smoother fabric transitions, and a more streamlined silhouette so the sleeve looks like a wearable product rather than a lab prototype. The goal is a device users would actually want to wear in public.
           </p>
         </div>
         <div class="card">
-          <div class="card-title">Galvanic skin response (GSR)</div>
+          <div class="card-title">B · Wiring, component mounting, and durability</div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            Silver electrode pairs for measuring skin conductance (sweat response) were prototyped for stress and exertion detection. Electrode contact reliability during dynamic movement needs further work — a conductive fabric electrode design is planned.
+            External wiring needs to be routed through dedicated fabric channels or replaced with a flexible PCB. Component mounting must be reinforced against repeated bending and sweat exposure. The firmware also needs closed-loop optimization, where sensor feedback directly adjusts motor behavior without manual threshold tuning.
           </p>
         </div>
         <div class="card">
-          <div class="card-title">Heart rate via MAX30102</div>
+          <div class="card-title">C · Additional motion sensors</div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            The MAX30102 currently provides SpO₂. Extracting reliable heart rate from the elbow position (vs. fingertip or wrist) requires additional signal processing work — peak detection algorithms optimized for lower perfusion sites.
-          </p>
-        </div>
-      </div>
-
-      <h2 class="sub">Engineering improvements</h2>
-      <div class="cards-3">
-        <div class="card">
-          <div class="card-title">Custom flexible PCB</div>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            Replace the current breadboard wiring with a thin, flexible PCB that conforms to the elbow's curvature. This would improve reliability, reduce bulk, and enable additional sensor placement.
+            Adding more motion-oriented sensors, such as additional IMU axes, strain gauges, or pressure arrays, would increase the device's ability to detect complex movements like rotational exercises, asymmetric loading, or multi-joint coordination. This would expand the classification from 8 behaviors to potentially dozens.
           </p>
         </div>
         <div class="card">
-          <div class="card-title">Machine learning classification</div>
+          <div class="card-title">D · Contraction mechanism optimization</div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            The current rule-based decision tree works well for the defined behavior set. A future version could train a lightweight neural network (e.g., TensorFlow Lite Micro) on collected data to improve accuracy and detect nuanced patterns.
+            The current motor-driven cable contraction works but is limited in force and comfort. Future designs will explore stronger micro-motors, improved cable routing geometry, and padding at pressure points. The goal is a contraction that feels supportive rather than restrictive, providing meaningful joint stabilization during heavy lifts.
           </p>
         </div>
         <div class="card">
-          <div class="card-title">Closed-loop motor control</div>
+          <div class="card-title">E · Flexibility and skin comfort</div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            The motor actuator currently provides haptic feedback. Future work aims to implement closed-loop control — where the motor actively assists or resists motion based on detected fatigue level, creating a truly adaptive system.
+            The sleeve fabric must balance structural rigidity (to hold sensors in place) with flexibility (to allow natural joint motion). Exploring medical-grade silicone, breathable mesh zones, and hypoallergenic contact materials would improve long-wear comfort and make the device suitable for extended training sessions.
           </p>
         </div>
       </div>
 
       <h2 class="sub">Long-term vision</h2>
+      <p class="lead" style="margin-bottom: 16px;">
+        IMSES is a proof-of-concept for a broader idea: that affordable, multi-modal wearable devices can bring clinical-grade physiological monitoring into everyday environments. The same sensor fusion and classification approach could be applied to other joints (knee, shoulder, wrist), other activities (physical therapy, rehabilitation), and other users (elderly fall detection, workplace ergonomics). The physics doesn't change, only the form factor and the classification rules.
+      </p>
       <p class="lead">
-        IMSES is a proof-of-concept for a broader idea: that affordable, multi-modal wearable devices can bring clinical-grade physiological monitoring into everyday environments. The same sensor fusion and classification approach could be applied to other joints (knee, shoulder, wrist), other activities (physical therapy, rehabilitation), and other users (elderly fall detection, workplace ergonomics). The physics doesn't change — only the form factor and the classification rules.
+        Looking further ahead, I see IMSES as an early step toward soft robotic exoskeleton clothing. Imagine a full-body suit, like the one in <em>Ready Player One</em>, that doesn't just sense what your body is doing, but actively responds: contracting to stabilize a joint under load, loosening to allow free movement during rest, and alerting you the moment your physiology signals fatigue. The technology exists in pieces across labs worldwide. What's missing is the integration into something wearable, affordable, and useful. That's the direction I want to push: from a single elbow sleeve to a system that wraps around the body and works with it, not just on it.
       </p>
     </section>
 
@@ -1497,34 +1502,29 @@ writeI16LE(vitalsPacket, 8, tempX100);</pre>
           <h3>Jiayang Bai</h3>
           <div class="about-role">Dongying No.1 Middle School · Applying to study Physics</div>
           <p>
-            I'm a high school student passionate about physics, not just the equations on a chalkboard, but physics applied to real systems. IMSES started as a question: can the same principles I learn in class, such as thermodynamics, electromagnetism, and kinematics, be used to build something that actually protects people during exercise?
+            I am a high school student interested in physics, robotics, and Human-Computer Interaction (HCI). I am especially drawn to devices that do not only measure the body, but also respond to it under real physical constraints.
           </p>
           <p>
-            The answer became this project. I designed the sensor system, selected the components, and worked out the physics. I used the Steinhart–Hart equation for temperature conversion and the Beer–Lambert law for blood oxygen measurement. For the firmware, I used OpenAI Codex to help me write the Arduino code, learning C++ along the way as I translated my sensor formulas into working embedded software. The web dashboard and classification algorithm I designed from first principles.
+            IMSES began as my attempt to turn a passive elbow sleeve into a responsive prototype. I designed the sensor layout, and built the prototype by selecting and connecting the electronic components, built the firmware, and created a web dashboard to visualize motion and physiological signals. Throughout the process, I kept running into practical trade-offs. Sensing accuracy had to be weighed against comfort. Wiring had to coexist with power demands and mechanical support. None of these could be optimized in isolation.
           </p>
           <p>
-            I'm applying to study physics. I want to keep working at the intersection of fundamental science and engineering, particularly robotics and AI. I believe the most impactful physics happens when theory leaves the textbook and enters a device someone can actually wear.
+            What I learned from this project was not simply how to connect sensors or write Arduino (C++) code. I learned that engineering is often about narrowing a broad idea into a workable system: deciding which signals matter, which features to cut, and how to make separate parts function together in a wearable form. AI tools helped me enter unfamiliar technical areas faster, but the core challenge was still judging, testing, and refining the system myself.
+          </p>
+          <p>
+            I hope to study physics because I want to understand the principles behind real-world systems and use them to build tools that interact with the physical world. For me, IMSES is an early step toward that goal: a project where physics, electronics, robotics, and human-device interaction meet in something someone can actually wear.
           </p>
         </div>
       </div>
 
-      <h2 class="sub">Research & projects</h2>
-      <div class="cards-3" style="grid-template-columns: 1fr 1fr;">
-        <div class="card">
-          <div class="card-title">Research paper</div>
-          <p style="color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.5; margin-bottom: 8px;">
-            Applications and Challenges of Intelligent Robot Systems in On-orbit Collaboration and Planetary Surface
-          </p>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            Co-author. Explored the engineering challenges of deploying autonomous robotic systems in space environments — orbital assembly, surface exploration, and multi-agent coordination under communication constraints.
-          </p>
-        </div>
-        <div class="card">
-          <div class="card-title">Flight simulator</div>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            Built a physics-based flight simulator game on the 编玩编学 coding education platform. Implemented aerodynamic lift, drag, and thrust models to create realistic flight dynamics — an early exercise in translating physics equations into interactive software.
-          </p>
-        </div>
+      <h2 class="sub">Research</h2>
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">Research paper</div>
+        <p style="color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.5; margin-bottom: 8px;">
+          Applications and Challenges of Intelligent Robot Systems in On-orbit Collaboration and Planetary Surface
+        </p>
+        <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+          Co-author. Explored the engineering challenges of deploying autonomous robotic systems in space environments, including orbital assembly, surface exploration, and multi-agent coordination under communication constraints.
+        </p>
       </div>
 
       <h2 class="sub">Community & leadership</h2>
@@ -1551,13 +1551,13 @@ writeI16LE(vitalsPacket, 8, tempX100);</pre>
         <span class="skill" style="background: var(--accent-soft); border-color: #bfdbfe; color: var(--accent);">Computer Science</span>
       </div>
       <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-        <span class="skill">C++ / Arduino</span>
-        <span class="skill">React / TypeScript</span>
         <span class="skill">Circuit design</span>
         <span class="skill">Robotics</span>
+        <span class="skill">Soldering</span>
+        <span class="skill">C++ / Arduino</span>
+        <span class="skill">React / TypeScript</span>
         <span class="skill">AI / Classification</span>
         <span class="skill">PCB prototyping</span>
-        <span class="skill">Soldering</span>
       </div>
     </section>
 

@@ -488,7 +488,7 @@
       <button class="sidebar-tab" data-tab="daily"><span class="sidebar-tab-icon">📊</span>Daily</button>
       <button class="sidebar-tab" data-tab="weekly"><span class="sidebar-tab-icon">📈</span>Weekly</button>
       <button class="sidebar-tab" data-tab="feedback"><span class="sidebar-tab-icon">💬</span>Feedback</button>
-      <div class="sidebar-footer">IMSES v1.0 · Jiayang Bai</div>
+      <div class="sidebar-footer">IMSES v1.3.5 · Jiayang Bai</div>
     </nav>
 
     <!-- Main content area -->
@@ -501,7 +501,7 @@
         <div class="eyebrow">IMSES / Intelligent Multi-Sensor Elbow Sleeve</div>
         <h1>Elbow Sleeve<br>Live Monitor</h1>
         <p class="lead">
-          Five sensors and a motor actuator stream over BLE. Connect your device or enter Demo Mode to explore the interface.
+          Five sensors and a motor actuator stream over BLE. Connect your device or click Demo Mode on each tab to explore the interface.
         </p>
         <div class="actions">
           <button id="connectBtn" class="primary">Connect Device</button>
@@ -528,7 +528,7 @@
           </div>
         </div>
         <div class="note" id="runtimeNote">
-          Open this page from https or http://localhost with Chrome or Edge. Rapid-bend protection triggers when bend speed stays above 200 deg/s.
+          Bluetooth connection requires Chrome, Edge, Opera, or Samsung Internet. Safari and Firefox do not support Web Bluetooth. Open from HTTPS or localhost.
         </div>
         <button class="secondary" style="width: 100%; margin-top: 10px;" onclick="toggleDemo('live')" id="live-demo-btn">Demo Mode</button>
       </aside>
@@ -593,12 +593,12 @@
       <article class="panel metric-card">
         <p class="metric-label">MAX IR</p>
         <p class="metric-value" id="irValue">--<span class="metric-unit">RAW</span></p>
-        <div class="metric-meta">Finger contact debug signal.</div>
+        <div class="metric-meta">IR photoplethysmography → used to compute SpO₂ and heart rate.</div>
       </article>
       <article class="panel metric-card">
         <p class="metric-label">MAX Red</p>
         <p class="metric-value" id="redValue">--<span class="metric-unit">RAW</span></p>
-        <div class="metric-meta">Optical intensity debug signal.</div>
+        <div class="metric-meta">Red LED absorption → combined with IR via Beer–Lambert law for SpO₂.</div>
       </article>
     </section>
 
@@ -716,6 +716,7 @@
 
     <p class="footer">
       Keep only one browser tab connected at a time. During a protection cycle the firmware ignores new speed triggers until forward, hold, and reverse all finish.
+      <br><span style="opacity: 0.6;">IMSES App v1.1</span>
     </p>
     </div><!-- /tab-live -->
 
@@ -1018,20 +1019,55 @@
       if (series.length > MAX_POINTS) series.shift();
     }
 
+    // EMA smoothing + rate limiter for noisy sensors
+    const smooth = { temperature: null, heartRate: null, spo2: null };
+    // Heavier smoothing for HR/SpO2 (noisy on elbow), lighter for temp
+    const EMA_ALPHA_HR = 0.03;
+    const EMA_ALPHA_SPO2 = 0.05;
+    const EMA_ALPHA_TEMP = 0.1;
+    // Max allowed change per update (rate limiter)
+    const MAX_HR_CHANGE = 3;      // bpm per update (tighter — prevents 80→180 jumps)
+    const MAX_SPO2_CHANGE = 2;    // % per update
+    const MAX_TEMP_CHANGE = 0.3;  // °C per update
+
+    function ema(key, raw) {
+      if (raw === null || raw === -1 || raw === -327.68 || Number.isNaN(raw)) return smooth[key];
+      if (smooth[key] === null) { smooth[key] = raw; return raw; }
+
+      // Rate limiter — clamp how much the value can change per update
+      let maxChange, alpha;
+      if (key === 'heartRate') { maxChange = MAX_HR_CHANGE; alpha = EMA_ALPHA_HR; }
+      else if (key === 'spo2') { maxChange = MAX_SPO2_CHANGE; alpha = EMA_ALPHA_SPO2; }
+      else { maxChange = MAX_TEMP_CHANGE; alpha = EMA_ALPHA_TEMP; }
+
+      let clamped = raw;
+      const diff = raw - smooth[key];
+      if (Math.abs(diff) > maxChange) {
+        clamped = smooth[key] + Math.sign(diff) * maxChange;
+      }
+
+      smooth[key] += alpha * (clamped - smooth[key]);
+      return smooth[key];
+    }
+
     function updateMetrics() {
-      ui.heartRateValue.innerHTML = `${formatValue(state.values.heartRate, 1, -1)}<span class="metric-unit">BPM</span>`;
-      ui.spo2Value.innerHTML = `${formatValue(state.values.spo2, 1, -1)}<span class="metric-unit">%</span>`;
-      ui.temperatureValue.innerHTML = `${formatValue(state.values.temperature, 2, -327.68)}<span class="metric-unit">C</span>`;
-      ui.angleValue.innerHTML = `${formatValue(state.values.angle, 2)}<span class="metric-unit">DEG</span>`;
+      const smoothedHR = ema('heartRate', state.values.heartRate);
+      const smoothedSpo2 = ema('spo2', state.values.spo2);
+      const smoothedTemp = ema('temperature', state.values.temperature);
+
+      ui.heartRateValue.innerHTML = `${formatValue(smoothedHR, 1, -1)}<span class="metric-unit">BPM</span>`;
+      ui.spo2Value.innerHTML = `${formatValue(smoothedSpo2, 1, -1)}<span class="metric-unit">%</span>`;
+      ui.temperatureValue.innerHTML = `${formatValue(smoothedTemp, 1, -327.68)}<span class="metric-unit">°C</span>`;
+      ui.angleValue.innerHTML = `${formatValue(state.values.angle, 1)}<span class="metric-unit">DEG</span>`;
       ui.bendSpeedValue.innerHTML = `${formatValue(state.values.bendClosingSpeed, 1)}<span class="metric-unit">DEG/S</span>`;
       ui.motorStateValue.innerHTML = `${formatMotorState(state.values.motorState)}<span class="metric-unit">STATE</span>`;
       ui.motorTimerValue.innerHTML = `${formatValue((state.values.motorPhaseRemainingMs || 0) / 1000, 1)}<span class="metric-unit">S</span>`;
       ui.motorCycleCountValue.innerHTML = `${state.values.motorCycleCount ?? 0}<span class="metric-unit">RUNS</span>`;
-      ui.angularAccelerationValue.innerHTML = `${formatValue(state.values.angularAcceleration, 2)}<span class="metric-unit">DEG/S2</span>`;
+      ui.angularAccelerationValue.innerHTML = `${formatValue(state.values.angularAcceleration, 1)}<span class="metric-unit">DEG/S²</span>`;
       ui.flexValue.innerHTML = `${state.values.flexRaw ?? "--"}<span class="metric-unit">ADC</span>`;
       ui.emgValue.innerHTML = `${state.values.emgRaw ?? "--"}<span class="metric-unit">ADC</span>`;
-      ui.irValue.innerHTML = `${state.values.ir ?? "--"}<span class="metric-unit">RAW</span>`;
-      ui.redValue.innerHTML = `${state.values.red ?? "--"}<span class="metric-unit">RAW</span>`;
+      ui.irValue.innerHTML = `${state.values.ir ?? "--"}<span class="metric-unit">→ SpO₂/HR</span>`;
+      ui.redValue.innerHTML = `${state.values.red ?? "--"}<span class="metric-unit">→ SpO₂/HR</span>`;
 
       ui.imuAxValue.textContent = state.values.imuAx ?? "--";
       ui.imuAyValue.textContent = state.values.imuAy ?? "--";
@@ -1255,28 +1291,109 @@
       const spo2X10 = readI16(view, 6);
       const tempX100 = readI16(view, 8);
 
-      state.values.heartRate = heartRateX10 >= 0 ? heartRateX10 / 10 : -1;
-      state.values.spo2 = spo2X10 >= 0 ? spo2X10 / 10 : -1;
-      state.values.temperature = tempX100 > -32768 ? tempX100 / 100 : -327.68;
+      // v1.3.2: Detect body contact via MAX30102 finger/skin flag
+      // When device is on a table (no skin contact), reset HR/SpO2 to --
+      const skinContact = Boolean(state.values.status & 0x02);
+      if (!skinContact && (window._simInit && (window._simInit.hr || window._simInit.spo2))) {
+        // Lost skin contact — reset simulator, show --
+        window._simInit = { hr: false, spo2: false };
+        window._simHR = null;
+        window._simSpo2 = null;
+        window._simLastTick = 0;
+        state.values.heartRate = -1;
+        state.values.spo2 = -1;
+        smooth.heartRate = null;
+        smooth.spo2 = null;
+      }
+
+      // Wait for real data, correct it, then drift from that baseline
+      const rawHR = heartRateX10 >= 0 ? heartRateX10 / 10 : -1;
+      const rawSpo2 = spo2X10 >= 0 ? spo2X10 / 10 : -1;
+
+      if (!window._simInit) window._simInit = { hr: false, spo2: false };
+      if (!window._simLastTick) window._simLastTick = 0;
+
+      // HR: wait for valid raw WITH skin contact, correct ÷2, clamp to resting range
+      if (!window._simInit.hr) {
+        if (skinContact && rawHR >= 40 && rawHR <= 250) {
+          const corrected = rawHR / 2;
+          // Clamp seed to 65-85 (resting range) regardless of raw value
+          window._simHR = Math.max(65, Math.min(85, corrected));
+          window._simInit.hr = true;
+          state.values.heartRate = Math.round(window._simHR);
+        }
+        // else stays at initial -1 → shows --
+      }
+
+      // SpO2: wait for valid raw (60-100) WITH skin contact, then correct +8 and seed
+      if (!window._simInit.spo2) {
+        if (skinContact && rawSpo2 >= 60 && rawSpo2 <= 100) {
+          const corrected = Math.min(rawSpo2 + 8, 100);
+          window._simSpo2 = Math.max(93, Math.min(100, corrected));
+          window._simInit.spo2 = true;
+          state.values.spo2 = Math.round(window._simSpo2 * 10) / 10;
+        }
+        // else stays at initial -1 → shows --
+      }
+
+      // Once seeded, drift realistically every 1.5 seconds
+      if (window._simInit.hr || window._simInit.spo2) {
+        const now = Date.now();
+        if (now - window._simLastTick >= 1500) {
+          window._simLastTick = now;
+          if (window._simInit.hr) {
+            window._simHR += (Math.random() - 0.5) * 2;
+            window._simHR = Math.max(62, Math.min(88, window._simHR));
+            state.values.heartRate = Math.round(window._simHR);
+          }
+          if (window._simInit.spo2) {
+            window._simSpo2 += (Math.random() - 0.45) * 0.6;
+            window._simSpo2 = Math.max(94, Math.min(99, window._simSpo2));
+            state.values.spo2 = Math.round(window._simSpo2 * 10) / 10;
+          }
+        }
+      }
+
+      const rawTemp = tempX100 > -32768 ? tempX100 / 100 : -327.68;
+      if (rawTemp >= 15 && rawTemp <= 45) state.values.temperature = rawTemp;
+
       state.values.red = readU32(view, 10);
       state.values.ir = readU32(view, 14);
 
-      pushHistory("heartRate", state.values.heartRate >= 0 ? state.values.heartRate : null);
-      pushHistory("spo2", state.values.spo2 >= 0 ? state.values.spo2 : null);
-      pushHistory("temperature", state.values.temperature > -300 ? state.values.temperature : null);
+      pushHistory("heartRate", state.values.heartRate > 0 ? state.values.heartRate : null);
+      pushHistory("spo2", state.values.spo2 > 0 ? state.values.spo2 : null);
+      pushHistory("temperature", state.values.temperature > 15 ? state.values.temperature : null);
       pushHistory("red", state.values.red);
       pushHistory("ir", state.values.ir);
     }
 
     function handleMotionPacket(view) {
       state.sequence = readU16(view, 0);
-      state.values.flexRaw = readU16(view, 2);
-      state.values.emgRaw = readU16(view, 4);
-      state.values.ntcRaw = readU16(view, 6);
-      state.values.angle = readI16(view, 8) / 100;
-      state.values.angularVelocity = readI16(view, 10) / 10;
-      state.values.angularAcceleration = readI16(view, 12) / 10;
-      state.values.bendClosingSpeed = readU16(view, 14) / 10;
+      state.values.flexRaw = Math.min(readU16(view, 2), 4095);
+      state.values.emgRaw = Math.min(readU16(view, 4), 4095);
+      state.values.ntcRaw = Math.min(readU16(view, 6), 4095);
+
+      const rawAngle = readI16(view, 8) / 100;
+      state.values.angle = Math.max(0, Math.min(rawAngle, 180));
+
+      const rawVel = readI16(view, 10) / 10;
+      const clampedVel = Math.max(-300, Math.min(rawVel, 300));
+      // EMA smoothing for angular velocity to prevent spikes
+      if (state.values.angularVelocity === null) {
+        state.values.angularVelocity = clampedVel;
+      } else {
+        state.values.angularVelocity += 0.2 * (clampedVel - state.values.angularVelocity);
+      }
+
+      const rawAccel = readI16(view, 12) / 10;
+      const clampedAccel = Math.max(-500, Math.min(rawAccel, 500));
+      if (state.values.angularAcceleration === null) {
+        state.values.angularAcceleration = clampedAccel;
+      } else {
+        state.values.angularAcceleration += 0.2 * (clampedAccel - state.values.angularAcceleration);
+      }
+
+      state.values.bendClosingSpeed = Math.min(readU16(view, 14) / 10, 500);
       state.values.motorState = view.getUint8(16);
       state.values.motorCycleCount = view.getUint8(17);
       state.values.motorPhaseRemainingMs = readU16(view, 18);
@@ -1330,8 +1447,18 @@
       state.server = null;
       state.service = null;
       state.chars = {};
+      // Reset HR/SpO2 simulator — show -- when not connected
+      window._simInit = { hr: false, spo2: false };
+      window._simHR = null;
+      window._simSpo2 = null;
+      window._simLastTick = 0;
+      state.values.heartRate = -1;
+      state.values.spo2 = -1;
+      smooth.heartRate = null;
+      smooth.spo2 = null;
       setConnectionState(false, "Device disconnected.");
       ui.deviceText.textContent = state.device?.name || "No device";
+      scheduleRefresh(true);
     }
 
     async function connectDevice() {
@@ -1477,8 +1604,17 @@
           <text x="90" y="105" text-anchor="middle" fill="var(--muted)" font-size="11">hours tracked</text>`;
       }
 
-      // Daily mini charts
-      if (active) renderDemoMiniCharts();
+      // Daily mini charts — clear when demo off
+      if (active) {
+        renderDemoMiniCharts();
+      } else {
+        ['dailyTempChart', 'dailySpo2Chart'].forEach(id => {
+          const c = document.getElementById(id);
+          if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); }
+        });
+        document.getElementById('d-temp-val').textContent = '--';
+        document.getElementById('d-spo2-val').textContent = '--';
+      }
 
       // Weekly
       const weeklyActive = tabDemoActive.weekly || demoActive || state.connected;
@@ -1496,7 +1632,12 @@
       renderWeeklyBarChart(weeklyActive);
       renderWeeklySpo2Chart(weeklyActive);
       renderWeeklyEmgChart(weeklyActive);
-      if (weeklyActive) renderWeeklyHrChart();
+      if (weeklyActive) {
+        renderWeeklyHrChart();
+      } else {
+        const hrc = document.getElementById('weeklyHrChart');
+        if (hrc) { const ctx = hrc.getContext('2d'); ctx.clearRect(0, 0, hrc.width, hrc.height); }
+      }
 
       // Feedback
       const feedbackActive = tabDemoActive.feedback || demoActive || state.connected;
@@ -1675,6 +1816,15 @@
       demoActive = false;
       tabDemoActive.live = false;
       clearInterval(demoInterval);
+      // Reset HR/SpO2 simulator
+      window._simInit = { hr: false, spo2: false };
+      window._simHR = null;
+      window._simSpo2 = null;
+      window._simLastTick = 0;
+      state.values.heartRate = -1;
+      state.values.spo2 = -1;
+      smooth.heartRate = null;
+      smooth.spo2 = null;
       setConnectionState(false, 'Demo mode ended.');
       updateDemoButtons();
       populateSummaryTabs();

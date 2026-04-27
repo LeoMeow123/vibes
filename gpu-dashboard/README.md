@@ -30,38 +30,64 @@ A lightweight Python agent runs on each machine, collects GPU/CPU/RAM stats ever
 
 ## Quick Start (Add Your Machine)
 
-No clone needed. Just run this on any machine with `nvidia-smi` and Python:
+No clone needed. Just run this on any machine with `nvidia-smi` and Python.
+
+### Workstation (Ubuntu with sudo)
 
 ```bash
-# Install dependencies first
+# Install dependencies
 pip install psutil requests
 
-# Then download and run the installer
+# Download and run the installer
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \
 SCRIPT_DIR=/tmp bash /tmp/gpu-install.sh
 ```
 
-The installer will prompt you for:
-1. **Gist ID** — ask the dashboard owner for this
-2. **GitHub Token** — a [Personal Access Token](https://github.com/settings/tokens) with `gist` scope only
-3. **Machine label** — display name (e.g. "My Workstation")
-4. **Machine type** — `workstation` or `runai`
+The installer sets up a **systemd service** that auto-starts on boot. You're done.
 
-It automatically:
-- Installs the agent to `~/.local/bin/gpu-agent`
-- Sets up a systemd service (auto-starts on boot)
-- Runs a dry-run test to verify everything works
+### RunAI (no sudo, no systemd)
 
-That's it. Open the [dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) to see your machine.
+```bash
+# Install dependencies (use whichever works in your environment)
+pip install psutil requests
+# or: uv pip install psutil requests --system
+# or: pip install --user psutil requests
+
+# Download and run the installer
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \
+SCRIPT_DIR=/tmp bash /tmp/gpu-install.sh
+```
+
+RunAI doesn't have systemd, so the installer will print manual instructions. **Run the agent in tmux** so it survives terminal disconnects:
+
+```bash
+tmux new -d -s gpu-agent "python3 ~/.local/bin/gpu-agent"
+```
+
+Check it's running:
+```bash
+tmux ls                      # should show gpu-agent session
+tmux attach -t gpu-agent     # peek at output (Ctrl+B, D to detach)
+```
+
+> **Note:** RunAI workspace restarts wipe everything. After a restart, re-run the installer and the tmux command.
 
 ### If you already have VAST access
 
 Even simpler — the files are already on VAST:
 ```bash
-# From any machine with VAST mounted:
-bash /path/to/vast/leo/vibing/gpu-dashboard/agent/install.sh
+# Workstation:
+bash /home/exx/vast/leo/vibing/gpu-dashboard/agent/install.sh
+
+# RunAI:
+bash /root/vast/leo/vibing/gpu-dashboard/agent/install.sh
+
+# Divya:
+bash /mnt/vast/leo/vibing/gpu-dashboard/agent/install.sh
 ```
 
 ### First-time setup (dashboard owner only)

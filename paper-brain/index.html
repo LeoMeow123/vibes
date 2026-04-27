@@ -406,15 +406,65 @@ window.lookupDOI = async function() {
 
   // Extract DOI from URL or raw input
   let doi = input;
-  const doiMatch = input.match(/10\.\d{4,}\/[^\s]+/);
-  if (doiMatch) doi = doiMatch[0];
+
+  // Handle common paper URLs → extract DOI
+  const urlPatterns = [
+    // doi.org direct
+    /doi\.org\/(10\.\d{4,}\/[^\s?#]+)/,
+    // Nature: nature.com/articles/s41586-024-07606-7 → 10.1038/s41586-024-07606-7
+    /nature\.com\/articles\/(s\d+[-\w]+)/,
+    // Science: science.org/doi/10.1126/...
+    /science\.org\/doi\/(10\.\d{4,}\/[^\s?#]+)/,
+    // Cell/ScienceDirect: cell.com/cell/fulltext/S0092-8674(23)00973-X
+    /sciencedirect\.com\/science\/article\/pii\/(\w+)/,
+    /cell\.com\/[^/]+\/fulltext\/(S[\w()-]+)/,
+    // PubMed: pubmed.ncbi.nlm.nih.gov/31042697/
+    /pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/,
+    // bioRxiv/medRxiv
+    /biorxiv\.org\/content\/(10\.\d{4,}\/[^\s?#]+)/,
+    /medrxiv\.org\/content\/(10\.\d{4,}\/[^\s?#]+)/,
+    // Generic DOI in URL
+    /(10\.\d{4,}\/[^\s?#]+)/,
+  ];
+
+  let isPubMed = false;
+  let isCellPII = false;
+
+  for (const pat of urlPatterns) {
+    const m = input.match(pat);
+    if (m) {
+      if (input.includes('pubmed.ncbi')) {
+        isPubMed = true;
+        doi = m[1]; // PMID
+      } else if (input.includes('nature.com/articles/') && !m[1].startsWith('10.')) {
+        doi = '10.1038/' + m[1];
+      } else if ((input.includes('sciencedirect.com') || input.includes('cell.com')) && m[1].startsWith('S')) {
+        isCellPII = true;
+        doi = m[1];
+      } else {
+        doi = m[1];
+      }
+      break;
+    }
+  }
 
   status.className = 'doi-status loading';
   status.textContent = 'Looking up...';
 
   try {
     let url;
-    if (doi.startsWith('10.')) {
+    if (isPubMed) {
+      // Use NCBI API to get DOI from PMID
+      const ncbiResp = await fetch('https://api.ncbi.nlm.nih.gov/lit/ctxp/v1/pubmed/?format=csl&id=' + doi);
+      if (ncbiResp.ok) {
+        const ncbiData = await ncbiResp.json();
+        if (ncbiData.DOI) doi = ncbiData.DOI;
+      }
+      url = 'https://api.crossref.org/works/' + encodeURIComponent(doi);
+    } else if (isCellPII) {
+      // Search by PII on CrossRef
+      url = 'https://api.crossref.org/works?query=' + encodeURIComponent(doi) + '&rows=1';
+    } else if (doi.startsWith('10.')) {
       url = 'https://api.crossref.org/works/' + encodeURIComponent(doi);
     } else {
       // Search by title
@@ -450,6 +500,7 @@ window.lookupDOI = async function() {
 window.savePaper = function() {
   const paper = {
     id: editingId || Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    source: editingId ? (papers.find(p => p.id === editingId)?.source || 'local') : 'local',
     title: document.getElementById('f-title').value.trim(),
     authors: document.getElementById('f-authors').value.trim(),
     year: document.getElementById('f-year').value.trim(),
@@ -513,6 +564,15 @@ window.openDetail = function(id) {
     ${p.funding ? '<div style="margin-bottom:8px;font-size:12px"><span style="color:var(--muted)">Funding:</span> '+esc(p.funding)+'</div>' : ''}
     ${p.abstract ? '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">ABSTRACT</div><div style="font-size:12px;color:#bbb;line-height:1.7">'+esc(p.abstract)+'</div></div>' : ''}
     ${p.notes ? '<div style="background:rgba(251,191,36,0.06);border-radius:8px;padding:12px;border-left:3px solid var(--yellow)"><div style="font-size:11px;color:var(--yellow);font-weight:600;margin-bottom:4px">YOUR NOTES</div><div style="font-size:13px">'+esc(p.notes)+'</div></div>' : ''}
+    <div style="margin-top:16px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">CITE AS</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button class="btn btn-secondary btn-sm" onclick="copyCitation('${p.id}','nature')">Nature</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyCitation('${p.id}','cell')">Cell</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyCitation('${p.id}','science')">Science</button>
+      </div>
+      <div id="citationText" style="font-size:12px;color:#bbb;background:var(--bg3);padding:10px;border-radius:6px;display:none;line-height:1.6;cursor:pointer" title="Click to copy" onclick="navigator.clipboard.writeText(this.textContent)"></div>
+    </div>
     <div class="form-actions" style="margin-top:20px">
       <button class="btn btn-danger btn-sm" onclick="deletePaper('${p.id}')">Delete</button>
       <button class="btn btn-secondary btn-sm" onclick="editPaper('${p.id}')">Edit</button>
@@ -524,6 +584,76 @@ window.openDetail = function(id) {
 
 window.closeDetail = function() {
   document.getElementById('detailOverlay').classList.remove('open');
+};
+
+window.copyCitation = function(id, style) {
+  const p = papers.find(x => x.id === id);
+  if (!p) return;
+
+  // Parse authors: "Last, First; Last, First" → structured
+  const authorList = (p.authors || '').split(';').map(a => a.trim()).filter(a => a);
+  const formatAuthor = (a, style) => {
+    const parts = a.split(',').map(s => s.trim());
+    const last = parts[0] || '';
+    const first = parts[1] || '';
+    const initials = first.split(/[\s.-]+/).map(n => n[0]).filter(n => n).join('.');
+    if (style === 'nature') return last + ', ' + initials + '.';
+    if (style === 'cell') return last + ', ' + initials + '.';
+    if (style === 'science') return initials + '. ' + last;
+    return a;
+  };
+
+  let citation = '';
+  const year = p.year || '';
+  const title = p.title || '';
+  const journal = p.journal || '';
+  const doi = p.doi || '';
+  const doiUrl = doi.startsWith('http') ? doi : (doi ? 'https://doi.org/' + doi : '');
+
+  if (style === 'nature') {
+    // Nature: Author1, I.N., Author2, I.N. ... et al. Title. Journal (Year). DOI
+    let authors;
+    if (authorList.length > 5) {
+      authors = authorList.slice(0, 5).map(a => formatAuthor(a, 'nature')).join(', ') + ' et al.';
+    } else {
+      authors = authorList.map(a => formatAuthor(a, 'nature')).join(', ');
+    }
+    citation = authors + ' ' + title + '. ' + journal + (year ? ' (' + year + ')' : '') + '.' + (doiUrl ? ' ' + doiUrl : '');
+  }
+
+  if (style === 'cell') {
+    // Cell: Author1, I.N., Author2, I.N., ..., and LastAuthor, I.N. (Year). Title. Journal.
+    let authors;
+    if (authorList.length > 5) {
+      authors = authorList.slice(0, 5).map(a => formatAuthor(a, 'cell')).join(', ') + ', et al.';
+    } else if (authorList.length > 1) {
+      const init = authorList.slice(0, -1).map(a => formatAuthor(a, 'cell')).join(', ');
+      authors = init + ', and ' + formatAuthor(authorList[authorList.length-1], 'cell');
+    } else {
+      authors = authorList.map(a => formatAuthor(a, 'cell')).join('');
+    }
+    citation = authors + (year ? ' (' + year + ')' : '') + '. ' + title + '. ' + journal + '.' + (doiUrl ? ' ' + doiUrl : '');
+  }
+
+  if (style === 'science') {
+    // Science: I.N. Author1, I.N. Author2, ..., Title. Journal (Year). DOI
+    let authors;
+    if (authorList.length > 5) {
+      authors = authorList.slice(0, 5).map(a => formatAuthor(a, 'science')).join(', ') + ', et al.';
+    } else {
+      authors = authorList.map(a => formatAuthor(a, 'science')).join(', ');
+    }
+    citation = authors + ', ' + title + '. ' + journal + (year ? ' (' + year + ')' : '') + '.' + (doiUrl ? ' ' + doiUrl : '');
+  }
+
+  // Show and copy
+  const el = document.getElementById('citationText');
+  el.textContent = citation;
+  el.style.display = 'block';
+  navigator.clipboard.writeText(citation).then(() => {
+    el.style.borderLeft = '3px solid var(--accent)';
+    setTimeout(() => { el.style.borderLeft = ''; }, 1500);
+  });
 };
 
 window.editPaper = function(id) {
@@ -639,28 +769,26 @@ window.syncFromServer = async function() {
     const serverPapers = await resp.json();
     if (!Array.isArray(serverPapers)) throw new Error("Invalid format");
 
-    // Server is source of truth for papers.json content.
-    // Keep any local-only papers (added via UI, not on server),
-    // but replace/update everything that came from the server.
-    const serverIds = new Set(serverPapers.map(sp => sp.id));
-    const serverDois = new Set(serverPapers.filter(sp => sp.doi).map(sp => sp.doi.toLowerCase()));
+    // Keep ALL local-only papers (source: "local" or added via UI).
+    // Server papers update/replace server-sourced papers only.
+    const localPapers = papers.filter(p => p.source === 'local');
 
-    // Find local-only papers (not on server by id or doi)
-    const localOnly = papers.filter(p => {
-      if (serverIds.has(p.id)) return false;
+    // Merge: server papers + all local papers
+    // Deduplicate: if a local paper matches a server paper by DOI or title, keep local version
+    const serverDois = new Set(serverPapers.filter(sp => sp.doi).map(sp => sp.doi.toLowerCase()));
+    const serverTitles = new Set(serverPapers.map(sp => (sp.title||'').toLowerCase().slice(0,40)));
+
+    const uniqueLocal = localPapers.filter(p => {
       if (p.doi && serverDois.has(p.doi.toLowerCase())) return false;
-      // Also check if title matches any server paper
-      return !serverPapers.some(sp =>
-        sp.title && p.title && sp.title.toLowerCase() === p.title.toLowerCase()
-      );
+      if (p.title && serverTitles.has(p.title.toLowerCase().slice(0,40))) return false;
+      return true;
     });
 
-    // Merge: server papers + local-only papers
-    papers = [...serverPapers, ...localOnly];
+    papers = [...serverPapers, ...uniqueLocal];
 
     save();
     renderLibrary();
-    alert("Sync complete: " + serverPapers.length + " from server, " + localOnly.length + " local-only kept. Total: " + papers.length);
+    alert("Sync complete: " + serverPapers.length + " from server, " + uniqueLocal.length + " local papers kept. Total: " + papers.length);
   } catch(e) {
     alert("Sync failed: " + e.message);
   }

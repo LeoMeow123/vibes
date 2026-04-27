@@ -33,7 +33,10 @@ A lightweight Python agent runs on each machine, collects GPU/CPU/RAM stats ever
 No clone needed. Just run this on any machine with `nvidia-smi` and Python:
 
 ```bash
-# One-liner: download and run the installer
+# Install dependencies first
+pip install psutil requests
+
+# Then download and run the installer
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \

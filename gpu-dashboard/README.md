@@ -28,51 +28,48 @@ A lightweight Python agent runs on each machine, collects GPU/CPU/RAM stats ever
 | Uptime | Temperature | User |
 | Freshness (last report) | Power draw | Runtime |
 
-## Quick Start
+## Quick Start (Add Your Machine)
 
-### 1. Create a GitHub Gist
-
-Go to [gist.github.com](https://gist.github.com), create a new **secret** gist with any content. Copy the Gist ID from the URL:
-```
-https://gist.github.com/YourUsername/████████████████████████████████
-                                      ↑ this is the Gist ID
-```
-
-### 2. Create a Personal Access Token
-
-Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)** → check only **`gist`** → Generate.
-
-### 3. Set Up the Template Config
-
-Edit `gpu-dashboard/agent/config.json` with your Gist ID and token:
-```json
-{
-    "gist_id": "YOUR_GIST_ID",
-    "github_token": "ghp_YOUR_TOKEN",
-    "machine_label": "CHANGE_THIS",
-    "machine_type": "workstation",
-    "interval_seconds": 30
-}
-```
-
-This template is used by the install script so you only enter the Gist ID and token once.
-
-### 4. Install the Agent on Each Machine
+No clone needed. Just run this on any machine with `nvidia-smi` and Python:
 
 ```bash
-# Install dependencies (pick whichever works)
-pip install psutil requests
-# or: sudo apt install python3-psutil python3-requests
-
-# Run the installer
-bash gpu-dashboard/agent/install.sh
+# One-liner: download and run the installer
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \
+SCRIPT_DIR=/tmp bash /tmp/gpu-install.sh
 ```
 
-The installer loads the Gist ID and token from the template, then asks for a machine label and type. It sets up a systemd service that starts automatically on boot.
+The installer will prompt you for:
+1. **Gist ID** — ask the dashboard owner for this
+2. **GitHub Token** — a [Personal Access Token](https://github.com/settings/tokens) with `gist` scope only
+3. **Machine label** — display name (e.g. "My Workstation")
+4. **Machine type** — `workstation` or `runai`
 
-### 5. Open the Dashboard
+It automatically:
+- Installs the agent to `~/.local/bin/gpu-agent`
+- Sets up a systemd service (auto-starts on boot)
+- Runs a dry-run test to verify everything works
 
-Visit the [GPU Dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) and enter your Gist ID. It saves to your browser so you only need to enter it once.
+That's it. Open the [dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) to see your machine.
+
+### If you already have VAST access
+
+Even simpler — the files are already on VAST:
+```bash
+# From any machine with VAST mounted:
+bash /path/to/vast/leo/vibing/gpu-dashboard/agent/install.sh
+```
+
+### First-time setup (dashboard owner only)
+
+If you're setting up a NEW dashboard from scratch:
+
+1. Create a **secret** [GitHub Gist](https://gist.github.com) with any content → copy the Gist ID from the URL
+2. Create a [Personal Access Token](https://github.com/settings/tokens) → classic → check only `gist` → Generate
+3. Run the installer on your first machine (it will ask for the Gist ID and token)
+4. Open [GPU Dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) → click Settings → enter your Gist ID
+5. Share the Gist ID with your team so they can add their machines
 
 ## Agent Usage
 

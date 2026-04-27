@@ -6,7 +6,8 @@ set -euo pipefail
 echo "=== GPU Dashboard Agent Setup ==="
 echo ""
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Allow SCRIPT_DIR override (for curl-based install where files are in /tmp)
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
 CONFIG_DIR="$HOME/.config/gpu-dashboard"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 

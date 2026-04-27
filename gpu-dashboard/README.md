@@ -100,6 +100,43 @@ If you're setting up a NEW dashboard from scratch:
 4. Open [GPU Dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) → click Settings → enter your Gist ID
 5. Share the Gist ID with your team so they can add their machines
 
+## Slack Integration
+
+Get GPU status directly in Slack with the `/gpu-status` command.
+
+![GPU Monitor Slack App](slack-app.png)
+
+### Slack Commands
+
+![Slack Commands](slack-commands.png)
+
+| Command | Description |
+|---------|-------------|
+| `/gpu-status` | Show the shared lab dashboard (all lab machines) |
+| `/gpu-status mine` | Show your personal dashboard |
+| `/gpu-status register GIST_ID` | Link your Gist ID (one-time setup, for public gists) |
+| `/gpu-status register GIST_ID TOKEN` | Link your Gist with a GitHub token (for private gists) |
+| `/gpu-status unregister` | Remove your linked Gist |
+| `/gpu-status help` | Show all commands |
+
+### Example Output
+
+![Slack Status Report](slack-status.png)
+
+### Setup for your personal dashboard
+
+1. Set up the GPU agent on your machine (see Quick Start above)
+2. Register your Gist ID in Slack (one-time):
+   ```
+   /gpu-status register YOUR_GIST_ID
+   ```
+3. View your dashboard anytime:
+   ```
+   /gpu-status mine
+   ```
+
+The lab dashboard (`/gpu-status`) works for everyone without registration.
+
 ## Agent Usage
 
 ```bash

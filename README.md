@@ -32,6 +32,12 @@ A collection of small but useful tools for scientific publications and projects.
 | **Sensor Playground** | 7-variable behavior classification explorer for soft robot elbow pad | [Launch](https://leomeow123.github.io/vibes/sensor-playground/) |
 | **Snake Game** | Classic snake with Gaussian growth mechanic and increasing difficulty | [Launch](https://leomeow123.github.io/vibes/snake-game/) |
 
+## Claude Code Skills
+
+| Skill | Description | Install |
+|-------|-------------|---------|
+| **SLEAP Skill** | sleap-io 0.5.x API reference — gives Claude expert knowledge of SLEAP file formats, common patterns, and 7 known pitfalls | [Setup](sleap-skill/) |
+
 ## Standalone Tools
 
 These functions work independently for common tasks:

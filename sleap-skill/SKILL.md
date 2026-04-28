@@ -127,6 +127,114 @@ fps = cap.get(cv2.CAP_PROP_FPS)
 cap.release()
 ```
 
+## Rendering & Visualization
+
+### sleap-io rendering (preferred — sleap-io >= 0.5.x)
+
+`sleap.io.visuals` is **deprecated**. Use `sleap_io.render_video()` and
+`sleap_io.render_image()` instead. Requires `pip install sleap-io[render]`
+(adds `skia-python` dependency).
+
+```python
+import sleap_io as sio
+
+labels = sio.load_file("predictions.slp")
+
+# Render full video with skeleton overlay → saves to file
+sio.render_video(labels, "output.mp4")
+
+# Render specific frame range
+sio.render_video(labels, "clip.mp4", start=100, end=200)
+
+# Render at half resolution (faster)
+sio.render_video(labels, "preview.mp4", preset="draft")  # or scale=0.5
+
+# Render single frame → returns numpy array
+img = sio.render_image(labels, frame_idx=0)
+
+# Save single frame to file
+sio.render_image(labels, "frame_0.png", frame_idx=0)
+```
+
+**Key `render_video` parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `save_path` | None | Output path. If None, returns list of arrays |
+| `start` / `end` | None | Frame range (inclusive start, exclusive end) |
+| `frame_inds` | None | Specific frame indices to render |
+| `preset` | None | `"preview"` (0.25x), `"draft"` (0.5x), `"final"` (1.0x) |
+| `scale` | 1.0 | Output scale factor |
+| `show_nodes` | True | Draw keypoint markers |
+| `show_edges` | True | Draw skeleton edges |
+| `show_centroids` | True | Draw instance centroids |
+| `marker_size` | 4.0 | Keypoint marker size in pixels |
+| `line_width` | 2.0 | Edge line width |
+| `color_by` | "auto" | `"instance"`, `"node"`, `"edge"`, `"track"`, or `"auto"` |
+| `palette` | "standard" | `"standard"`, `"alphabet"`, `"five+"`, `"solarized"`, `"distinct"` |
+| `marker_shape` | "circle" | `"circle"`, `"square"`, `"diamond"`, `"triangle"`, `"cross"`, `"plus"` |
+| `fps` | None | Output FPS (reads from video if None) |
+| `codec` | "libx264" | Video codec |
+| `crf` | 25 | Quality (lower = better, 18-30 typical) |
+| `crop` | None | `(x1, y1, x2, y2)` pixels or `(0.0-1.0)` normalized |
+| `overlay` | None | Segmentation masks, ROIs, bounding boxes, or label images |
+| `background` | "video" | `"video"` or RGB tuple like `(0, 0, 0)` for black |
+| `include_unlabeled` | None | Include frames without predictions |
+
+**Overlay drawing helpers** (for custom rendering):
+```python
+from sleap_io import draw_rois, draw_masks, draw_bboxes, draw_label_image
+```
+
+### sleap-render CLI (full `sleap` package only)
+
+The `sleap-render` command comes from the full `sleap` package (NOT `sleap-io`).
+It uses the **deprecated** `sleap.io.visuals` module internally.
+
+```bash
+# Basic: render predictions on video
+sleap-render predictions.slp -o output.mp4
+
+# Specific frames
+sleap-render predictions.slp -o clip.mp4 --frames 100-200
+
+# Customize appearance
+sleap-render predictions.slp -o output.mp4 \
+    --scale 0.5 \
+    --marker_size 6 \
+    --palette alphabet \
+    --distinctly_color instances \
+    --edge_is_wedge 1
+
+# Change FPS
+sleap-render predictions.slp -o output.mp4 -f 30
+```
+
+**Key `sleap-render` flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o` / `--output` | auto | Output video path |
+| `-f` / `--fps` | from video | Output FPS |
+| `--scale` | 1.0 | Output scale factor |
+| `--frames` | all | Frame range (`100-200`) or list (`1,2,3`) |
+| `--video-index` | 0 | Which video in the labels file |
+| `--show_edges` | 1 | Draw skeleton edges (0/1) |
+| `--edge_is_wedge` | 0 | Draw edges as wedges (0/1) |
+| `--marker_size` | 4 | Keypoint marker size in pixels |
+| `--palette` | standard | `standard`, `alphabet`, `five+`, `solarized` |
+| `--distinctly_color` | nodes | Color by `instances`, `edges`, or `nodes` |
+
+### save_video (write raw frames)
+```python
+import sleap_io as sio
+import numpy as np
+
+# Save numpy frames to video (no skeleton overlay)
+frames = np.random.randint(0, 255, (100, 480, 640, 3), dtype=np.uint8)
+sio.save_video(frames, "raw.mp4", fps=30, codec="libx264", crf=25)
+```
+
 ## Known Pitfalls
 
 ### 1. video.filename vs filesystem path
@@ -166,6 +274,8 @@ single-animal videos, always take `lf.instances[0]` or `pick_best(lf)`.
 - `sleap` = full SLEAP package (training, inference, GUI) — heavy dependency
 - `sleap-io` = lightweight I/O library — `pip install sleap-io`
 - For loading/reading files, `sleap-io` is sufficient and preferred
+- For rendering, `sleap-io[render]` has the modern API (`render_video`, `render_image`)
+- The `sleap-render` CLI comes from full `sleap`, uses deprecated `sleap.io.visuals`
 
 ### 6. File format differences
 | Format | Extension | Notes |

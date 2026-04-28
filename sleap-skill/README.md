@@ -21,6 +21,7 @@ Without the skill, Claude often gets these wrong. With it, Claude has a reliable
 | **Quick Start** | `sio.load_file()` one-liner |
 | **Core Objects** | `Labels`, `Skeleton`, `Video`, `LabeledFrame`, `Instance`, `Points` — all attributes and access patterns |
 | **Common Patterns** | Build trajectory array (T x J x 2), pick best instance, per-keypoint confidence, node indexing, FPS extraction |
+| **Rendering** | `sio.render_video()`, `sio.render_image()` (sleap-io), `sleap-render` CLI (full sleap), `sio.save_video()`, all parameters documented |
 | **Known Pitfalls** | 7 documented gotchas with correct/incorrect code examples |
 | **File Formats** | `.slp`, `.pkg.slp`, `.analysis.h5`, `.predictions.slp` — what each is and when to use it |
 | **Environment** | Package name, install command, version info |
@@ -66,12 +67,15 @@ Claude should respond with correct `sleap-io` code using `sio.load_file()` and `
 The skill tells Claude *how* to write sleap-io code — you still need the package installed in your Python environment:
 
 ```bash
-pip install sleap-io
+pip install sleap-io             # Core I/O (load, save, inspect)
+pip install sleap-io[render]     # + rendering (render_video, render_image)
 # or
-uv pip install sleap-io
+uv pip install sleap-io[render]
 ```
 
 Current tested version: `sleap-io 0.5.8`
+
+For the legacy `sleap-render` CLI, you need the full `sleap` package instead.
 
 ## Usage
 

@@ -28,28 +28,22 @@ Without the skill, Claude often gets these wrong. With it, Claude has a reliable
 
 ## Installation
 
-### 1. Copy the skill folder
+### 1. Download the skill file
 
-The skill is a single Markdown file at `~/.claude/skills/sleap/SKILL.md`. Copy it to the same path on any workstation:
+The skill is a single Markdown file. Download it to `~/.claude/skills/sleap/SKILL.md`:
 
 ```bash
-# From a machine that already has it (e.g., exx)
-mkdir -p ~/.claude/skills/sleap
-cp /home/exx/vast/leo/vibing/sleap-skill/SKILL.md ~/.claude/skills/sleap/SKILL.md
+# One-liner: download directly from GitHub
+mkdir -p ~/.claude/skills/sleap && \
+curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/sleap-skill/SKILL.md \
+  -o ~/.claude/skills/sleap/SKILL.md
 ```
 
-Or if you have VAST access:
+Or if you have the repo cloned:
 
 ```bash
 mkdir -p ~/.claude/skills/sleap
-cp /home/exx/vast/leo/vibing/sleap-skill/SKILL.md ~/.claude/skills/sleap/SKILL.md
-```
-
-Or from any machine with this repo cloned:
-
-```bash
-mkdir -p ~/.claude/skills/sleap
-cp <repo>/sleap-skill/SKILL.md ~/.claude/skills/sleap/SKILL.md
+cp vibes/sleap-skill/SKILL.md ~/.claude/skills/sleap/SKILL.md
 ```
 
 ### 2. Verify

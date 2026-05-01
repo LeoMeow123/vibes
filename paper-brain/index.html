@@ -115,6 +115,8 @@
     <button class="btn btn-primary btn-sm" onclick="syncFromServer()">Sync</button>
     <button class="btn btn-secondary btn-sm" onclick="importJSON()">Import JSON</button>
     <button class="btn btn-secondary btn-sm" onclick="exportJSON()">Export JSON</button>
+    <button class="btn btn-secondary btn-sm" onclick="restoreBackup()">Restore Backup</button>
+    <span id="backupStatus" style="font-size:11px;color:var(--muted);align-self:center"></span>
     <input type="file" id="importFile" accept=".json" style="display:none">
   </div>
 </header>
@@ -841,11 +843,72 @@ document.getElementById('importFile').addEventListener('change', function(e) {
 
 // ═══ PERSISTENCE ═══
 function save() {
-  localStorage.setItem("paper_brain", JSON.stringify(papers));
+  const json = JSON.stringify(papers);
+  localStorage.setItem("paper_brain", json);
+
+  // Auto-backup: keep last 3 snapshots with timestamps
+  const backups = JSON.parse(localStorage.getItem("paper_brain_backups") || "[]");
+  const now = new Date().toISOString();
+  // Only backup if content actually changed from last backup
+  if (!backups.length || backups[backups.length - 1].data !== json) {
+    backups.push({ ts: now, count: papers.length, data: json });
+    // Keep last 3 backups
+    while (backups.length > 3) backups.shift();
+    localStorage.setItem("paper_brain_backups", JSON.stringify(backups));
+  }
+  updateBackupStatus();
 }
+
+function updateBackupStatus() {
+  const el = document.getElementById('backupStatus');
+  if (!el) return;
+  const backups = JSON.parse(localStorage.getItem("paper_brain_backups") || "[]");
+  if (backups.length) {
+    const last = backups[backups.length - 1];
+    const ago = Math.round((Date.now() - new Date(last.ts).getTime()) / 60000);
+    const when = ago < 1 ? 'just now' : ago < 60 ? ago + 'm ago' : Math.round(ago/60) + 'h ago';
+    el.textContent = 'Backup: ' + last.count + ' papers, ' + when;
+  } else {
+    el.textContent = '';
+  }
+}
+
+window.restoreBackup = function() {
+  const backups = JSON.parse(localStorage.getItem("paper_brain_backups") || "[]");
+  if (!backups.length) {
+    alert("No backups available.");
+    return;
+  }
+
+  // Build selection list
+  const options = backups.map((b, i) => {
+    const d = new Date(b.ts);
+    const label = d.toLocaleString() + ' (' + b.count + ' papers)';
+    return (i + 1) + '. ' + label;
+  }).join('\n');
+
+  const choice = prompt('Choose a backup to restore:\n\n' + options + '\n\nEnter number (or cancel):');
+  if (!choice) return;
+
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= backups.length) {
+    alert('Invalid choice.');
+    return;
+  }
+
+  const backup = backups[idx];
+  const count = backup.count;
+  if (!confirm('Restore ' + count + ' papers from ' + new Date(backup.ts).toLocaleString() + '?\n\nThis will replace your current ' + papers.length + ' papers.')) return;
+
+  papers = JSON.parse(backup.data);
+  localStorage.setItem("paper_brain", backup.data);
+  renderLibrary();
+  alert('Restored ' + count + ' papers from backup.');
+};
 
 // ═══ INIT ═══
 renderLibrary();
+updateBackupStatus();
 
 // Close detail on escape or click outside
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });

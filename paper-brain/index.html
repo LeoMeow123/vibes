@@ -769,16 +769,13 @@ window.syncFromServer = async function() {
     const serverPapers = await resp.json();
     if (!Array.isArray(serverPapers)) throw new Error("Invalid format");
 
-    // Keep ALL local-only papers (source: "local" or added via UI).
-    // Server papers update/replace server-sourced papers only.
-    const localPapers = papers.filter(p => p.source === 'local');
-
-    // Merge: server papers + all local papers
-    // Deduplicate: if a local paper matches a server paper by DOI or title, keep local version
+    // Keep any paper in localStorage that doesn't match a server paper (by DOI or title).
+    // This preserves ALL papers added via UI, DOI lookup, import, or batch Claude —
+    // regardless of whether they have source: "local" tag.
     const serverDois = new Set(serverPapers.filter(sp => sp.doi).map(sp => sp.doi.toLowerCase()));
     const serverTitles = new Set(serverPapers.map(sp => (sp.title||'').toLowerCase().slice(0,40)));
 
-    const uniqueLocal = localPapers.filter(p => {
+    const uniqueLocal = papers.filter(p => {
       if (p.doi && serverDois.has(p.doi.toLowerCase())) return false;
       if (p.title && serverTitles.has(p.title.toLowerCase().slice(0,40))) return false;
       return true;

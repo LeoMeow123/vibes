@@ -764,6 +764,10 @@ window.applyClaudeResponse = function() {
 // ═══ SYNC / IMPORT / EXPORT ═══
 window.syncFromServer = async function() {
   try {
+    // Auto-backup before sync so nothing is ever lost
+    const backup = JSON.stringify(papers, null, 2);
+    localStorage.setItem("paper_brain_backup", backup);
+
     const resp = await fetch("papers.json?t=" + Date.now());
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const serverPapers = await resp.json();

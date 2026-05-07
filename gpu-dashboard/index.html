@@ -98,12 +98,6 @@
     background: #252525; color: #aaa; border: 1px solid #333;
     font-variant-numeric: tabular-nums;
   }
-  .user-chip {
-    font-size: 11px; padding: 3px 10px; border-radius: 4px;
-    background: #667eea18; color: #667eea; border: 1px solid #667eea33;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .user-chip .gpu-count { color: #888; }
   .no-data-text { font-size: 11px; color: #444; font-style: italic; }
 
   /* ── Filter bar ──────────────────────────────────────────────── */
@@ -571,7 +565,6 @@ function computeStats() {
   let wsCount = 0, runaiCount = 0;
   let totalGpus = 0, activeGpus = 0, idleGpus = 0, offlineGpus = 0;
   const gpuModels = {};
-  const users = {};
   let totalPowerDraw = 0, totalPowerLimit = 0, hasPower = false;
   let totalVramUsed = 0, totalVramTotal = 0;
   let utilSum = 0;
@@ -611,24 +604,13 @@ function computeStats() {
         totalPowerLimit += g.power_limit_w;
       }
 
-      for (const p of (g.processes || [])) {
-        totalProcesses++;
-        const user = p.user || '?';
-        if (!users[user]) users[user] = { gpus: 0, machines: new Set(), memMb: 0 };
-        users[user].gpus++;
-        users[user].machines.add(m.machine?.hostname || m.machine?.label || '?');
-        users[user].memMb += (p.gpu_memory_mb || 0);
-      }
+      totalProcesses += (g.processes || []).length;
     }
   }
 
   const avgUtil = totalGpus > 0 ? Math.round(utilSum / totalGpus) : 0;
 
   const sortedModels = Object.entries(gpuModels).sort((a, b) => b[1] - a[1]);
-
-  const sortedUsers = Object.entries(users)
-    .map(([name, data]) => ({ name, gpus: data.gpus, machines: data.machines.size, memMb: data.memMb }))
-    .sort((a, b) => b.gpus - a.gpus);
 
   const infMachines = all.filter(m => m.inference?.totals);
   let infDone = 0, infTotal = 0;
@@ -643,7 +625,7 @@ function computeStats() {
     totalGpus, activeGpus, idleGpus, offlineGpus,
     sortedModels, avgUtil,
     totalVramUsed, totalVramTotal,
-    totalProcesses, sortedUsers,
+    totalProcesses,
     totalPowerDraw: Math.round(totalPowerDraw),
     totalPowerLimit: Math.round(totalPowerLimit),
     hasPower,
@@ -722,7 +704,6 @@ function renderSummary(stats) {
     <div class="summary-card">
       <div class="val" style="color:${stats.totalProcesses > 0 ? '#4ade80' : '#555'};">${stats.totalProcesses}</div>
       <div class="lbl">Running Jobs</div>
-      ${stats.sortedUsers.length > 0 ? `<div class="summary-sub">${stats.sortedUsers.length} user${stats.sortedUsers.length !== 1 ? 's' : ''}</div>` : ''}
     </div>
     ${powerHtml}
     ${infHtml}
@@ -741,24 +722,11 @@ function renderDetailBar(stats) {
     fleetHtml = '<span class="no-data-text">No GPUs detected</span>';
   }
 
-  let usersHtml;
-  if (stats.sortedUsers.length > 0) {
-    usersHtml = stats.sortedUsers.map(u =>
-      `<span class="user-chip">${esc(u.name)} <span class="gpu-count">${u.gpus} GPU${u.gpus !== 1 ? 's' : ''} &middot; ${formatMB(u.memMb)}</span></span>`
-    ).join('');
-  } else {
-    usersHtml = '<span class="no-data-text">No active users</span>';
-  }
-
   el.innerHTML = `
     <div class="detail-bar">
       <div class="detail-section">
         <span class="detail-label">GPU Fleet</span>
         <div class="fleet-chips">${fleetHtml}</div>
-      </div>
-      <div class="detail-section">
-        <span class="detail-label">Active Users</span>
-        <div class="user-chips">${usersHtml}</div>
       </div>
     </div>
   `;

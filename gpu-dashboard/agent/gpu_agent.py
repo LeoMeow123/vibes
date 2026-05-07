@@ -340,7 +340,7 @@ def collect_inference(cfg: dict) -> dict | None:
         if not lines:
             continue
 
-        completed = 0
+        real_completed = 0
         failed = 0
         fps_sum = 0.0
         fps_count = 0
@@ -366,18 +366,21 @@ def collect_inference(cfg: dict) -> dict | None:
                     continue
 
             status = entry.get("status", "")
-            if status == "completed":
-                completed += 1
+            rt = entry.get("runtime_sec")
+            rt_val = float(rt) if rt is not None else 0.0
+
+            # Skip cron-injected synthetic entries (runtime_sec == 0)
+            is_real = rt_val > 0
+
+            if status == "completed" and is_real:
+                real_completed += 1
                 fps_val = entry.get("fps")
-                if fps_val is not None:
+                if fps_val is not None and float(fps_val) > 0:
                     fps_sum += float(fps_val)
                     fps_count += 1
+                runtime_sum += rt_val
             elif status == "failed":
                 failed += 1
-
-            rt = entry.get("runtime_sec")
-            if rt is not None:
-                runtime_sum += float(rt)
 
             ts = entry.get("timestamp")
             if ts and first_ts is None:
@@ -387,15 +390,15 @@ def collect_inference(cfg: dict) -> dict | None:
         if last_entry is None:
             continue
 
-        videos_done = last_entry.get("videos_done", completed + failed)
+        videos_done = last_entry.get("videos_done", real_completed + failed)
         videos_total = last_entry.get("videos_total", 0)
         avg_fps = round(fps_sum / fps_count, 1) if fps_count > 0 else 0.0
 
-        # Per-camera ETA based on average runtime per video
+        # Per-camera ETA: use real inference count for avg_time, combined count for remaining
         eta_hours = None
-        if videos_done > 0 and videos_total > 0:
+        if real_completed > 0 and videos_total > 0 and videos_done > 0:
             remaining = videos_total - videos_done
-            avg_time = runtime_sum / videos_done
+            avg_time = runtime_sum / real_completed
             eta_hours = round(avg_time * remaining / 3600, 1)
 
         cameras[cam_name] = {
@@ -404,7 +407,7 @@ def collect_inference(cfg: dict) -> dict | None:
             "videos_total": videos_total,
             "sessions_done": last_entry.get("sessions_done"),
             "sessions_total": last_entry.get("sessions_total"),
-            "completed": completed,
+            "completed": real_completed,
             "failed": failed,
             "avg_fps": avg_fps,
             "total_runtime_sec": round(runtime_sum, 1),

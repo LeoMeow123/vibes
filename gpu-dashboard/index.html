@@ -560,7 +560,10 @@ async function fetchData() {
 // ── Stats computation ──────────────────────────────────────────────────────
 
 function computeStats() {
-  const all = Object.values(machines);
+  let all = Object.values(machines);
+  if (activeTypeFilter !== 'all') {
+    all = all.filter(m => (m.machine?.type || 'workstation').toLowerCase() === activeTypeFilter);
+  }
 
   let wsCount = 0, runaiCount = 0;
   let totalGpus = 0, activeGpus = 0, idleGpus = 0, offlineGpus = 0;

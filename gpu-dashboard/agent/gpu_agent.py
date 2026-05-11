@@ -345,6 +345,7 @@ def collect_inference(cfg: dict) -> dict | None:
         fps_sum = 0.0
         fps_count = 0
         runtime_sum = 0.0
+        frames_done_sum = 0.0
         first_ts = None
         last_entry = None
 
@@ -375,9 +376,13 @@ def collect_inference(cfg: dict) -> dict | None:
             if status == "completed" and is_real:
                 real_completed += 1
                 fps_val = entry.get("fps")
-                if fps_val is not None and float(fps_val) > 0:
-                    fps_sum += float(fps_val)
+                fps_float = float(fps_val) if fps_val is not None else 0.0
+                if fps_float > 0:
+                    fps_sum += fps_float
                     fps_count += 1
+                    # Compute frames from fps * runtime (more reliable than
+                    # the "frames" field which can be buggy)
+                    frames_done_sum += fps_float * rt_val
                 runtime_sum += rt_val
             elif status == "failed":
                 failed += 1
@@ -394,12 +399,15 @@ def collect_inference(cfg: dict) -> dict | None:
         videos_total = last_entry.get("videos_total", 0)
         avg_fps = round(fps_sum / fps_count, 1) if fps_count > 0 else 0.0
 
-        # Per-camera ETA: use real inference count for avg_time, combined count for remaining
+        # Per-camera ETA: frame-based for accuracy (videos have different lengths)
+        # remaining_frames = remaining_videos * avg_frames_per_video
+        # eta = remaining_frames / avg_fps
         eta_hours = None
-        if real_completed > 0 and videos_total > 0 and videos_done > 0:
+        if fps_count > 0 and videos_total > 0 and videos_done > 0:
             remaining = videos_total - videos_done
-            avg_time = runtime_sum / real_completed
-            eta_hours = round(avg_time * remaining / 3600, 1)
+            avg_frames_per_video = frames_done_sum / fps_count
+            remaining_frames = remaining * avg_frames_per_video
+            eta_hours = round(remaining_frames / avg_fps / 3600, 1)
 
         cameras[cam_name] = {
             "gpu": last_entry.get("gpu"),
@@ -431,19 +439,9 @@ def collect_inference(cfg: dict) -> dict | None:
     all_fps = [c["avg_fps"] for c in cameras.values() if c["avg_fps"] > 0]
     avg_fps_all = round(sum(all_fps) / len(all_fps), 1) if all_fps else 0.0
 
-    # Wall-clock ETA
-    wall_eta_hours = None
-    if earliest_ts and total_done > 0 and total_total > 0:
-        try:
-            first_epoch = dt.datetime.fromisoformat(
-                earliest_ts.replace("Z", "+00:00")
-            ).timestamp()
-            elapsed = time.time() - first_epoch
-            remaining = total_total - total_done
-            wall_per_video = elapsed / total_done
-            wall_eta_hours = round(wall_per_video * remaining / 3600, 1)
-        except (ValueError, OSError):
-            pass
+    # Overall ETA: max of per-camera ETAs (cameras run in parallel)
+    cam_etas = [c["eta_hours"] for c in cameras.values() if c["eta_hours"] is not None]
+    wall_eta_hours = round(max(cam_etas), 1) if cam_etas else None
 
     result = {
         "cameras": cameras,

@@ -346,6 +346,7 @@ def collect_inference(cfg: dict) -> dict | None:
         fps_count = 0
         runtime_sum = 0.0
         frames_done_sum = 0.0
+        max_videos_done = 0
         first_ts = None
         last_entry = None
 
@@ -387,6 +388,11 @@ def collect_inference(cfg: dict) -> dict | None:
             elif status == "failed":
                 failed += 1
 
+            # Track max videos_done (combined count from cron entries)
+            vd = entry.get("videos_done")
+            if vd is not None:
+                max_videos_done = max(max_videos_done, int(vd))
+
             ts = entry.get("timestamp")
             if ts and first_ts is None:
                 first_ts = ts
@@ -395,13 +401,16 @@ def collect_inference(cfg: dict) -> dict | None:
         if last_entry is None:
             continue
 
-        videos_done = last_entry.get("videos_done", real_completed + failed)
+        # Use max videos_done (includes all machines' contributions via cron)
+        videos_done = max(max_videos_done,
+                          last_entry.get("videos_done", real_completed + failed))
         videos_total = last_entry.get("videos_total", 0)
         avg_fps = round(fps_sum / fps_count, 1) if fps_count > 0 else 0.0
 
         # Per-camera ETA: frame-based for accuracy (videos have different lengths)
-        # remaining_frames = remaining_videos * avg_frames_per_video
-        # eta = remaining_frames / avg_fps
+        # Uses combined videos_done (all machines) for remaining count,
+        # and this machine's avg_fps for speed estimate.
+        # If multiple machines contribute, real ETA is even shorter.
         eta_hours = None
         if fps_count > 0 and videos_total > 0 and videos_done > 0:
             remaining = videos_total - videos_done

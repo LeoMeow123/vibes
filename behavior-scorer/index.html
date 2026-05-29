@@ -52,6 +52,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .hotkey-btn.b1.flash { background: rgba(88,166,255,0.3); }
 .hotkey-btn.b2 { border-color: var(--orange); }
 .hotkey-btn.b2.flash { background: rgba(210,153,34,0.3); }
+.hotkey-btn.recording { animation: pulse 1s ease-in-out infinite; }
+.hotkey-btn.b1.recording { background: rgba(88,166,255,0.2); box-shadow: 0 0 12px rgba(88,166,255,0.4); }
+.hotkey-btn.b2.recording { background: rgba(210,153,34,0.2); box-shadow: 0 0 12px rgba(210,153,34,0.4); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
 
 /* Right sidebar */
 .sidebar { width: 340px; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
@@ -75,7 +79,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 /* Event log */
 .event-log { list-style: none; }
 .event-log li { padding: 5px 12px; font-size: 12px; font-family: 'SF Mono', 'Consolas', monospace; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
-.event-log li .time { color: var(--muted); min-width: 55px; }
+.event-log li .time { color: var(--muted); min-width: 55px; font-size: 11px; }
+.event-log li .dur { color: var(--green); min-width: 40px; font-size: 11px; }
+.event-log li .recording-tag { color: var(--red); font-size: 10px; font-weight: 700; animation: pulse 1s ease-in-out infinite; }
 .event-log li .label { padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; cursor: pointer; }
 .event-log li .label.b1 { background: rgba(88,166,255,0.2); color: var(--blue); }
 .event-log li .label.b2 { background: rgba(210,153,34,0.2); color: var(--orange); }
@@ -187,11 +193,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <button class="hotkey-btn b1" id="hk-btn1">
           <span id="hk1-label">Behavior A</span>
           <br><small id="hk1-key" style="color:var(--muted);">[A]</small>
+          <br><small id="hk1-status" style="color:var(--blue);">Press to start</small>
           <br><small id="hk1-count" style="color:var(--blue);">0 events</small>
         </button>
         <button class="hotkey-btn b2" id="hk-btn2">
           <span id="hk2-label">Behavior B</span>
           <br><small id="hk2-key" style="color:var(--muted);">[S]</small>
+          <br><small id="hk2-status" style="color:var(--orange);">Press to start</small>
           <br><small id="hk2-count" style="color:var(--orange);">0 events</small>
         </button>
       </div>
@@ -217,7 +225,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <span id="total-events">0 events total</span>
     <span>|</span>
     <span id="progress-label">0 / 0 videos scored</span>
-    <span style="margin-left:auto;">Shortcuts: Space=play, A/S=score, ,/.=frame step, Shift+Arrow=prev/next video, Ctrl+E=export, Ctrl+Z=undo</span>
+    <span style="margin-left:auto;">Shortcuts: Space=play, A/S=start/stop behavior, ,/.=frame step, Shift+Arrow=prev/next video, Ctrl+E=export, Ctrl+Z=undo</span>
   </div>
 </div>
 
@@ -226,10 +234,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 let files = [];           // File objects in order
 let fileNames = [];       // string names
 let currentIdx = -1;
-let events = [];          // {video, time, frame, behavior, behaviorIdx, id}
+// Events: {id, video, startTime, startFrame, endTime, endFrame, duration, fps, behavior, behaviorIdx}
+let events = [];
 let eventId = 0;
 let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's' };
 let detectedFPS = 30;     // updated per-video from metadata
+// Active state events (press to start, press again to stop)
+let activeStates = {};    // {behaviorIdx: {startTime, startFrame, video}}
 const STORAGE_KEY = 'behavior-scorer-data';
 const STORAGE_WARN_MB = 4; // warn when localStorage usage exceeds this
 
@@ -263,6 +274,7 @@ document.getElementById('btn-resume').onclick = () => {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
   config = saved.config || config;
   events = saved.events || [];
+  activeStates = saved.activeStates || {};
   eventId = Math.max(0, ...events.map(e => e.id)) + 1;
   document.getElementById('cfg-b1-name').value = config.b1Name;
   document.getElementById('cfg-b1-key').value = config.b1Key.toUpperCase();
@@ -364,6 +376,7 @@ function startScoring() {
   buildVideoList();
   updateEventLog();
   updateCounts();
+  updateActiveUI();
   loadVideo(0);
   saveData();
 }
@@ -482,24 +495,64 @@ function togglePlay() {
   if (vid.paused) vid.play(); else vid.pause();
 }
 
-// ── Scoring events ──
+// ── Scoring events (state: start/stop) ──
 function scoreEvent(behaviorIdx) {
   if (currentIdx < 0) return;
-  const evt = {
-    id: eventId++,
-    video: fileNames[currentIdx],
-    time: vid.currentTime,
-    frame: Math.round(vid.currentTime * detectedFPS),
-    fps: detectedFPS,
-    behavior: behaviorIdx === 1 ? config.b1Name : config.b2Name,
-    behaviorIdx,
-  };
-  events.push(evt);
-  updateEventLog();
-  updateCounts();
-  updateVideoBadges();
-  flashButton(behaviorIdx);
-  saveData();
+
+  if (activeStates[behaviorIdx]) {
+    // STOP — complete the event
+    const state = activeStates[behaviorIdx];
+    const endTime = vid.currentTime;
+    const endFrame = Math.round(endTime * detectedFPS);
+    const evt = {
+      id: eventId++,
+      video: state.video,
+      startTime: state.startTime,
+      startFrame: state.startFrame,
+      endTime,
+      endFrame,
+      duration: Math.max(0, endTime - state.startTime),
+      fps: state.fps,
+      behavior: behaviorIdx === 1 ? config.b1Name : config.b2Name,
+      behaviorIdx,
+    };
+    events.push(evt);
+    delete activeStates[behaviorIdx];
+    updateEventLog();
+    updateCounts();
+    updateVideoBadges();
+    updateActiveUI();
+    flashButton(behaviorIdx);
+    saveData();
+  } else {
+    // START — begin recording
+    activeStates[behaviorIdx] = {
+      startTime: vid.currentTime,
+      startFrame: Math.round(vid.currentTime * detectedFPS),
+      video: fileNames[currentIdx],
+      fps: detectedFPS,
+    };
+    updateActiveUI();
+    flashButton(behaviorIdx);
+    // Save active state so it survives page reload
+    saveData();
+  }
+}
+
+function updateActiveUI() {
+  for (const idx of [1, 2]) {
+    const btn = document.getElementById(idx === 1 ? 'hk-btn1' : 'hk-btn2');
+    const statusEl = document.getElementById(idx === 1 ? 'hk1-status' : 'hk2-status');
+    if (activeStates[idx]) {
+      btn.classList.add('recording');
+      statusEl.textContent = 'RECORDING... press to stop';
+      statusEl.style.color = 'var(--red)';
+    } else {
+      btn.classList.remove('recording');
+      statusEl.textContent = 'Press to start';
+      statusEl.style.color = idx === 1 ? 'var(--blue)' : 'var(--orange)';
+    }
+  }
 }
 
 function undoLast() {
@@ -539,40 +592,67 @@ function updateCounts() {
   document.getElementById('progress-label').textContent = `${scoredVideos} / ${files.length} videos scored`;
 }
 
+function fmtDur(s) {
+  if (!s || isNaN(s)) return '0.0s';
+  return s < 60 ? `${s.toFixed(1)}s` : `${Math.floor(s/60)}m${(s%60).toFixed(0)}s`;
+}
+
 function updateEventLog() {
   const ul = document.getElementById('event-log');
   ul.innerHTML = '';
-  // Show most recent first
+
+  // Show active (in-progress) events at top
+  for (const [idx, state] of Object.entries(activeStates)) {
+    const li = document.createElement('li');
+    const cls = parseInt(idx) === 1 ? 'b1' : 'b2';
+    const name = parseInt(idx) === 1 ? config.b1Name : config.b2Name;
+    li.innerHTML = `
+      <span class="time">${fmtTime(state.startTime)} →</span>
+      <span class="recording-tag">REC</span>
+      <span class="label ${cls}">${name}</span>
+      <span class="vid">${state.video}</span>
+      <span class="actions">
+        <button class="act-btn del" title="Cancel this recording">&times;</button>
+      </span>
+    `;
+    li.querySelector('.del').onclick = () => {
+      delete activeStates[parseInt(idx)];
+      updateActiveUI();
+      updateEventLog();
+      saveData();
+    };
+    ul.appendChild(li);
+  }
+
+  // Show completed events, most recent first
   const sorted = [...events].reverse();
   sorted.forEach(evt => {
     const li = document.createElement('li');
     const cls = evt.behaviorIdx === 1 ? 'b1' : 'b2';
     li.innerHTML = `
-      <span class="time" title="Click to jump">${fmtTime(evt.time)}</span>
+      <span class="time" title="Click to jump to start">${fmtTime(evt.startTime)}→${fmtTime(evt.endTime)}</span>
+      <span class="dur">${fmtDur(evt.duration)}</span>
       <span class="label ${cls}" title="Click to toggle behavior">${evt.behavior}</span>
       <span class="vid">${evt.video}</span>
       <span class="actions">
-        <button class="act-btn edit-btn" title="Edit time (set to current video position)">&#9998;</button>
-        <button class="act-btn del" title="Delete this event">&times;</button>
+        <button class="act-btn edit-btn" title="Set start to current position">S&#9998;</button>
+        <button class="act-btn edit-end-btn" title="Set end to current position">E&#9998;</button>
+        <button class="act-btn del" title="Delete">&times;</button>
       </span>
     `;
     // Delete
-    li.querySelector('.del').onclick = () => {
-      if (events.length > 20 || confirm('Delete this event?')) deleteEvent(evt.id);
-      else deleteEvent(evt.id); // small list, just delete
-    };
-    // Click time to jump
+    li.querySelector('.del').onclick = () => deleteEvent(evt.id);
+    // Click time to jump to start
     li.querySelector('.time').style.cursor = 'pointer';
     li.querySelector('.time').onclick = () => {
       const vidIdx = fileNames.indexOf(evt.video);
       if (vidIdx >= 0 && vidIdx !== currentIdx) loadVideo(vidIdx);
-      setTimeout(() => { vid.currentTime = evt.time; }, vidIdx !== currentIdx ? 300 : 0);
+      setTimeout(() => { vid.currentTime = evt.startTime; }, vidIdx !== currentIdx ? 300 : 0);
     };
     // Click label to toggle behavior
     li.querySelector('.label').onclick = () => {
       const real = events.find(e => e.id === evt.id);
       if (!real) return;
-      // Toggle between behavior 1 and 2
       if (real.behaviorIdx === 1) {
         real.behaviorIdx = 2;
         real.behavior = config.b2Name;
@@ -584,17 +664,27 @@ function updateEventLog() {
       updateCounts();
       saveData();
     };
-    // Edit button: update time to current video position
+    // Edit start: set start to current video position
     li.querySelector('.edit-btn').onclick = () => {
       const real = events.find(e => e.id === evt.id);
       if (!real) return;
-      real.time = vid.currentTime;
-      real.frame = Math.round(vid.currentTime * (real.fps || detectedFPS));
-      real.video = fileNames[currentIdx];
+      real.startTime = vid.currentTime;
+      real.startFrame = Math.round(vid.currentTime * (real.fps || detectedFPS));
+      real.duration = Math.max(0, real.endTime - real.startTime);
       updateEventLog();
-      updateVideoBadges();
       saveData();
-      showSaveStatus('Event updated');
+      showSaveStatus('Start updated');
+    };
+    // Edit end: set end to current video position
+    li.querySelector('.edit-end-btn').onclick = () => {
+      const real = events.find(e => e.id === evt.id);
+      if (!real) return;
+      real.endTime = vid.currentTime;
+      real.endFrame = Math.round(vid.currentTime * (real.fps || detectedFPS));
+      real.duration = Math.max(0, real.endTime - real.startTime);
+      updateEventLog();
+      saveData();
+      showSaveStatus('End updated');
     };
     ul.appendChild(li);
   });
@@ -603,7 +693,7 @@ function updateEventLog() {
 // ── Persistence ──
 function saveData() {
   try {
-    const data = { config, events, fileNames, savedAt: new Date().toISOString() };
+    const data = { config, events, fileNames, activeStates, savedAt: new Date().toISOString() };
     const json = JSON.stringify(data);
     localStorage.setItem(STORAGE_KEY, json);
     // Check storage size
@@ -641,10 +731,10 @@ function showSaveStatus(msg, isError) {
 // ── Export ──
 function exportCSV() {
   if (events.length === 0) { alert('No events to export'); return; }
-  const header = 'video,time_sec,frame,fps,behavior\n';
+  const header = 'video,start_sec,start_frame,end_sec,end_frame,duration_sec,fps,behavior\n';
   const rows = events
-    .sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }) || a.time - b.time)
-    .map(e => `"${e.video}",${e.time.toFixed(3)},${e.frame},${e.fps || 30},"${e.behavior}"`)
+    .sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }) || a.startTime - b.startTime)
+    .map(e => `"${e.video}",${e.startTime.toFixed(3)},${e.startFrame},${e.endTime.toFixed(3)},${e.endFrame},${e.duration.toFixed(3)},${e.fps || 30},"${e.behavior}"`)
     .join('\n');
   const csv = header + rows;
   const blob = new Blob([csv], { type: 'text/csv' });

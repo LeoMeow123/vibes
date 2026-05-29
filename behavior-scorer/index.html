@@ -76,12 +76,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .event-log { list-style: none; }
 .event-log li { padding: 5px 12px; font-size: 12px; font-family: 'SF Mono', 'Consolas', monospace; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
 .event-log li .time { color: var(--muted); min-width: 55px; }
-.event-log li .label { padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.event-log li .label { padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; cursor: pointer; }
 .event-log li .label.b1 { background: rgba(88,166,255,0.2); color: var(--blue); }
 .event-log li .label.b2 { background: rgba(210,153,34,0.2); color: var(--orange); }
 .event-log li .vid { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
-.event-log li .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; }
-.event-log li .del-btn:hover { color: var(--red); }
+.event-log li .actions { display: flex; gap: 2px; flex-shrink: 0; }
+.event-log li .act-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 4px; }
+.event-log li .act-btn:hover { color: var(--text); }
+.event-log li .act-btn.del:hover { color: var(--red); }
+
+/* Storage warning */
+.storage-warn { background: rgba(248,81,73,0.15); color: var(--red); padding: 6px 16px; font-size: 12px; text-align: center; flex-shrink: 0; }
 
 /* Setup panel */
 .setup { padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
@@ -154,6 +159,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <span class="filename" id="vid-filename">—</span>
         <span id="vid-time">00:00.000 / 00:00</span>
         <span id="vid-frame">Frame: 0</span>
+        <span id="vid-fps" style="color:var(--muted);">30fps</span>
       </div>
 
       <div class="controls">
@@ -223,9 +229,9 @@ let currentIdx = -1;
 let events = [];          // {video, time, frame, behavior, behaviorIdx, id}
 let eventId = 0;
 let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's' };
-const FPS_ESTIMATE = 30;  // fallback if unknown
+let detectedFPS = 30;     // updated per-video from metadata
 const STORAGE_KEY = 'behavior-scorer-data';
-const FRAME_STEP = 1 / FPS_ESTIMATE;
+const STORAGE_WARN_MB = 4; // warn when localStorage usage exceeds this
 
 // ── DOM refs ──
 const vid = document.getElementById('vid');
@@ -248,6 +254,7 @@ function checkResume() {
 checkResume();
 
 document.getElementById('btn-new').onclick = () => {
+  if (!confirm('This will erase all saved events. Make sure you exported CSV first. Continue?')) return;
   localStorage.removeItem(STORAGE_KEY);
   document.getElementById('resume-section').style.display = 'none';
 };
@@ -390,9 +397,12 @@ function updateVideoBadges() {
 
 function loadVideo(idx) {
   if (idx < 0 || idx >= files.length) return;
+  // Revoke previous object URL to avoid memory leak
+  if (vid._objUrl) URL.revokeObjectURL(vid._objUrl);
   currentIdx = idx;
   const file = files[idx];
   const url = URL.createObjectURL(file);
+  vid._objUrl = url;
   vid.src = url;
   vid.load();
   document.getElementById('vid-filename').textContent = fileNames[idx];
@@ -403,6 +413,34 @@ function loadVideo(idx) {
   if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
 }
 
+// Detect FPS from video metadata when loaded
+vid.addEventListener('loadedmetadata', () => {
+  // Try to get FPS from video track
+  if (typeof vid.getVideoPlaybackQuality === 'function') {
+    // Use mozFrameDelay or webkitDecodedFrames if available — fallback approach:
+    // Sample frame count after a short play to estimate FPS
+  }
+  // Use requestVideoFrameCallback if supported (Chrome/Edge)
+  if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+    let firstFrame = null;
+    vid.requestVideoFrameCallback((now, meta) => {
+      firstFrame = meta;
+      vid.requestVideoFrameCallback((now2, meta2) => {
+        if (meta2.mediaTime > meta.mediaTime) {
+          const dt = meta2.mediaTime - meta.mediaTime;
+          if (dt > 0) {
+            const fps = Math.round(1 / dt);
+            if (fps >= 10 && fps <= 240) {
+              detectedFPS = fps;
+              document.getElementById('vid-fps').textContent = `${detectedFPS}fps`;
+            }
+          }
+        }
+      });
+    });
+  }
+});
+
 // ── Video controls ──
 vid.addEventListener('timeupdate', () => {
   const t = vid.currentTime;
@@ -410,7 +448,7 @@ vid.addEventListener('timeupdate', () => {
   document.getElementById('vid-time').textContent =
     `${fmtTime(t)} / ${fmtTime(d)}`;
   document.getElementById('vid-frame').textContent =
-    `Frame: ${Math.round(t * FPS_ESTIMATE)}`;
+    `Frame: ${Math.round(t * detectedFPS)}`;
 });
 
 vid.addEventListener('ended', () => {
@@ -432,8 +470,8 @@ document.getElementById('btn-prev').onclick = () => loadVideo(currentIdx - 1);
 document.getElementById('btn-next').onclick = () => loadVideo(currentIdx + 1);
 document.getElementById('btn-back5').onclick = () => { vid.currentTime = Math.max(0, vid.currentTime - 5); };
 document.getElementById('btn-fwd5').onclick = () => { vid.currentTime += 5; };
-document.getElementById('btn-frame-back').onclick = () => { vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - FRAME_STEP); };
-document.getElementById('btn-frame-fwd').onclick = () => { vid.pause(); vid.currentTime += FRAME_STEP; };
+document.getElementById('btn-frame-back').onclick = () => { vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/detectedFPS); };
+document.getElementById('btn-frame-fwd').onclick = () => { vid.pause(); vid.currentTime += 1/detectedFPS; };
 document.getElementById('speed-select').onchange = (e) => { vid.playbackRate = parseFloat(e.target.value); };
 document.getElementById('btn-export').onclick = exportCSV;
 
@@ -451,7 +489,8 @@ function scoreEvent(behaviorIdx) {
     id: eventId++,
     video: fileNames[currentIdx],
     time: vid.currentTime,
-    frame: Math.round(vid.currentTime * FPS_ESTIMATE),
+    frame: Math.round(vid.currentTime * detectedFPS),
+    fps: detectedFPS,
     behavior: behaviorIdx === 1 ? config.b1Name : config.b2Name,
     behaviorIdx,
   };
@@ -509,18 +548,53 @@ function updateEventLog() {
     const li = document.createElement('li');
     const cls = evt.behaviorIdx === 1 ? 'b1' : 'b2';
     li.innerHTML = `
-      <span class="time">${fmtTime(evt.time)}</span>
-      <span class="label ${cls}">${evt.behavior}</span>
+      <span class="time" title="Click to jump">${fmtTime(evt.time)}</span>
+      <span class="label ${cls}" title="Click to toggle behavior">${evt.behavior}</span>
       <span class="vid">${evt.video}</span>
-      <button class="del-btn" title="Delete this event">&times;</button>
+      <span class="actions">
+        <button class="act-btn edit-btn" title="Edit time (set to current video position)">&#9998;</button>
+        <button class="act-btn del" title="Delete this event">&times;</button>
+      </span>
     `;
-    li.querySelector('.del-btn').onclick = () => deleteEvent(evt.id);
-    // Click time to jump to that point
+    // Delete
+    li.querySelector('.del').onclick = () => {
+      if (events.length > 20 || confirm('Delete this event?')) deleteEvent(evt.id);
+      else deleteEvent(evt.id); // small list, just delete
+    };
+    // Click time to jump
     li.querySelector('.time').style.cursor = 'pointer';
     li.querySelector('.time').onclick = () => {
       const vidIdx = fileNames.indexOf(evt.video);
       if (vidIdx >= 0 && vidIdx !== currentIdx) loadVideo(vidIdx);
       setTimeout(() => { vid.currentTime = evt.time; }, vidIdx !== currentIdx ? 300 : 0);
+    };
+    // Click label to toggle behavior
+    li.querySelector('.label').onclick = () => {
+      const real = events.find(e => e.id === evt.id);
+      if (!real) return;
+      // Toggle between behavior 1 and 2
+      if (real.behaviorIdx === 1) {
+        real.behaviorIdx = 2;
+        real.behavior = config.b2Name;
+      } else {
+        real.behaviorIdx = 1;
+        real.behavior = config.b1Name;
+      }
+      updateEventLog();
+      updateCounts();
+      saveData();
+    };
+    // Edit button: update time to current video position
+    li.querySelector('.edit-btn').onclick = () => {
+      const real = events.find(e => e.id === evt.id);
+      if (!real) return;
+      real.time = vid.currentTime;
+      real.frame = Math.round(vid.currentTime * (real.fps || detectedFPS));
+      real.video = fileNames[currentIdx];
+      updateEventLog();
+      updateVideoBadges();
+      saveData();
+      showSaveStatus('Event updated');
     };
     ul.appendChild(li);
   });
@@ -530,10 +604,28 @@ function updateEventLog() {
 function saveData() {
   try {
     const data = { config, events, fileNames, savedAt: new Date().toISOString() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const json = JSON.stringify(data);
+    localStorage.setItem(STORAGE_KEY, json);
+    // Check storage size
+    const sizeMB = new Blob([json]).size / 1_048_576;
+    const warn = document.getElementById('storage-warn');
+    if (sizeMB > STORAGE_WARN_MB) {
+      if (!warn) {
+        const div = document.createElement('div');
+        div.id = 'storage-warn';
+        div.className = 'storage-warn';
+        div.textContent = `Storage usage: ${sizeMB.toFixed(1)}MB — export CSV soon to avoid data loss`;
+        scoreScreen.querySelector('.footer').before(div);
+      } else {
+        warn.textContent = `Storage usage: ${sizeMB.toFixed(1)}MB — export CSV soon to avoid data loss`;
+      }
+    } else if (warn) {
+      warn.remove();
+    }
     showSaveStatus('Saved');
   } catch(e) {
-    showSaveStatus('Save failed!', true);
+    showSaveStatus('SAVE FAILED — export CSV now!', true);
+    alert('Auto-save failed! Browser storage may be full. Please export your data as CSV immediately (Ctrl+E) to avoid losing work.');
   }
 }
 
@@ -549,10 +641,10 @@ function showSaveStatus(msg, isError) {
 // ── Export ──
 function exportCSV() {
   if (events.length === 0) { alert('No events to export'); return; }
-  const header = 'video,time_sec,frame,behavior\n';
+  const header = 'video,time_sec,frame,fps,behavior\n';
   const rows = events
     .sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }) || a.time - b.time)
-    .map(e => `"${e.video}",${e.time.toFixed(3)},${e.frame},"${e.behavior}"`)
+    .map(e => `"${e.video}",${e.time.toFixed(3)},${e.frame},${e.fps || 30},"${e.behavior}"`)
     .join('\n');
   const csv = header + rows;
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -583,8 +675,8 @@ document.addEventListener('keydown', e => {
   if (key === 'arrowright' && e.shiftKey) { e.preventDefault(); loadVideo(currentIdx + 1); return; }
   if (key === 'arrowleft') { e.preventDefault(); vid.currentTime = Math.max(0, vid.currentTime - 5); return; }
   if (key === 'arrowright') { e.preventDefault(); vid.currentTime += 5; return; }
-  if (key === ',') { e.preventDefault(); vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - FRAME_STEP); return; }
-  if (key === '.') { e.preventDefault(); vid.pause(); vid.currentTime += FRAME_STEP; return; }
+  if (key === ',') { e.preventDefault(); vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/detectedFPS); return; }
+  if (key === '.') { e.preventDefault(); vid.pause(); vid.currentTime += 1/detectedFPS; return; }
 
   // Undo
   if (key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoLast(); return; }

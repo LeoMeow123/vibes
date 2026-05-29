@@ -135,7 +135,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="config-row">
     <label>Video FPS:</label>
     <input type="number" id="cfg-fps" value="30" min="1" max="240" style="width:70px; text-align:center;">
-    <span style="font-size:12px; color:var(--muted);">Set to match your video (common: 25, 30, 50, 60)</span>
+    <span style="font-size:12px; color:var(--muted);">Fallback if auto-detect fails (common: 25, 30, 50, 60)</span>
   </div>
 
   <button class="btn-load" id="btn-load-folder">Load Video Folder</button>
@@ -247,6 +247,8 @@ let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's
 let activeStates = {};    // {behaviorIdx: {startTime, startFrame, video}}
 const STORAGE_KEY = 'behavior-scorer-data';
 const STORAGE_WARN_MB = 4; // warn when localStorage usage exceeds this
+let fpsDetected = false;
+let isDetecting = false;
 
 // ── DOM refs ──
 const vid = document.getElementById('vid');
@@ -433,9 +435,76 @@ function loadVideo(idx) {
   if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
 }
 
-// Update FPS display when video loads
-vid.addEventListener('loadedmetadata', () => {
-  document.getElementById('vid-fps').textContent = `${config.fps}fps`;
+// Auto-detect FPS from video frame timing
+function autoDetectFPS() {
+  return new Promise((resolve) => {
+    if (!vid.requestVideoFrameCallback) { resolve(null); return; }
+
+    const samples = [];
+    let lastMediaTime = null;
+    let resolved = false;
+    const wasMuted = vid.muted;
+    vid.muted = true;
+    isDetecting = true;
+
+    function done() {
+      if (resolved) return;
+      resolved = true;
+      isDetecting = false;
+      vid.pause();
+      vid.currentTime = 0;
+      vid.muted = wasMuted;
+
+      if (samples.length < 3) { resolve(null); return; }
+
+      samples.sort((a, b) => a - b);
+      const median = samples[Math.floor(samples.length / 2)];
+      const rawFps = 1 / median;
+
+      // Snap to nearest standard FPS
+      const standards = [24, 25, 29.97, 30, 50, 59.94, 60, 120, 240];
+      const snapped = standards.reduce((best, s) =>
+        Math.abs(s - rawFps) < Math.abs(best - rawFps) ? s : best
+      );
+      resolve(Math.round(snapped));
+    }
+
+    function onFrame(now, metadata) {
+      if (resolved) return;
+      if (lastMediaTime !== null) {
+        const delta = metadata.mediaTime - lastMediaTime;
+        if (delta > 0.001 && delta < 0.5) samples.push(delta);
+      }
+      lastMediaTime = metadata.mediaTime;
+      if (samples.length >= 10) { done(); }
+      else { vid.requestVideoFrameCallback(onFrame); }
+    }
+
+    vid.requestVideoFrameCallback(onFrame);
+    vid.play().catch(() => { vid.muted = wasMuted; isDetecting = false; resolve(null); });
+
+    // Timeout fallback
+    setTimeout(done, 2000);
+  });
+}
+
+// Update FPS display when video loads — auto-detect on first video
+vid.addEventListener('loadedmetadata', async () => {
+  if (!fpsDetected && scoreScreen.style.display !== 'none') {
+    fpsDetected = true;
+    document.getElementById('vid-fps').textContent = `detecting fps...`;
+    const detected = await autoDetectFPS();
+    if (detected) {
+      config.fps = detected;
+      document.getElementById('vid-fps').textContent = `${detected}fps (auto)`;
+      showSaveStatus(`FPS auto-detected: ${detected}`);
+      saveData();
+    } else {
+      document.getElementById('vid-fps').textContent = `${config.fps}fps`;
+    }
+  } else {
+    document.getElementById('vid-fps').textContent = `${config.fps}fps`;
+  }
 });
 
 // ── Video controls ──
@@ -449,6 +518,7 @@ vid.addEventListener('timeupdate', () => {
 });
 
 vid.addEventListener('ended', () => {
+  if (isDetecting) return; // Don't auto-advance during FPS detection
   // Auto-advance to next video
   if (currentIdx < files.length - 1) {
     loadVideo(currentIdx + 1);

@@ -26,8 +26,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 /* Video panel */
 .video-panel { flex: 1; display: flex; flex-direction: column; padding: 8px; gap: 8px; min-width: 0; }
 .video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; overflow: hidden; position: relative; min-height: 0; min-width: 0; }
-.video-wrap video { width: 100%; height: 100%; object-fit: contain; }
-.video-wrap .no-video { color: var(--muted); font-size: 18px; }
+.video-wrap video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+.video-wrap .no-video { color: var(--muted); font-size: 18px; position: relative; z-index: 1; }
 .video-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
 .video-info .filename { color: var(--text); font-weight: 500; }
 .video-info .counter { color: var(--blue); }

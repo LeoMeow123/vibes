@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Sync Demon</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:#0a0c14;overflow:hidden;font-family:'Space Grotesk',sans-serif;color:#eef1f8;}
+  .stage{width:1280px;height:720px;margin:0 auto;position:relative;
+    background:radial-gradient(800px 500px at 70% 20%, rgba(180,60,90,.12), transparent 60%),#0a0c14;}
+  h1{position:absolute;top:34px;left:60px;font-size:28px;font-weight:700;z-index:6;}
+  .sub{position:absolute;top:74px;left:60px;font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:#8c97b8;letter-spacing:2px;z-index:6;}
+  .win{position:absolute;width:300px;height:180px;border-radius:10px;
+    background:#141826;border:1px solid #2a3244;box-shadow:0 14px 40px rgba(0,0,0,.55);
+    opacity:0;transform:scale(.9);transition:opacity .3s,transform .3s;overflow:hidden;}
+  .win.show{opacity:1;transform:scale(1);}
+  .bar{height:30px;background:#1d2335;display:flex;align-items:center;padding:0 12px;gap:7px;}
+  .bar .c{width:11px;height:11px;border-radius:50%;}
+  .c.r{background:#ff5f57;}.c.y{background:#febc2e;}.c.g{background:#28c840;}
+  .bar .t{margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#aab4d0;}
+  .body{padding:14px;}
+  .body .lab{font-family:'JetBrains Mono',monospace;font-size:12px;color:#8c97b8;}
+  .fps{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;margin-top:6px;}
+  .rec{display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+    font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .rec .blip{width:10px;height:10px;border-radius:50%;background:#28c840;animation:blink 1s infinite;}
+  @keyframes blink{50%{opacity:.25;}}
+  /* healthy vs frozen */
+  .win.ok .fps{color:#46d27a;}
+  .win.frozen{filter:grayscale(.7) brightness(.7);}
+  .win.frozen .fps{color:#ff6b6b;}
+  .win.frozen .rec .blip{background:#ff6b6b;animation:none;}
+  .win.frozen .glitch{position:absolute;inset:30px 0 0 0;
+    background:repeating-linear-gradient(0deg,rgba(255,80,80,.08) 0 2px,transparent 2px 5px);
+    animation:jit .12s steps(2) infinite;pointer-events:none;}
+  @keyframes jit{0%{transform:translateY(0);}100%{transform:translateY(2px);}}
+  .frozentag{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-8deg);
+    font-weight:700;font-size:22px;color:#ff6b6b;border:3px solid #ff6b6b;padding:4px 12px;
+    border-radius:6px;opacity:0;}
+  .win.frozen .frozentag{opacity:.92;}
+  .demon{position:absolute;right:40px;bottom:10px;font-size:120px;opacity:0;z-index:2;
+    transition:opacity .8s;filter:drop-shadow(0 0 20px rgba(255,70,90,.6));}
+  .demon.show{opacity:.9;}
+  .caption{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:7;
+    font-family:'JetBrains Mono',monospace;font-size:16px;color:#dce3f5;
+    background:rgba(10,12,20,.85);border:1px solid #2a3244;padding:9px 20px;border-radius:30px;
+    letter-spacing:.5px;opacity:0;transition:opacity .4s;}
+  .caption.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <h1>Open them all at once…</h1>
+  <div class="sub">4 RECORDERS · 1 MACHINE</div>
+
+  <div class="win" id="w1" style="left:90px;top:130px;">
+    <div class="bar"><span class="c r"></span><span class="c y"></span><span class="c g"></span><span class="t">recorder · cam_01</span></div>
+    <div class="body"><div class="lab">capture rate</div><div class="fps" id="f1">50 fps</div>
+      <div class="rec"><span class="blip"></span>REC 00:00:01</div></div>
+    <div class="glitch"></div><div class="frozentag">FROZEN</div>
+  </div>
+
+  <div class="win" id="w2" style="left:430px;top:170px;">
+    <div class="bar"><span class="c r"></span><span class="c y"></span><span class="c g"></span><span class="t">recorder · cam_02</span></div>
+    <div class="body"><div class="lab">capture rate</div><div class="fps" id="f2">50 fps</div>
+      <div class="rec"><span class="blip"></span>REC 00:00:01</div></div>
+    <div class="glitch"></div><div class="frozentag">FROZEN</div>
+  </div>
+
+  <div class="win" id="w3" style="left:250px;top:360px;">
+    <div class="bar"><span class="c r"></span><span class="c y"></span><span class="c g"></span><span class="t">recorder · cam_03</span></div>
+    <div class="body"><div class="lab">capture rate</div><div class="fps" id="f3">— fps</div>
+      <div class="rec"><span class="blip"></span>REC 00:00:00</div></div>
+    <div class="glitch"></div><div class="frozentag">FROZEN</div>
+  </div>
+
+  <div class="win" id="w4" style="left:600px;top:380px;">
+    <div class="bar"><span class="c r"></span><span class="c y"></span><span class="c g"></span><span class="t">recorder · cam_04</span></div>
+    <div class="body"><div class="lab">capture rate</div><div class="fps" id="f4">— fps</div>
+      <div class="rec"><span class="blip"></span>REC 00:00:00</div></div>
+    <div class="glitch"></div><div class="frozentag">FROZEN</div>
+  </div>
+
+  <div class="demon" id="demon">👹</div>
+  <div class="caption" id="cap"></div>
+</div>
+<script>
+const cap=document.getElementById('cap');
+function cset(t){cap.textContent=t;cap.classList.add('show');}
+function run(){
+  ['w1','w2','w3','w4'].forEach(i=>{const w=document.getElementById(i);w.classList.remove('show','ok','frozen');});
+  document.getElementById('demon').classList.remove('show');
+  cap.classList.remove('show');
+  document.getElementById('f1').textContent='50 fps';
+  document.getElementById('f2').textContent='50 fps';
+  document.getElementById('f3').textContent='— fps';
+  document.getElementById('f4').textContent='— fps';
+
+  // windows pop open one by one
+  setTimeout(()=>{document.getElementById('w1').classList.add('show','ok');cset('First recorder: clean. 50 fps.');},500);
+  setTimeout(()=>{document.getElementById('w2').classList.add('show','ok');},1200);
+  setTimeout(()=>{document.getElementById('w3').classList.add('show');cset('Open more at once…');},1900);
+  setTimeout(()=>{document.getElementById('w4').classList.add('show');},2500);
+  // the late ones freeze
+  setTimeout(()=>{document.getElementById('w3').classList.add('frozen');},3300);
+  setTimeout(()=>{document.getElementById('w4').classList.add('frozen');cset('…and the late ones just freeze.');},3800);
+  // first two drift
+  setTimeout(()=>{document.getElementById('f2').textContent='38 fps';document.getElementById('w2').classList.remove('ok');document.getElementById('w2').classList.add('frozen');},4600);
+  setTimeout(()=>{document.getElementById('demon').classList.add('show');cset('The Sync Demon appears.');},5200);
+  setTimeout(run,8500);
+}
+run();
+</script>
+</body>
+</html>

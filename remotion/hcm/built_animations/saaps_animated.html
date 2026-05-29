@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAAPS Animated Pipeline</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  :root{
+    --bg:#0a0e1a;
+    --ink:#e8edf7;
+    --acq:#5b9bd5;      /* data acquisition - blue */
+    --infra:#7bc47f;    /* compute - green */
+    --train:#e8a857;    /* training - amber */
+    --line:#2a3550;
+    --glow-blue:#6db3ff;
+    --glow-green:#7be88a;
+    --glow-amber:#ffc46b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',sans-serif;overflow:hidden;}
+  .stage{
+    width:1280px;height:720px;position:relative;margin:0 auto;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(91,155,213,.10), transparent 60%),
+      radial-gradient(900px 500px at 80% 110%, rgba(123,196,127,.08), transparent 60%),
+      var(--bg);
+  }
+  /* subtle grid texture */
+  .stage::before{
+    content:"";position:absolute;inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;
+  }
+  .title{
+    position:absolute;top:26px;left:50%;transform:translateX(-50%);
+    text-align:center;z-index:5;
+  }
+  .title h1{font-size:30px;font-weight:700;letter-spacing:.5px;}
+  .title h1 .u{text-decoration:underline;text-underline-offset:4px;}
+  .title .sub{font-family:'JetBrains Mono',monospace;font-size:12px;color:#8595b5;margin-top:4px;letter-spacing:2px;}
+
+  svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;}
+
+  .node{
+    position:absolute;z-index:3;border-radius:14px;padding:14px 16px;
+    background:rgba(18,24,40,.92);border:1.5px solid var(--line);
+    text-align:center;min-width:120px;
+    box-shadow:0 6px 22px rgba(0,0,0,.45);
+    opacity:.35;transition:none;
+  }
+  .node .lab{font-size:14px;font-weight:600;line-height:1.2;}
+  .node .meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:#7e8db0;margin-top:5px;}
+  .node .icon{font-size:20px;margin-bottom:4px;}
+
+  /* group tints */
+  .g-acq{border-color:rgba(91,155,213,.5);}
+  .g-infra{border-color:rgba(123,196,127,.5);}
+  .g-train{border-color:rgba(232,168,87,.5);}
+
+  /* lit state */
+  .node.on{opacity:1;}
+  .node.on.g-acq{box-shadow:0 0 0 1.5px var(--acq),0 0 28px rgba(109,179,255,.55),0 6px 22px rgba(0,0,0,.45);}
+  .node.on.g-infra{box-shadow:0 0 0 1.5px var(--infra),0 0 28px rgba(123,232,138,.5),0 6px 22px rgba(0,0,0,.45);}
+  .node.on.g-train{box-shadow:0 0 0 1.5px var(--train),0 0 28px rgba(255,196,107,.5),0 6px 22px rgba(0,0,0,.45);}
+  .node.pulse{animation:pop .5s ease;}
+  @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.07);}100%{transform:scale(1);}}
+
+  /* group labels */
+  .glabel{position:absolute;z-index:2;font-weight:700;font-size:13px;letter-spacing:1px;opacity:.0;transition:opacity .5s;}
+  .glabel.show{opacity:.9;}
+  .glabel.acq{color:var(--glow-blue);}
+  .glabel.infra{color:var(--glow-green);}
+  .glabel.train{color:var(--glow-amber);}
+
+  /* flow path styling */
+  .edge{fill:none;stroke:var(--line);stroke-width:2.5;}
+  .edge.lit{stroke:url(#flowgrad);stroke-width:3;filter:drop-shadow(0 0 6px rgba(109,179,255,.6));}
+
+  .caption{
+    position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace;font-size:14px;color:#aeb9d6;
+    background:rgba(12,16,28,.8);border:1px solid var(--line);
+    padding:8px 18px;border-radius:30px;z-index:5;letter-spacing:.5px;
+    opacity:0;transition:opacity .4s;
+  }
+  .caption.show{opacity:1;}
+
+  /* traveling dot */
+  .traveler{r:5;fill:#bfe0ff;filter:drop-shadow(0 0 6px #6db3ff);opacity:0;}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="title">
+    <h1><span class="u">S</span>alk <span class="u">A</span>I <span class="u">A</span>nimal <span class="u">P</span>henotyping <span class="u">S</span>ystem</h1>
+    <div class="sub">S A A P S — DATA FLOW</div>
+  </div>
+
+  <!-- group labels -->
+  <div class="glabel acq"    id="gl-acq"   style="left:300px;top:150px;">DATA ACQUISITION</div>
+  <div class="glabel train"  id="gl-train" style="left:980px;top:430px;">MODEL TRAINING</div>
+  <div class="glabel infra"  id="gl-infra" style="left:120px;top:600px;">COMPUTE INFRASTRUCTURE</div>
+
+  <!-- SVG edges -->
+  <svg viewBox="0 0 1280 720" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="flowgrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#6db3ff"/>
+        <stop offset="100%" stop-color="#7be88a"/>
+      </linearGradient>
+    </defs>
+    <!-- 1 cage -> 2 camera -->
+    <path class="edge" id="e1" d="M205,235 L205,285"/>
+    <!-- 2 camera -> 3 acqpc -->
+    <path class="edge" id="e2" d="M205,345 L205,395"/>
+    <!-- 3 acqpc -> 4 storage -->
+    <path class="edge" id="e3" d="M280,420 L470,420"/>
+    <!-- 4 storage -> 5 curation -->
+    <path class="edge" id="e4" d="M640,420 L840,420"/>
+    <!-- 5 curation -> 6 training (down) -->
+    <path class="edge" id="e5" d="M910,455 L910,535"/>
+    <!-- 6 training -> 7 models (left) -->
+    <path class="edge" id="e6" d="M840,565 L700,565"/>
+    <!-- 7 models -> 8 triton (left) -->
+    <path class="edge" id="e7" d="M560,565 L470,565"/>
+    <!-- 8 triton -> 3 acqpc (inference back, up-left) -->
+    <path class="edge" id="e8" d="M300,545 L230,455"/>
+    <!-- triton <-> gpu nodes -->
+    <path class="edge" id="e9" d="M360,605 L360,645"/>
+    <circle class="traveler" id="trav"/>
+  </svg>
+
+  <!-- nodes -->
+  <div class="node g-acq" id="n1" style="left:145px;top:185px;"><div class="icon">🏠</div><div class="lab">Home cage</div><div class="meta">behavioral assay</div></div>
+  <div class="node g-acq" id="n2" style="left:145px;top:288px;"><div class="icon">🎥</div><div class="lab">Camera(s)</div><div class="meta">industrial · IR</div></div>
+  <div class="node g-acq" id="n3" style="left:140px;top:395px;"><div class="icon">💻</div><div class="lab">Acquisition PC</div><div class="meta">encode · 4 cages:1</div></div>
+  <div class="node g-acq" id="n4" style="left:475px;top:392px;"><div class="icon">🗄️</div><div class="lab">VAST storage</div><div class="meta">network · shared</div></div>
+  <div class="node g-train" id="n5" style="left:840px;top:392px;"><div class="icon">🧹</div><div class="lab">Dataset curation</div><div class="meta">→ model dev</div></div>
+  <div class="node g-train" id="n6" style="left:840px;top:535px;"><div class="icon">🧠</div><div class="lab">Train &amp; evaluate</div><div class="meta">pose · tracking</div></div>
+  <div class="node g-train" id="n7" style="left:560px;top:537px;"><div class="icon">📦</div><div class="lab">Models</div><div class="meta">SLEAP · behaviors</div></div>
+  <div class="node g-infra" id="n8" style="left:300px;top:535px;"><div class="icon">⚡</div><div class="lab">Triton Inference</div><div class="meta">NVIDIA · run:ai</div></div>
+  <div class="node g-infra" id="n9" style="left:290px;top:645px;"><div class="icon">🟩</div><div class="lab">GPU nodes</div><div class="meta">Blackwell ×N</div></div>
+
+  <div class="caption" id="cap"></div>
+</div>
+
+<script>
+const seq = [
+  {n:'n1', e:null, gl:'gl-acq',   cap:'Home cage — the behavior happens here'},
+  {n:'n2', e:'e1', gl:null,        cap:'Industrial cameras capture 24/7'},
+  {n:'n3', e:'e2', gl:null,        cap:'Acquisition PC encodes at the source'},
+  {n:'n4', e:'e3', gl:null,        cap:'→ straight to VAST network storage'},
+  {n:'n5', e:'e4', gl:'gl-train',  cap:'Curate the dataset'},
+  {n:'n6', e:'e5', gl:null,        cap:'Train & evaluate the models'},
+  {n:'n7', e:'e6', gl:null,        cap:'Trained models ready to deploy'},
+  {n:'n8', e:'e7', gl:'gl-infra',  cap:'Triton Inference Server runs them'},
+  {n:'n9', e:'e9', gl:null,        cap:'Powered by GPU nodes'},
+  {n:'n3', e:'e8', gl:null,        cap:'Results flow back — pose, tracking, behaviors'},
+];
+
+const cap = document.getElementById('cap');
+function lightEdge(id){
+  if(!id) return;
+  const e = document.getElementById(id);
+  e.classList.add('lit');
+}
+function run(){
+  // reset
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('on','pulse'));
+  document.querySelectorAll('.edge').forEach(e=>e.classList.remove('lit'));
+  document.querySelectorAll('.glabel').forEach(g=>g.classList.remove('show'));
+  cap.classList.remove('show');
+  let i=0;
+  const step=()=>{
+    if(i>=seq.length){
+      // final: everything glows, summary caption
+      setTimeout(()=>{
+        cap.textContent='Home cage → PC → VAST → Triton → GPU nodes';
+        cap.classList.add('show');
+      },400);
+      setTimeout(run, 3800); // loop
+      return;
+    }
+    const s=seq[i];
+    lightEdge(s.e);
+    const node=document.getElementById(s.n);
+    node.classList.add('on','pulse');
+    if(s.gl) document.getElementById(s.gl).classList.add('show');
+    cap.textContent=s.cap;
+    cap.classList.add('show');
+    i++;
+    setTimeout(step, 900);
+  };
+  setTimeout(step, 600);
+}
+run();
+</script>
+</body>
+</html>

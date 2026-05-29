@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The 24-Month Problem</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:#0b0d16;overflow:hidden;font-family:'Space Grotesk',sans-serif;color:#eef1f8;}
+  .stage{width:1280px;height:720px;margin:0 auto;position:relative;padding:70px 90px;
+    background:radial-gradient(900px 500px at 30% 0%, rgba(232,90,90,.10), transparent 60%),#0b0d16;}
+  h1{font-size:34px;font-weight:700;margin-bottom:6px;}
+  .sub{font-family:'JetBrains Mono',monospace;color:#8c97b8;font-size:13px;letter-spacing:2px;margin-bottom:50px;}
+  .row{display:flex;align-items:center;margin-bottom:30px;opacity:0;transform:translateX(-20px);
+    transition:opacity .6s,transform .6s;}
+  .row.show{opacity:1;transform:none;}
+  .row .name{width:230px;font-size:16px;font-weight:600;text-align:right;padding-right:22px;}
+  .row .name small{display:block;color:#8c97b8;font-weight:400;font-size:12px;font-family:'JetBrains Mono',monospace;}
+  .track{flex:1;height:34px;background:rgba(255,255,255,.04);border-radius:8px;position:relative;overflow:hidden;}
+  .bar{height:100%;width:0;border-radius:8px;transition:width 1.1s cubic-bezier(.2,.8,.2,1);
+    display:flex;align-items:center;justify-content:flex-end;padding-right:12px;
+    font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#0b0d16;}
+  .b-short{background:linear-gradient(90deg,#4a90d9,#6db3ff);}
+  .b-prior{background:linear-gradient(90deg,#5aa0c0,#8fd0e8);}
+  .b-ad{background:linear-gradient(90deg,#e85a5a,#ffb05a);}
+  .axis{display:flex;justify-content:space-between;margin-top:8px;margin-left:230px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b769a;}
+  .punch{position:absolute;bottom:60px;left:90px;font-size:22px;font-weight:700;color:#ffb05a;opacity:0;
+    transition:opacity .6s;}
+  .punch.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <h1>Why long-term home-cage monitoring is rare</h1>
+  <div class="sub">DISEASE TIMELINE vs. TYPICAL STUDY LENGTH</div>
+
+  <div class="row" id="r1">
+    <div class="name">Fast-mutating models<small>e.g. acute / inducible</small></div>
+    <div class="track"><div class="bar b-short" id="bar1">weeks</div></div>
+  </div>
+  <div class="row" id="r2">
+    <div class="name">Prior home-cage studies<small>published norm</small></div>
+    <div class="track"><div class="bar b-prior" id="bar2">1–2 mo</div></div>
+  </div>
+  <div class="row" id="r3">
+    <div class="name">Alzheimer's disease<small>what we need</small></div>
+    <div class="track"><div class="bar b-ad" id="bar3">up to 24 months</div></div>
+  </div>
+
+  <div class="axis"><span>0</span><span>6 mo</span><span>12 mo</span><span>18 mo</span><span>24 mo</span></div>
+
+  <div class="punch" id="punch">One cage, 24 months → a single n. Not enough.</div>
+</div>
+<script>
+function run(){
+  ['r1','r2','r3'].forEach(i=>document.getElementById(i).classList.remove('show'));
+  ['bar1','bar2','bar3'].forEach(i=>document.getElementById(i).style.width='0');
+  document.getElementById('punch').classList.remove('show');
+  setTimeout(()=>{document.getElementById('r1').classList.add('show');document.getElementById('bar1').style.width='10%';},500);
+  setTimeout(()=>{document.getElementById('r2').classList.add('show');document.getElementById('bar2').style.width='17%';},1500);
+  setTimeout(()=>{document.getElementById('r3').classList.add('show');document.getElementById('bar3').style.width='100%';},2600);
+  setTimeout(()=>{document.getElementById('punch').classList.add('show');},4200);
+  setTimeout(run,7500);
+}
+run();
+</script>
+</body>
+</html>

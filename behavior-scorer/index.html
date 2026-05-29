@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Behavior Scorer</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --green: #3fb950;
+  --blue: #58a6ff; --orange: #d29922; --red: #f85149;
+  --yellow: #e3b341;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Top bar */
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.topbar h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.topbar .status { font-size: 13px; color: var(--muted); margin-left: auto; }
+.topbar .saved { color: var(--green); }
+
+/* Main layout */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Video panel */
+.video-panel { flex: 1; display: flex; flex-direction: column; padding: 8px; gap: 8px; min-width: 0; }
+.video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; overflow: hidden; position: relative; min-height: 0; }
+.video-wrap video { max-width: 100%; max-height: 100%; }
+.video-wrap .no-video { color: var(--muted); font-size: 18px; }
+.video-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.video-info .filename { color: var(--text); font-weight: 500; }
+.video-info .counter { color: var(--blue); }
+
+/* Controls */
+.controls { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
+.controls button { padding: 6px 14px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; }
+.controls button:hover { border-color: var(--blue); }
+.controls button:disabled { opacity: 0.4; cursor: default; }
+.controls button.primary { background: #238636; border-color: #2ea043; }
+.controls button.primary:hover { background: #2ea043; }
+.controls button.danger { background: #da3633; border-color: #f85149; }
+
+.speed-ctrl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.speed-ctrl select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px; font-size: 12px; }
+
+/* Hotkey buttons */
+.hotkey-row { display: flex; gap: 8px; flex-shrink: 0; }
+.hotkey-btn { flex: 1; padding: 12px; border-radius: 6px; border: 2px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 15px; font-weight: 600; text-align: center; transition: all 0.1s; user-select: none; }
+.hotkey-btn:active, .hotkey-btn.flash { transform: scale(0.97); }
+.hotkey-btn.b1 { border-color: var(--blue); }
+.hotkey-btn.b1.flash { background: rgba(88,166,255,0.3); }
+.hotkey-btn.b2 { border-color: var(--orange); }
+.hotkey-btn.b2.flash { background: rgba(210,153,34,0.3); }
+
+/* Right sidebar */
+.sidebar { width: 340px; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sidebar-tabs button { flex: 1; padding: 8px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; }
+.sidebar-tabs button.active { color: var(--text); border-bottom-color: var(--blue); }
+.tab-content { flex: 1; overflow-y: auto; }
+.tab-content[data-tab] { display: none; }
+.tab-content.active { display: block; }
+
+/* Video list */
+.video-list { list-style: none; }
+.video-list li { padding: 6px 12px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+.video-list li:hover { background: rgba(255,255,255,0.04); }
+.video-list li.current { background: rgba(88,166,255,0.12); color: var(--blue); }
+.video-list li .idx { color: var(--muted); min-width: 24px; text-align: right; }
+.video-list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-list li .badge { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: var(--border); color: var(--muted); }
+.video-list li .badge.has-events { background: rgba(63,185,80,0.2); color: var(--green); }
+
+/* Event log */
+.event-log { list-style: none; }
+.event-log li { padding: 5px 12px; font-size: 12px; font-family: 'SF Mono', 'Consolas', monospace; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.event-log li .time { color: var(--muted); min-width: 55px; }
+.event-log li .label { padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.event-log li .label.b1 { background: rgba(88,166,255,0.2); color: var(--blue); }
+.event-log li .label.b2 { background: rgba(210,153,34,0.2); color: var(--orange); }
+.event-log li .vid { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.event-log li .del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; }
+.event-log li .del-btn:hover { color: var(--red); }
+
+/* Setup panel */
+.setup { padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.setup h2 { font-size: 22px; }
+.setup p { color: var(--muted); font-size: 14px; max-width: 500px; }
+.setup .btn-load { padding: 14px 32px; font-size: 16px; background: #238636; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: 600; }
+.setup .btn-load:hover { background: #2ea043; }
+.config-row { display: flex; gap: 12px; align-items: center; }
+.config-row label { font-size: 13px; color: var(--muted); }
+.config-row input { width: 160px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 14px; }
+.config-row .key-input { width: 60px; text-align: center; font-weight: bold; text-transform: uppercase; }
+
+/* Footer bar */
+.footer { display: flex; align-items: center; gap: 12px; padding: 6px 16px; background: var(--surface); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.footer .stat { display: flex; align-items: center; gap: 4px; }
+.footer .dot { width: 6px; height: 6px; border-radius: 50%; }
+.footer .dot.green { background: var(--green); }
+.footer .dot.yellow { background: var(--yellow); }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen" class="setup" style="flex:1; justify-content: center;">
+  <h2>Behavior Scorer</h2>
+  <p>Load a folder of videos, define two behavior hotkeys, and score frame-by-frame. Data auto-saves to your browser and exports as CSV.</p>
+
+  <div class="config-row">
+    <label>Behavior 1:</label>
+    <input type="text" id="cfg-b1-name" value="Behavior A" placeholder="Name">
+    <label>Key:</label>
+    <input type="text" id="cfg-b1-key" class="key-input" value="A" maxlength="1">
+  </div>
+  <div class="config-row">
+    <label>Behavior 2:</label>
+    <input type="text" id="cfg-b2-name" value="Behavior B" placeholder="Name">
+    <label>Key:</label>
+    <input type="text" id="cfg-b2-key" class="key-input" value="S" maxlength="1">
+  </div>
+
+  <button class="btn-load" id="btn-load-folder">Load Video Folder</button>
+  <p style="font-size:12px;">Or drag & drop a folder onto this page</p>
+
+  <div id="resume-section" style="display:none; margin-top:16px; padding:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface);">
+    <p style="color:var(--green); margin-bottom:8px;">Previous session found!</p>
+    <p id="resume-info" style="font-size:12px;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:center;">
+      <button class="btn-load" id="btn-resume" style="padding:8px 20px; font-size:14px;">Resume</button>
+      <button id="btn-new" style="padding:8px 20px; font-size:14px; background:var(--border); border:none; border-radius:8px; color:var(--text); cursor:pointer;">Start Fresh</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCORING SCREEN -->
+<div id="score-screen" style="display:none; flex:1; flex-direction:column;">
+  <div class="topbar">
+    <h1>Behavior Scorer</h1>
+    <span id="save-status" class="status"></span>
+  </div>
+
+  <div class="main">
+    <div class="video-panel">
+      <div class="video-wrap">
+        <video id="vid" preload="auto"></video>
+        <div class="no-video" id="no-video-msg" style="display:none;">No video loaded</div>
+      </div>
+
+      <div class="video-info">
+        <span class="counter" id="vid-counter">0 / 0</span>
+        <span class="filename" id="vid-filename">—</span>
+        <span id="vid-time">00:00.000 / 00:00</span>
+        <span id="vid-frame">Frame: 0</span>
+      </div>
+
+      <div class="controls">
+        <button id="btn-prev" title="Previous video (Shift+Left)">Prev</button>
+        <button id="btn-play" title="Space">Play</button>
+        <button id="btn-next" title="Next video (Shift+Right)">Next</button>
+        <button id="btn-back5" title="Left arrow">-5s</button>
+        <button id="btn-fwd5" title="Right arrow">+5s</button>
+        <button id="btn-frame-back" title="Comma (,)">&lt; Frame</button>
+        <button id="btn-frame-fwd" title="Period (.)">Frame &gt;</button>
+        <div class="speed-ctrl">
+          <label>Speed:</label>
+          <select id="speed-select">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+        </div>
+        <button id="btn-export" class="primary" title="Ctrl+E">Export CSV</button>
+      </div>
+
+      <div class="hotkey-row">
+        <button class="hotkey-btn b1" id="hk-btn1">
+          <span id="hk1-label">Behavior A</span>
+          <br><small id="hk1-key" style="color:var(--muted);">[A]</small>
+          <br><small id="hk1-count" style="color:var(--blue);">0 events</small>
+        </button>
+        <button class="hotkey-btn b2" id="hk-btn2">
+          <span id="hk2-label">Behavior B</span>
+          <br><small id="hk2-key" style="color:var(--muted);">[S]</small>
+          <br><small id="hk2-count" style="color:var(--orange);">0 events</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="active" data-tab="videos">Videos (<span id="tab-vid-count">0</span>)</button>
+        <button data-tab="events">Events (<span id="tab-evt-count">0</span>)</button>
+      </div>
+      <div class="tab-content active" data-tab="videos" id="tab-videos">
+        <ul class="video-list" id="video-list"></ul>
+      </div>
+      <div class="tab-content" data-tab="events" id="tab-events">
+        <ul class="event-log" id="event-log"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="stat"><div class="dot green" id="autosave-dot"></div> <span id="autosave-label">Auto-save on</span></div>
+    <span>|</span>
+    <span id="total-events">0 events total</span>
+    <span>|</span>
+    <span id="progress-label">0 / 0 videos scored</span>
+    <span style="margin-left:auto;">Shortcuts: Space=play, A/S=score, ,/.=frame step, Shift+Arrow=prev/next video, Ctrl+E=export, Ctrl+Z=undo</span>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let files = [];           // File objects in order
+let fileNames = [];       // string names
+let currentIdx = -1;
+let events = [];          // {video, time, frame, behavior, behaviorIdx, id}
+let eventId = 0;
+let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's' };
+const FPS_ESTIMATE = 30;  // fallback if unknown
+const STORAGE_KEY = 'behavior-scorer-data';
+const FRAME_STEP = 1 / FPS_ESTIMATE;
+
+// ── DOM refs ──
+const vid = document.getElementById('vid');
+const setupScreen = document.getElementById('setup-screen');
+const scoreScreen = document.getElementById('score-screen');
+
+// ── Setup ──
+function checkResume() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const d = JSON.parse(saved);
+    if (d.events && d.events.length > 0) {
+      document.getElementById('resume-section').style.display = 'block';
+      document.getElementById('resume-info').textContent =
+        `${d.events.length} events across ${d.fileNames?.length || '?'} videos. Config: "${d.config?.b1Name}" [${d.config?.b1Key?.toUpperCase()}], "${d.config?.b2Name}" [${d.config?.b2Key?.toUpperCase()}]`;
+    }
+  } catch(e) {}
+}
+checkResume();
+
+document.getElementById('btn-new').onclick = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('resume-section').style.display = 'none';
+};
+
+document.getElementById('btn-resume').onclick = () => {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  config = saved.config || config;
+  events = saved.events || [];
+  eventId = Math.max(0, ...events.map(e => e.id)) + 1;
+  document.getElementById('cfg-b1-name').value = config.b1Name;
+  document.getElementById('cfg-b1-key').value = config.b1Key.toUpperCase();
+  document.getElementById('cfg-b2-name').value = config.b2Name;
+  document.getElementById('cfg-b2-key').value = config.b2Key.toUpperCase();
+  // Still need to load files
+  pickFolder(saved.fileNames);
+};
+
+document.getElementById('btn-load-folder').onclick = () => pickFolder();
+
+async function pickFolder(expectedNames) {
+  try {
+    const dirHandle = await window.showDirectoryPicker();
+    const entries = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file' && /\.(mp4|avi|mov|mkv|webm)$/i.test(entry.name)) {
+        const file = await entry.getFile();
+        entries.push({ name: entry.name, file });
+      }
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    files = entries.map(e => e.file);
+    fileNames = entries.map(e => e.name);
+
+    if (expectedNames && expectedNames.length > 0) {
+      // Validate files match resumed session
+      const missing = expectedNames.filter(n => !fileNames.includes(n));
+      if (missing.length > 0) {
+        if (!confirm(`Warning: ${missing.length} videos from previous session not found in this folder. Continue anyway?`)) return;
+      }
+    }
+
+    readConfig();
+    startScoring();
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('Error loading folder: ' + e.message);
+  }
+}
+
+// Drag & drop
+document.body.addEventListener('dragover', e => { e.preventDefault(); });
+document.body.addEventListener('drop', async e => {
+  e.preventDefault();
+  if (scoreScreen.style.display !== 'none') return;
+  const items = [...e.dataTransfer.items];
+  const entries = [];
+  for (const item of items) {
+    const entry = item.webkitGetAsEntry?.();
+    if (entry?.isDirectory) {
+      await readDir(entry, entries);
+    } else if (entry?.isFile && /\.(mp4|avi|mov|mkv|webm)$/i.test(entry.name)) {
+      const file = await new Promise(r => entry.file(r));
+      entries.push({ name: entry.name, file });
+    }
+  }
+  if (entries.length === 0) { alert('No video files found'); return; }
+  entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  files = entries.map(e => e.file);
+  fileNames = entries.map(e => e.name);
+  readConfig();
+  startScoring();
+});
+
+function readDir(dirEntry, out) {
+  return new Promise(resolve => {
+    const reader = dirEntry.createReader();
+    reader.readEntries(async entries => {
+      for (const entry of entries) {
+        if (entry.isFile && /\.(mp4|avi|mov|mkv|webm)$/i.test(entry.name)) {
+          const file = await new Promise(r => entry.file(r));
+          out.push({ name: entry.name, file });
+        }
+      }
+      resolve();
+    });
+  });
+}
+
+function readConfig() {
+  config.b1Name = document.getElementById('cfg-b1-name').value || 'Behavior A';
+  config.b1Key = (document.getElementById('cfg-b1-key').value || 'a').toLowerCase();
+  config.b2Name = document.getElementById('cfg-b2-name').value || 'Behavior B';
+  config.b2Key = (document.getElementById('cfg-b2-key').value || 's').toLowerCase();
+}
+
+// ── Scoring ──
+function startScoring() {
+  setupScreen.style.display = 'none';
+  scoreScreen.style.display = 'flex';
+
+  // Apply config to UI
+  document.getElementById('hk1-label').textContent = config.b1Name;
+  document.getElementById('hk1-key').textContent = `[${config.b1Key.toUpperCase()}]`;
+  document.getElementById('hk2-label').textContent = config.b2Name;
+  document.getElementById('hk2-key').textContent = `[${config.b2Key.toUpperCase()}]`;
+  document.getElementById('tab-vid-count').textContent = files.length;
+
+  buildVideoList();
+  updateEventLog();
+  updateCounts();
+  loadVideo(0);
+  saveData();
+}
+
+function buildVideoList() {
+  const ul = document.getElementById('video-list');
+  ul.innerHTML = '';
+  fileNames.forEach((name, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="idx">${i + 1}</span><span class="name" title="${name}">${name}</span><span class="badge" id="vbadge-${i}">0</span>`;
+    li.onclick = () => loadVideo(i);
+    ul.appendChild(li);
+  });
+  updateVideoBadges();
+}
+
+function updateVideoBadges() {
+  const counts = {};
+  events.forEach(e => { counts[e.video] = (counts[e.video] || 0) + 1; });
+  fileNames.forEach((name, i) => {
+    const badge = document.getElementById(`vbadge-${i}`);
+    if (!badge) return;
+    const c = counts[name] || 0;
+    badge.textContent = c;
+    badge.className = c > 0 ? 'badge has-events' : 'badge';
+  });
+  // Highlight current
+  const items = document.querySelectorAll('#video-list li');
+  items.forEach((li, i) => li.classList.toggle('current', i === currentIdx));
+}
+
+function loadVideo(idx) {
+  if (idx < 0 || idx >= files.length) return;
+  currentIdx = idx;
+  const file = files[idx];
+  const url = URL.createObjectURL(file);
+  vid.src = url;
+  vid.load();
+  document.getElementById('vid-filename').textContent = fileNames[idx];
+  document.getElementById('vid-counter').textContent = `${idx + 1} / ${files.length}`;
+  updateVideoBadges();
+  // Scroll video list item into view
+  const items = document.querySelectorAll('#video-list li');
+  if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+// ── Video controls ──
+vid.addEventListener('timeupdate', () => {
+  const t = vid.currentTime;
+  const d = vid.duration || 0;
+  document.getElementById('vid-time').textContent =
+    `${fmtTime(t)} / ${fmtTime(d)}`;
+  document.getElementById('vid-frame').textContent =
+    `Frame: ${Math.round(t * FPS_ESTIMATE)}`;
+});
+
+vid.addEventListener('ended', () => {
+  // Auto-advance to next video
+  if (currentIdx < files.length - 1) {
+    loadVideo(currentIdx + 1);
+  }
+});
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '00:00.000';
+  const m = Math.floor(s / 60);
+  const sec = s - m * 60;
+  return `${String(m).padStart(2, '0')}:${sec.toFixed(3).padStart(6, '0')}`;
+}
+
+document.getElementById('btn-play').onclick = togglePlay;
+document.getElementById('btn-prev').onclick = () => loadVideo(currentIdx - 1);
+document.getElementById('btn-next').onclick = () => loadVideo(currentIdx + 1);
+document.getElementById('btn-back5').onclick = () => { vid.currentTime = Math.max(0, vid.currentTime - 5); };
+document.getElementById('btn-fwd5').onclick = () => { vid.currentTime += 5; };
+document.getElementById('btn-frame-back').onclick = () => { vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - FRAME_STEP); };
+document.getElementById('btn-frame-fwd').onclick = () => { vid.pause(); vid.currentTime += FRAME_STEP; };
+document.getElementById('speed-select').onchange = (e) => { vid.playbackRate = parseFloat(e.target.value); };
+document.getElementById('btn-export').onclick = exportCSV;
+
+document.getElementById('hk-btn1').onclick = () => scoreEvent(1);
+document.getElementById('hk-btn2').onclick = () => scoreEvent(2);
+
+function togglePlay() {
+  if (vid.paused) vid.play(); else vid.pause();
+}
+
+// ── Scoring events ──
+function scoreEvent(behaviorIdx) {
+  if (currentIdx < 0) return;
+  const evt = {
+    id: eventId++,
+    video: fileNames[currentIdx],
+    time: vid.currentTime,
+    frame: Math.round(vid.currentTime * FPS_ESTIMATE),
+    behavior: behaviorIdx === 1 ? config.b1Name : config.b2Name,
+    behaviorIdx,
+  };
+  events.push(evt);
+  updateEventLog();
+  updateCounts();
+  updateVideoBadges();
+  flashButton(behaviorIdx);
+  saveData();
+}
+
+function undoLast() {
+  if (events.length === 0) return;
+  events.pop();
+  updateEventLog();
+  updateCounts();
+  updateVideoBadges();
+  saveData();
+  showSaveStatus('Undo');
+}
+
+function deleteEvent(id) {
+  events = events.filter(e => e.id !== id);
+  updateEventLog();
+  updateCounts();
+  updateVideoBadges();
+  saveData();
+}
+
+function flashButton(idx) {
+  const btn = document.getElementById(idx === 1 ? 'hk-btn1' : 'hk-btn2');
+  btn.classList.add('flash');
+  setTimeout(() => btn.classList.remove('flash'), 150);
+}
+
+function updateCounts() {
+  const c1 = events.filter(e => e.behaviorIdx === 1).length;
+  const c2 = events.filter(e => e.behaviorIdx === 2).length;
+  document.getElementById('hk1-count').textContent = `${c1} events`;
+  document.getElementById('hk2-count').textContent = `${c2} events`;
+  document.getElementById('tab-evt-count').textContent = events.length;
+  document.getElementById('total-events').textContent = `${events.length} events total`;
+
+  // Progress
+  const scoredVideos = new Set(events.map(e => e.video)).size;
+  document.getElementById('progress-label').textContent = `${scoredVideos} / ${files.length} videos scored`;
+}
+
+function updateEventLog() {
+  const ul = document.getElementById('event-log');
+  ul.innerHTML = '';
+  // Show most recent first
+  const sorted = [...events].reverse();
+  sorted.forEach(evt => {
+    const li = document.createElement('li');
+    const cls = evt.behaviorIdx === 1 ? 'b1' : 'b2';
+    li.innerHTML = `
+      <span class="time">${fmtTime(evt.time)}</span>
+      <span class="label ${cls}">${evt.behavior}</span>
+      <span class="vid">${evt.video}</span>
+      <button class="del-btn" title="Delete this event">&times;</button>
+    `;
+    li.querySelector('.del-btn').onclick = () => deleteEvent(evt.id);
+    // Click time to jump to that point
+    li.querySelector('.time').style.cursor = 'pointer';
+    li.querySelector('.time').onclick = () => {
+      const vidIdx = fileNames.indexOf(evt.video);
+      if (vidIdx >= 0 && vidIdx !== currentIdx) loadVideo(vidIdx);
+      setTimeout(() => { vid.currentTime = evt.time; }, vidIdx !== currentIdx ? 300 : 0);
+    };
+    ul.appendChild(li);
+  });
+}
+
+// ── Persistence ──
+function saveData() {
+  try {
+    const data = { config, events, fileNames, savedAt: new Date().toISOString() };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    showSaveStatus('Saved');
+  } catch(e) {
+    showSaveStatus('Save failed!', true);
+  }
+}
+
+let saveTimeout;
+function showSaveStatus(msg, isError) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg + ' ' + new Date().toLocaleTimeString();
+  el.className = isError ? 'status' : 'status saved';
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ── Export ──
+function exportCSV() {
+  if (events.length === 0) { alert('No events to export'); return; }
+  const header = 'video,time_sec,frame,behavior\n';
+  const rows = events
+    .sort((a, b) => a.video.localeCompare(b.video, undefined, { numeric: true }) || a.time - b.time)
+    .map(e => `"${e.video}",${e.time.toFixed(3)},${e.frame},"${e.behavior}"`)
+    .join('\n');
+  const csv = header + rows;
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `behavior_scores_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showSaveStatus('CSV exported');
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', e => {
+  // Don't capture when typing in inputs
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (scoreScreen.style.display === 'none') return;
+
+  const key = e.key.toLowerCase();
+
+  // Behavior hotkeys
+  if (key === config.b1Key) { e.preventDefault(); scoreEvent(1); return; }
+  if (key === config.b2Key) { e.preventDefault(); scoreEvent(2); return; }
+
+  // Playback
+  if (key === ' ') { e.preventDefault(); togglePlay(); return; }
+  if (key === 'arrowleft' && e.shiftKey) { e.preventDefault(); loadVideo(currentIdx - 1); return; }
+  if (key === 'arrowright' && e.shiftKey) { e.preventDefault(); loadVideo(currentIdx + 1); return; }
+  if (key === 'arrowleft') { e.preventDefault(); vid.currentTime = Math.max(0, vid.currentTime - 5); return; }
+  if (key === 'arrowright') { e.preventDefault(); vid.currentTime += 5; return; }
+  if (key === ',') { e.preventDefault(); vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - FRAME_STEP); return; }
+  if (key === '.') { e.preventDefault(); vid.pause(); vid.currentTime += FRAME_STEP; return; }
+
+  // Undo
+  if (key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoLast(); return; }
+  // Export
+  if (key === 'e' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); exportCSV(); return; }
+});
+
+// ── Sidebar tabs ──
+document.querySelectorAll('.sidebar-tabs button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.sidebar-tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.tab-content[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+  };
+});
+
+// ── Prevent accidental page close ──
+window.addEventListener('beforeunload', e => {
+  if (events.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+</body>
+</html>

@@ -25,8 +25,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* Video panel */
 .video-panel { flex: 1; display: flex; flex-direction: column; padding: 8px; gap: 8px; min-width: 0; }
-.video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; overflow: hidden; position: relative; min-height: 0; }
-.video-wrap video { max-width: 100%; max-height: 100%; }
+.video-wrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 6px; overflow: hidden; position: relative; min-height: 0; min-width: 0; }
+.video-wrap video { width: 100%; height: 100%; object-fit: contain; }
 .video-wrap .no-video { color: var(--muted); font-size: 18px; }
 .video-info { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
 .video-info .filename { color: var(--text); font-weight: 500; }
@@ -131,6 +131,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <input type="text" id="cfg-b2-name" value="Behavior B" placeholder="Name">
     <label>Key:</label>
     <input type="text" id="cfg-b2-key" class="key-input" value="S" maxlength="1">
+  </div>
+  <div class="config-row">
+    <label>Video FPS:</label>
+    <input type="number" id="cfg-fps" value="30" min="1" max="240" style="width:70px; text-align:center;">
+    <span style="font-size:12px; color:var(--muted);">Set to match your video (common: 25, 30, 50, 60)</span>
   </div>
 
   <button class="btn-load" id="btn-load-folder">Load Video Folder</button>
@@ -237,8 +242,7 @@ let currentIdx = -1;
 // Events: {id, video, startTime, startFrame, endTime, endFrame, duration, fps, behavior, behaviorIdx}
 let events = [];
 let eventId = 0;
-let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's' };
-let detectedFPS = 30;     // updated per-video from metadata
+let config = { b1Name: 'Behavior A', b1Key: 'a', b2Name: 'Behavior B', b2Key: 's', fps: 30 };
 // Active state events (press to start, press again to stop)
 let activeStates = {};    // {behaviorIdx: {startTime, startFrame, video}}
 const STORAGE_KEY = 'behavior-scorer-data';
@@ -280,6 +284,7 @@ document.getElementById('btn-resume').onclick = () => {
   document.getElementById('cfg-b1-key').value = config.b1Key.toUpperCase();
   document.getElementById('cfg-b2-name').value = config.b2Name;
   document.getElementById('cfg-b2-key').value = config.b2Key.toUpperCase();
+  document.getElementById('cfg-fps').value = config.fps || 30;
   // Still need to load files
   pickFolder(saved.fileNames);
 };
@@ -359,6 +364,7 @@ function readConfig() {
   config.b1Key = (document.getElementById('cfg-b1-key').value || 'a').toLowerCase();
   config.b2Name = document.getElementById('cfg-b2-name').value || 'Behavior B';
   config.b2Key = (document.getElementById('cfg-b2-key').value || 's').toLowerCase();
+  config.fps = parseInt(document.getElementById('cfg-fps').value) || 30;
 }
 
 // ── Scoring ──
@@ -371,6 +377,7 @@ function startScoring() {
   document.getElementById('hk1-key').textContent = `[${config.b1Key.toUpperCase()}]`;
   document.getElementById('hk2-label').textContent = config.b2Name;
   document.getElementById('hk2-key').textContent = `[${config.b2Key.toUpperCase()}]`;
+  document.getElementById('vid-fps').textContent = `${config.fps}fps`;
   document.getElementById('tab-vid-count').textContent = files.length;
 
   buildVideoList();
@@ -426,32 +433,9 @@ function loadVideo(idx) {
   if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
 }
 
-// Detect FPS from video metadata when loaded
+// Update FPS display when video loads
 vid.addEventListener('loadedmetadata', () => {
-  // Try to get FPS from video track
-  if (typeof vid.getVideoPlaybackQuality === 'function') {
-    // Use mozFrameDelay or webkitDecodedFrames if available — fallback approach:
-    // Sample frame count after a short play to estimate FPS
-  }
-  // Use requestVideoFrameCallback if supported (Chrome/Edge)
-  if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-    let firstFrame = null;
-    vid.requestVideoFrameCallback((now, meta) => {
-      firstFrame = meta;
-      vid.requestVideoFrameCallback((now2, meta2) => {
-        if (meta2.mediaTime > meta.mediaTime) {
-          const dt = meta2.mediaTime - meta.mediaTime;
-          if (dt > 0) {
-            const fps = Math.round(1 / dt);
-            if (fps >= 10 && fps <= 240) {
-              detectedFPS = fps;
-              document.getElementById('vid-fps').textContent = `${detectedFPS}fps`;
-            }
-          }
-        }
-      });
-    });
-  }
+  document.getElementById('vid-fps').textContent = `${config.fps}fps`;
 });
 
 // ── Video controls ──
@@ -461,7 +445,7 @@ vid.addEventListener('timeupdate', () => {
   document.getElementById('vid-time').textContent =
     `${fmtTime(t)} / ${fmtTime(d)}`;
   document.getElementById('vid-frame').textContent =
-    `Frame: ${Math.round(t * detectedFPS)}`;
+    `Frame: ${Math.round(t * config.fps)}`;
 });
 
 vid.addEventListener('ended', () => {
@@ -483,8 +467,8 @@ document.getElementById('btn-prev').onclick = () => loadVideo(currentIdx - 1);
 document.getElementById('btn-next').onclick = () => loadVideo(currentIdx + 1);
 document.getElementById('btn-back5').onclick = () => { vid.currentTime = Math.max(0, vid.currentTime - 5); };
 document.getElementById('btn-fwd5').onclick = () => { vid.currentTime += 5; };
-document.getElementById('btn-frame-back').onclick = () => { vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/detectedFPS); };
-document.getElementById('btn-frame-fwd').onclick = () => { vid.pause(); vid.currentTime += 1/detectedFPS; };
+document.getElementById('btn-frame-back').onclick = () => { vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/config.fps); };
+document.getElementById('btn-frame-fwd').onclick = () => { vid.pause(); vid.currentTime += 1/config.fps; };
 document.getElementById('speed-select').onchange = (e) => { vid.playbackRate = parseFloat(e.target.value); };
 document.getElementById('btn-export').onclick = exportCSV;
 
@@ -503,7 +487,7 @@ function scoreEvent(behaviorIdx) {
     // STOP — complete the event
     const state = activeStates[behaviorIdx];
     const endTime = vid.currentTime;
-    const endFrame = Math.round(endTime * detectedFPS);
+    const endFrame = Math.round(endTime * config.fps);
     const evt = {
       id: eventId++,
       video: state.video,
@@ -528,9 +512,9 @@ function scoreEvent(behaviorIdx) {
     // START — begin recording
     activeStates[behaviorIdx] = {
       startTime: vid.currentTime,
-      startFrame: Math.round(vid.currentTime * detectedFPS),
+      startFrame: Math.round(vid.currentTime * config.fps),
       video: fileNames[currentIdx],
-      fps: detectedFPS,
+      fps: config.fps,
     };
     updateActiveUI();
     flashButton(behaviorIdx);
@@ -669,7 +653,7 @@ function updateEventLog() {
       const real = events.find(e => e.id === evt.id);
       if (!real) return;
       real.startTime = vid.currentTime;
-      real.startFrame = Math.round(vid.currentTime * (real.fps || detectedFPS));
+      real.startFrame = Math.round(vid.currentTime * (real.fps || config.fps));
       real.duration = Math.max(0, real.endTime - real.startTime);
       updateEventLog();
       saveData();
@@ -680,7 +664,7 @@ function updateEventLog() {
       const real = events.find(e => e.id === evt.id);
       if (!real) return;
       real.endTime = vid.currentTime;
-      real.endFrame = Math.round(vid.currentTime * (real.fps || detectedFPS));
+      real.endFrame = Math.round(vid.currentTime * (real.fps || config.fps));
       real.duration = Math.max(0, real.endTime - real.startTime);
       updateEventLog();
       saveData();
@@ -765,8 +749,8 @@ document.addEventListener('keydown', e => {
   if (key === 'arrowright' && e.shiftKey) { e.preventDefault(); loadVideo(currentIdx + 1); return; }
   if (key === 'arrowleft') { e.preventDefault(); vid.currentTime = Math.max(0, vid.currentTime - 5); return; }
   if (key === 'arrowright') { e.preventDefault(); vid.currentTime += 5; return; }
-  if (key === ',') { e.preventDefault(); vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/detectedFPS); return; }
-  if (key === '.') { e.preventDefault(); vid.pause(); vid.currentTime += 1/detectedFPS; return; }
+  if (key === ',') { e.preventDefault(); vid.pause(); vid.currentTime = Math.max(0, vid.currentTime - 1/config.fps); return; }
+  if (key === '.') { e.preventDefault(); vid.pause(); vid.currentTime += 1/config.fps; return; }
 
   // Undo
   if (key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoLast(); return; }

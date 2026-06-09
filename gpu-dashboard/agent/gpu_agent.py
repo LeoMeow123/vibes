@@ -405,6 +405,9 @@ def collect_inference(cfg: dict) -> dict | None:
         videos_done = max(max_videos_done,
                           last_entry.get("videos_done", real_completed + failed))
         videos_total = last_entry.get("videos_total", 0)
+        # Clamp: if done > total (stale total), adjust total up
+        if videos_total > 0 and videos_done > videos_total:
+            videos_total = videos_done
         avg_fps = round(fps_sum / fps_count, 1) if fps_count > 0 else 0.0
 
         # Per-camera ETA: frame-based for accuracy (videos have different lengths)
@@ -413,7 +416,7 @@ def collect_inference(cfg: dict) -> dict | None:
         # If multiple machines contribute, real ETA is even shorter.
         eta_hours = None
         if fps_count > 0 and videos_total > 0 and videos_done > 0:
-            remaining = videos_total - videos_done
+            remaining = max(0, videos_total - videos_done)
             avg_frames_per_video = frames_done_sum / fps_count
             remaining_frames = remaining * avg_frames_per_video
             eta_hours = round(remaining_frames / avg_fps / 3600, 1)

@@ -1237,15 +1237,22 @@ function renderInference(inf) {
   `;
 }
 
+// Camera wiring: disk folder → physical cam + genotype
+const CAM_DISPLAY = {
+  cam_01: 'Cam 1 (Tau)', cam_02: 'Cam 4 (PD)',
+  cam_03: 'Cam 2 (WT)',  cam_04: 'Cam 3 (PD)',
+};
+
 function renderInferenceCam(name, cam) {
   const pct = cam.videos_total > 0 ? (cam.videos_done / cam.videos_total * 100) : 0;
   const etaStr = cam.eta_hours != null
     ? (cam.eta_hours < 24 ? `${cam.eta_hours.toFixed(1)}h` : `${(cam.eta_hours / 24).toFixed(1)}d`)
     : '';
+  const displayName = CAM_DISPLAY[name] || name;
   return `
     <div class="inference-cam-card">
       <div class="cam-name">
-        <span>${esc(name)}${cam.gpu != null ? ` <span class="cam-gpu">GPU ${cam.gpu}</span>` : ''}</span>
+        <span>${esc(displayName)}${cam.gpu != null ? ` <span class="cam-gpu">GPU ${cam.gpu}</span>` : ''}</span>
         <span style="color:#888;font-size:11px;">${pct.toFixed(1)}%</span>
       </div>
       <div class="bar-group">

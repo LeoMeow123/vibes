@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Schedule · Jul–Sep 2026</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f4f6fb;color:#1f2430;line-height:1.5;padding:20px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:22px;margin-bottom:2px}
+  .sub{color:#6b7280;font-size:13px;margin-bottom:18px}
+  .sub b{color:#2563eb}
+
+  .card{background:#fff;border:1px solid #e3e7ef;border-radius:12px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+  .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.4px}
+  input[type=date],select{border:1px solid #cbd2e0;border-radius:8px;padding:8px 10px;font-size:14px;background:#fff;color:#1f2430}
+  input[type=date]:focus,select:focus{outline:none;border-color:#2563eb}
+  .btn{border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn-primary{background:#2563eb;color:#fff}
+  .btn-primary:hover{background:#1d4ed8}
+  .btn-ghost{background:#eef1f7;color:#374151}
+  .btn-ghost:hover{background:#e2e7f0}
+  .hint{font-size:12px;color:#9aa1b1;margin-top:8px}
+  .err{color:#dc2626;font-size:13px;margin-top:8px;min-height:0}
+
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .toolbar .note{font-size:13px;color:#6b7280}
+  .toolbar .right{display:flex;gap:8px}
+
+  .week{margin-bottom:20px}
+  .week h2{font-size:14px;color:#374151;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #e3e7ef}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e7ef;border-radius:10px;overflow:hidden}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:#6b7280;text-align:left;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e3e7ef}
+  td{padding:9px 12px;border-bottom:1px solid #eef1f6;font-size:14px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .col-sd{color:#1f2430}
+  .col-bj{color:#0f766e;font-weight:600}
+  .day{color:#9aa1b1;font-size:12px}
+  tr.picked td{background:#ecfdf5}
+  tr.picked .col-bj{color:#047857}
+  .pickcell{width:96px;text-align:right;white-space:nowrap}
+  .pick{border:1px solid #cbd2e0;background:#fff;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:#374151}
+  tr.picked .pick{background:#10b981;border-color:#10b981;color:#fff}
+  .del{background:none;border:none;color:#c0c6d4;cursor:pointer;font-size:16px;margin-left:6px;line-height:1}
+  .del:hover{color:#dc2626}
+
+  .empty{color:#9aa1b1;text-align:center;padding:30px;font-size:14px}
+  textarea{width:100%;height:160px;border:1px solid #cbd2e0;border-radius:8px;padding:10px;font:13px/1.5 ui-monospace,monospace;margin-top:10px;display:none}
+
+  @media(max-width:560px){.pickcell{width:auto}.day{display:block}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Class Schedule · Jul–Sep 2026</h1>
+  <p class="sub">Instructor <b>Leo</b> (San Diego, PDT). Times shown in San Diego <b>and</b> Beijing. Student: pick one hour per week (Beijing time).</p>
+
+  <!-- INPUT (Leo) -->
+  <div class="card">
+    <div class="form-row">
+      <div class="field">
+        <label>Date (San Diego)</label>
+        <input type="date" id="date" min="2026-07-01" max="2026-09-30" value="2026-07-10">
+      </div>
+      <div class="field">
+        <label>From</label>
+        <select id="from"></select>
+      </div>
+      <div class="field">
+        <label>To</label>
+        <select id="to"></select>
+      </div>
+      <button class="btn btn-primary" id="add">+ Add availability</button>
+    </div>
+    <div class="hint">Tip: enter a range (e.g. 8 PM → 10 PM) and it becomes one-hour options the student can choose from.</div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <!-- LIST -->
+  <div class="toolbar">
+    <span class="note" id="count"></span>
+    <div class="right">
+      <button class="btn btn-ghost" id="copy">Copy as text</button>
+      <button class="btn btn-ghost" id="clear">Clear all</button>
+    </div>
+  </div>
+  <div id="list"></div>
+  <textarea id="textout" readonly></textarea>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const KEY = 'classSchedule2026';
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let slots = load();
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || []; }catch(_){ return []; } }
+  function save(){ localStorage.setItem(KEY, JSON.stringify(slots)); }
+
+  // ---- time helpers ----
+  function h12(h){ const ap = h < 12 ? 'AM' : 'PM'; let hh = h % 12; if(hh===0) hh = 12; return {hh, ap}; }
+  function hourLabel(h){ const x = h12(h); return x.hh + ' ' + x.ap; }
+  function rangeLabel(start){ // 1-hour slot start..start+1
+    const a = h12(start), b = h12((start + 1) % 24);
+    return a.ap === b.ap ? `${a.hh}–${b.hh} ${a.ap}` : `${a.hh} ${a.ap}–${b.hh} ${b.ap}`;
+  }
+  // San Diego (PDT, UTC-7) -> Beijing (UTC+8): +15h. Valid for Jul-Sep (no DST changes).
+  function beijing(dateStr, hour){
+    const [y,m,d] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(y, m-1, d, hour) + 15*3600*1000);
+  }
+  function sdDow(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).getUTCDay(); }
+  function sdLabel(dateStr){ const [y,m,d]=dateStr.split('-').map(Number); return MON[m-1] + ' ' + d; }
+  function bjLabel(dt){ return MON[dt.getUTCMonth()] + ' ' + dt.getUTCDate(); }
+
+  function weekStart(dateStr){ // Monday of that SD week, as 'YYYY-MM-DD'
+    const [y,m,d]=dateStr.split('-').map(Number);
+    const dt=new Date(Date.UTC(y,m-1,d));
+    const dow=(dt.getUTCDay()+6)%7; // Mon=0
+    dt.setUTCDate(dt.getUTCDate()-dow);
+    return dt.toISOString().slice(0,10);
+  }
+  function weekLabel(ws){
+    const [y,m,d]=ws.split('-').map(Number);
+    const a=new Date(Date.UTC(y,m-1,d));
+    const b=new Date(a); b.setUTCDate(b.getUTCDate()+6);
+    return `Week of ${MON[a.getUTCMonth()]} ${a.getUTCDate()} – ${MON[b.getUTCMonth()]} ${b.getUTCDate()}`;
+  }
+
+  // ---- build time selects ----
+  const fromSel=document.getElementById('from'), toSel=document.getElementById('to');
+  for(let h=0; h<=24; h++){
+    if(h<24){ const o=document.createElement('option'); o.value=h; o.textContent=hourLabel(h); fromSel.appendChild(o); }
+    if(h>0){ const o=document.createElement('option'); o.value=h; o.textContent = h===24 ? '12 AM (next day)' : hourLabel(h); toSel.appendChild(o); }
+  }
+  fromSel.value=20; toSel.value=22; // default 8 PM -> 10 PM
+
+  // ---- add ----
+  document.getElementById('add').addEventListener('click', ()=>{
+    const err=document.getElementById('err'); err.textContent='';
+    const date=document.getElementById('date').value;
+    const from=parseInt(fromSel.value,10), to=parseInt(toSel.value,10);
+    if(!date){ err.textContent='Pick a date.'; return; }
+    if(date<'2026-07-01'||date>'2026-09-30'){ err.textContent='Date must be within July–September 2026.'; return; }
+    if(to<=from){ err.textContent='“To” must be later than “From”.'; return; }
+    let added=0;
+    for(let h=from; h<to; h++){
+      const hour=h%24;
+      if(slots.some(s=>s.date===date && s.hour===hour)) continue;
+      slots.push({id:date+'-'+hour, date, hour, picked:false});
+      added++;
+    }
+    if(!added){ err.textContent='Those slot(s) are already in the list.'; return; }
+    save(); render();
+  });
+
+  // ---- list interactions (event delegation) ----
+  document.getElementById('list').addEventListener('click',(e)=>{
+    const pick=e.target.closest('.pick');
+    const del=e.target.closest('.del');
+    if(pick){
+      const id=pick.dataset.id;
+      const s=slots.find(x=>x.id===id); if(!s) return;
+      const wk=weekStart(s.date);
+      if(!s.picked){ slots.forEach(x=>{ if(weekStart(x.date)===wk) x.picked=false; }); } // one per week
+      s.picked=!s.picked;
+      save(); render();
+    } else if(del){
+      slots=slots.filter(x=>x.id!==del.dataset.id); save(); render();
+    }
+  });
+
+  document.getElementById('clear').addEventListener('click',()=>{
+    if(slots.length && confirm('Remove all time slots?')){ slots=[]; save(); render(); }
+  });
+
+  document.getElementById('copy').addEventListener('click',()=>{
+    const txt=asText();
+    const ta=document.getElementById('textout');
+    ta.style.display='block'; ta.value=txt; ta.select();
+    navigator.clipboard?.writeText(txt).catch(()=>{});
+  });
+
+  // ---- render ----
+  function sorted(){ return [...slots].sort((a,b)=> a.date===b.date ? a.hour-b.hour : a.date<b.date?-1:1); }
+
+  function groupByWeek(){
+    const g={};
+    for(const s of sorted()){ const w=weekStart(s.date); (g[w]=g[w]||[]).push(s); }
+    return Object.keys(g).sort().map(w=>({week:w, slots:g[w]}));
+  }
+
+  function render(){
+    const list=document.getElementById('list');
+    document.getElementById('textout').style.display='none';
+    const n=slots.length, picked=slots.filter(s=>s.picked).length;
+    document.getElementById('count').textContent = n ? `${n} slot${n>1?'s':''} · ${picked} chosen` : '';
+    if(!n){ list.innerHTML='<div class="empty">No times yet. Add your availability above.</div>'; return; }
+
+    list.innerHTML = groupByWeek().map(({week,slots})=>{
+      const rows = slots.map(s=>{
+        const bj = beijing(s.date, s.hour);
+        const bjStart = bj.getUTCHours();
+        return `<tr class="${s.picked?'picked':''}">
+          <td class="col-sd"><span class="day">${DAYS[sdDow(s.date)]}</span> ${sdLabel(s.date)}, ${rangeLabel(s.hour)}</td>
+          <td class="col-bj"><span class="day">${DAYS[bj.getUTCDay()]}</span> ${bjLabel(bj)}, ${rangeLabel(bjStart)}</td>
+          <td class="pickcell">
+            <button class="pick" data-id="${s.id}">${s.picked?'✓ chosen':'choose'}</button>
+            <button class="del" data-id="${s.id}" title="Remove">×</button>
+          </td>
+        </tr>`;
+      }).join('');
+      return `<div class="week"><h2>${weekLabel(week)}</h2>
+        <table><thead><tr>
+          <th>Leo · San Diego (PDT)</th>
+          <th>Student · Beijing (UTC+8)</th>
+          <th></th>
+        </tr></thead><tbody>${rows}</tbody></table></div>`;
+    }).join('');
+  }
+
+  function asText(){
+    let out='Class Schedule (Jul–Sep 2026)\nLeo = San Diego time | Student picks Beijing time\n';
+    for(const {week,slots} of groupByWeek()){
+      out += '\n'+weekLabel(week)+'\n';
+      for(const s of slots){
+        const bj=beijing(s.date,s.hour);
+        const mark=s.picked?' <-- CHOSEN':'';
+        out += `  ${DAYS[sdDow(s.date)]} ${sdLabel(s.date)} ${rangeLabel(s.hour)} (SD)  =  ${DAYS[bj.getUTCDay()]} ${bjLabel(bj)} ${rangeLabel(bj.getUTCHours())} (Beijing)${mark}\n`;
+      }
+    }
+    return out;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

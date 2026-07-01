@@ -119,6 +119,22 @@
 
   textarea.share{width:100%;height:70px;border:1px solid var(--line);border-radius:10px;padding:8px;font:12px ui-monospace,monospace;margin-top:8px;display:none}
   .row-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* cute decorations */
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  @keyframes float2{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .sticker{position:absolute;z-index:2;font-size:30px;filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35));animation:bob 3s ease-in-out infinite;pointer-events:none}
+  .sticker.bear{left:12px;bottom:54px}
+  .sticker.bird{left:16px;top:14px;font-size:20px;animation:float2 2.6s ease-in-out infinite}
+  .trail{display:flex;align-items:center;justify-content:center;gap:8px;color:#c19a78;font-size:14px;letter-spacing:3px;margin:14px 0 2px;user-select:none}
+  .scene{position:relative;height:76px;margin:8px 0 4px;background:linear-gradient(to top,#e7f2df,var(--bg));border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  .scene .ground{position:absolute;bottom:0;left:0;right:0;height:18px;background:#cfe6c4}
+  .scene .sky-dec{position:absolute;top:8px;right:14px;font-size:20px;animation:bob 4s ease-in-out infinite}
+  .scene .critters{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:space-around;align-items:flex-end;font-size:24px}
+  .scene .critters span{animation:bob 3s ease-in-out infinite}
+  .scene .critters span:nth-child(2n){animation-delay:.5s}
+  .scene .critters span:nth-child(3n){animation-delay:1s}
+  .empty .big{font-size:36px;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -129,6 +145,8 @@
     <img src="hero.jpg" alt="Yosemite Valley · Tunnel View" class="hero-img" loading="eager">
     <div class="hero-scrim"></div>
     <div class="credit">📷 Diliff · CC BY-SA 3.0</div>
+    <div class="sticker bear">🐻</div>
+    <div class="sticker bird">🕊️</div>
     <div class="cap">
       <div class="en">Yosemite National Park</div>
       <h1>优胜美地之旅</h1>
@@ -142,6 +160,8 @@
       <h2 class="sec">👣 同行 <span class="en">Crew</span></h2>
       <div class="card"><div class="people" id="homePeople"></div></div>
 
+      <div class="trail">🥾 · 🐾 · 🐾 · 🐾 · ⛺️</div>
+
       <h2 class="sec">🔗 快捷链接 <span class="en">Quick links</span></h2>
       <div class="links" id="links"></div>
 
@@ -154,6 +174,13 @@
         🏠 <b>民宿 Airbnb：</b>时间暂定 8.31–9.4，行程可在“行程”页编辑。<br>
         <span class="muted">Dates tentative. Edit the plan on the Trip tab.</span>
       </div>
+
+      <div class="scene">
+        <div class="sky-dec">☀️</div>
+        <div class="ground"></div>
+        <div class="critters"><span>🌲</span><span>🐻</span><span>🥾</span><span>🦌</span><span>🚐</span><span>🐿️</span><span>🌲</span></div>
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:12px;margin:2px 0 14px">一起出发去优胜美地吧！ Let's hit the trail! 🏔️</div>
 
       <h2 class="sec">💾 保存与分享 <span class="en">Save / Share</span></h2>
       <div class="card">
@@ -176,6 +203,7 @@
       <h2 class="sec">📅 行程 <span class="en">Itinerary</span></h2>
       <div id="itinerary"></div>
       <div class="muted" style="text-align:center;margin:6px 0 10px">点击每天的备注可编辑 · Tap notes to edit</div>
+      <div class="trail">🚐 · 🐾 · ⛰️ · 🐾 · 🏕️</div>
     </div>
   </div>
 
@@ -188,6 +216,7 @@
         <input id="newItem" placeholder="添加物品 Add item…">
         <button class="btn btn-primary" id="addItem">＋</button>
       </div>
+      <div class="trail">🎒 · 🐻 · 🥾 · 🦌 · 🌲</div>
     </div>
   </div>
 
@@ -385,7 +414,7 @@ function renderPack(){
       <span class="txt">${esc(it.n)}${it.e?`<span class="en">${esc(it.e)}</span>`:''}</span>
       <span class="x" data-del="${idx}">×</span></div>`).join('');
   });
-  el.innerHTML=html||'<div class="empty">清单为空 Empty</div>';
+  el.innerHTML=html||'<div class="empty"><div class="big">🎒</div>清单为空 Empty</div>';
   const done=S.packing.filter(i=>i.done).length;
   $('packCount').textContent=`${done}/${S.packing.length}`;
   el.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{ S.packing[+cb.dataset.i].done=cb.checked; save(); renderPack(); }));
@@ -415,7 +444,7 @@ function perPerson(e){
 
 function renderExpenses(){
   const el=$('expenses');
-  if(!S.expenses.length){ el.innerHTML='<div class="empty">还没有花费 No expenses yet.<br>在上面添加，如 Gas / Dinner。</div>'; renderSettle(); return; }
+  if(!S.expenses.length){ el.innerHTML='<div class="empty"><div class="big">🐿️</div>还没有花费 No expenses yet<br><span class="muted">在上面添加，如 Gas / Dinner</span></div>'; renderSettle(); return; }
   el.innerHTML=S.expenses.map((e,i)=>{
     const w=shareWeights(e); const pp=perPerson(e);
     const inCount=S.people.filter(p=>w[p]>0).length;

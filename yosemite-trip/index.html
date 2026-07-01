@@ -164,7 +164,8 @@
           <input type="file" id="fileInput" accept="application/json" style="display:none">
         </div>
         <textarea class="share" id="shareOut" readonly></textarea>
-        <div class="muted" style="margin-top:8px">数据自动保存在此浏览器。分享链接可发给同行的人。<br>Auto-saved in this browser; send the share link to the crew.</div>
+        <div id="syncStatus" style="margin-top:8px;font-size:12px;font-weight:700"></div>
+        <div class="muted" style="margin-top:6px">数据自动保存。开启云同步后，所有人用同一网址实时共享。<br>Auto-saved; with cloud sync on, everyone shares one URL live.</div>
       </div>
     </div>
   </div>
@@ -277,7 +278,42 @@ function defaults(){
 
 let S = load();
 function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); return s&&s.people?s:defaults(); }catch(_){ return defaults(); } }
-function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); cloudPush(); }
+
+// ---------- cloud sync (Supabase) ----------
+// Paste your project URL + public anon key below to turn on shared live sync.
+const SUPABASE_URL = 'https://qsmicltahorbicxumalj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8u20EETMqqUAmZbJQGqAPA_5orz193z'; // publishable (public) key — safe to embed
+const TRIP_ID = 'yosemite';
+const cloud = {
+  on: !!(SUPABASE_URL && SUPABASE_KEY),
+  lastSync: null,
+  url(){ return SUPABASE_URL + '/rest/v1/trips'; },
+  head(extra){ return Object.assign({ apikey:SUPABASE_KEY, 'Content-Type':'application/json' }, extra||{}); },
+  async pull(){
+    try{ const r=await fetch(this.url()+'?id=eq.'+TRIP_ID+'&select=data,updated_at',{headers:this.head()});
+      if(!r.ok) return null; const rows=await r.json(); return rows[0]||null; }catch(_){ return null; }
+  },
+  async push(){
+    try{ const r=await fetch(this.url(),{ method:'POST',
+      headers:this.head({ Prefer:'resolution=merge-duplicates,return=representation' }),
+      body:JSON.stringify([{ id:TRIP_ID, data:S, updated_at:new Date().toISOString() }]) });
+      if(r.ok){ const rows=await r.json(); if(rows[0]) this.lastSync=rows[0].updated_at; } }catch(_){}
+  }
+};
+let _pushTimer=null;
+function cloudPush(){ if(!cloud.on) return; clearTimeout(_pushTimer); _pushTimer=setTimeout(()=>cloud.push(), 700); }
+async function cloudPoll(){
+  if(!cloud.on) return;
+  const row=await cloud.pull();
+  if(!row || row.updated_at===cloud.lastSync) return;
+  const a=document.activeElement, typing=a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA');
+  if(typing) return; // don't overwrite while someone is typing
+  cloud.lastSync=row.updated_at;
+  S=Object.assign(defaults(), row.data||{});
+  localStorage.setItem(KEY, JSON.stringify(S));
+  renderAll();
+}
 
 // ---------- helpers ----------
 const $=(id)=>document.getElementById(id);
@@ -489,10 +525,26 @@ document.querySelectorAll('.tabbar button').forEach(b=>b.addEventListener('click
   window.scrollTo(0,0);
 }));
 
-function renderAll(){ renderHome(); renderTrip(); renderPack(); renderBillPeople(); $('expPayer').innerHTML=payerOptions(); renderExpenses(); }
+function renderAll(){ renderHome(); renderTrip(); renderPack(); renderBillPeople(); $('expPayer').innerHTML=payerOptions(); renderExpenses(); syncStatus(); }
 
-fromHash();
-renderAll();
+function syncStatus(){
+  const el=$('syncStatus'); if(!el) return;
+  el.innerHTML = cloud.on
+    ? '<span style="color:var(--green)">☁️ 云同步开启 · 所有人实时共享 · Cloud sync ON</span>'
+    : '<span style="color:var(--muted)">📱 本地保存 · 用分享链接发送 · Local only</span>';
+}
+
+async function boot(){
+  fromHash();
+  if(cloud.on){
+    const row=await cloud.pull();
+    if(row && row.data){ cloud.lastSync=row.updated_at; S=Object.assign(defaults(), row.data); localStorage.setItem(KEY, JSON.stringify(S)); }
+    else { await cloud.push(); } // first run: seed the cloud from local/defaults
+  }
+  renderAll();
+  if(cloud.on) setInterval(cloudPoll, 4000);
+}
+boot();
 })();
 </script>
 </body>

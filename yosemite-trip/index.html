@@ -288,24 +288,32 @@ const TRIP_ID = 'yosemite';
 const cloud = {
   on: !!(SUPABASE_URL && SUPABASE_KEY),
   lastSync: null,
+  ok: false,
   url(){ return SUPABASE_URL + '/rest/v1/trips'; },
   head(extra){ return Object.assign({ apikey:SUPABASE_KEY, 'Content-Type':'application/json' }, extra||{}); },
+  async fetchT(url, opts){ // fetch with an 8s timeout so a hung request can't freeze anything
+    const c=new AbortController(); const t=setTimeout(()=>c.abort(),8000);
+    try{ return await fetch(url, Object.assign({signal:c.signal}, opts||{})); } finally { clearTimeout(t); }
+  },
   async pull(){
-    try{ const r=await fetch(this.url()+'?id=eq.'+TRIP_ID+'&select=data,updated_at',{headers:this.head()});
-      if(!r.ok) return null; const rows=await r.json(); return rows[0]||null; }catch(_){ return null; }
+    try{ const r=await this.fetchT(this.url()+'?id=eq.'+TRIP_ID+'&select=data,updated_at',{headers:this.head()});
+      if(!r.ok){ this.ok=false; return null; } this.ok=true; const rows=await r.json(); return rows[0]||null;
+    }catch(_){ this.ok=false; return null; }
   },
   async push(){
-    try{ const r=await fetch(this.url(),{ method:'POST',
+    try{ const r=await this.fetchT(this.url(),{ method:'POST', keepalive:true,
       headers:this.head({ Prefer:'resolution=merge-duplicates,return=representation' }),
       body:JSON.stringify([{ id:TRIP_ID, data:S, updated_at:new Date().toISOString() }]) });
-      if(r.ok){ const rows=await r.json(); if(rows[0]) this.lastSync=rows[0].updated_at; } }catch(_){}
+      if(r.ok){ this.ok=true; const rows=await r.json(); if(rows[0]) this.lastSync=rows[0].updated_at; } else this.ok=false;
+    }catch(_){ this.ok=false; }
   }
 };
 let _pushTimer=null;
-function cloudPush(){ if(!cloud.on) return; clearTimeout(_pushTimer); _pushTimer=setTimeout(()=>cloud.push(), 700); }
+function cloudPush(){ if(!cloud.on) return; clearTimeout(_pushTimer); _pushTimer=setTimeout(()=>cloud.push().then(syncStatus), 700); }
 async function cloudPoll(){
   if(!cloud.on) return;
   const row=await cloud.pull();
+  syncStatus();
   if(!row || row.updated_at===cloud.lastSync) return;
   const a=document.activeElement, typing=a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA');
   if(typing) return; // don't overwrite while someone is typing
@@ -314,6 +322,8 @@ async function cloudPoll(){
   localStorage.setItem(KEY, JSON.stringify(S));
   renderAll();
 }
+// flush a pending edit when the page is closing/backgrounded
+window.addEventListener('pagehide',()=>{ if(cloud.on && _pushTimer){ clearTimeout(_pushTimer); cloud.push(); } });
 
 // ---------- helpers ----------
 const $=(id)=>document.getElementById(id);
@@ -529,20 +539,22 @@ function renderAll(){ renderHome(); renderTrip(); renderPack(); renderBillPeople
 
 function syncStatus(){
   const el=$('syncStatus'); if(!el) return;
-  el.innerHTML = cloud.on
-    ? '<span style="color:var(--green)">☁️ 云同步开启 · 所有人实时共享 · Cloud sync ON</span>'
-    : '<span style="color:var(--muted)">📱 本地保存 · 用分享链接发送 · Local only</span>';
+  if(!cloud.on){ el.innerHTML='<span style="color:var(--muted)">📱 本地保存 · 用分享链接发送 · Local only</span>'; return; }
+  el.innerHTML = cloud.ok
+    ? '<span style="color:var(--green)">☁️ 云同步开启 · 已连接 · Cloud sync ON</span>'
+    : '<span style="color:var(--amber)">⏳ 连接云端中… 已本地保存 · Connecting… (saved locally)</span>';
 }
 
-async function boot(){
+function boot(){
   fromHash();
-  if(cloud.on){
-    const row=await cloud.pull();
-    if(row && row.data){ cloud.lastSync=row.updated_at; S=Object.assign(defaults(), row.data); localStorage.setItem(KEY, JSON.stringify(S)); }
-    else { await cloud.push(); } // first run: seed the cloud from local/defaults
-  }
-  renderAll();
-  if(cloud.on) setInterval(cloudPoll, 4000);
+  renderAll();                 // draw instantly from local/defaults — never blank
+  if(!cloud.on) return;
+  cloud.pull().then(row=>{
+    if(row && row.data){ cloud.lastSync=row.updated_at; S=Object.assign(defaults(), row.data); localStorage.setItem(KEY, JSON.stringify(S)); renderAll(); }
+    else { cloud.push().then(syncStatus); } // first run: seed cloud from local/defaults
+    setInterval(cloudPoll, 4000);
+    syncStatus();
+  });
 }
 boot();
 })();

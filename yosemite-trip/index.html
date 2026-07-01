@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#e88b6a">
+<title>Yosemite Trip · 优胜美地之旅</title>
+<style>
+  :root{
+    --sky1:#2a3a5c;--sky2:#5a5b8c;--sun:#ffd39b;--orange:#e88b6a;--orange-d:#d4735a;
+    --granite:#9aa0ad;--granite-d:#6f7686;--pine:#2f5d3a;--pine-d:#244a2e;
+    --bg:#faf6f0;--card:#ffffff;--ink:#2b2b33;--muted:#8a8f9c;--line:#ece6dc;
+    --green:#2f8f5b;--red:#d9534f;--amber:#e0a83e;--accent:#e88b6a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Segoe UI','Microsoft YaHei',system-ui,sans-serif;font-size:15px;line-height:1.55}
+  .app{max-width:560px;margin:0 auto;min-height:100vh;padding-bottom:76px;position:relative}
+
+  /* Hero */
+  .hero{position:relative;height:210px;overflow:hidden;border-bottom-left-radius:22px;border-bottom-right-radius:22px}
+  .hero svg{position:absolute;inset:0;width:100%;height:100%}
+  .hero .cap{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,0.45)}
+  .hero .cap h1{font-size:24px;font-weight:800;letter-spacing:0.5px}
+  .hero .cap .en{font-size:12px;opacity:0.9;font-weight:500;letter-spacing:2px;text-transform:uppercase}
+  .hero .cap .dates{font-size:13px;margin-top:4px;background:rgba(0,0,0,0.28);display:inline-block;padding:2px 12px;border-radius:20px}
+
+  .wrap{padding:14px 14px 0}
+  h2.sec{font-size:15px;font-weight:800;margin:18px 2px 10px;display:flex;align-items:center;gap:8px}
+  h2.sec .en{font-weight:500;color:var(--muted);font-size:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.03)}
+
+  /* People chips */
+  .people{display:flex;flex-wrap:wrap;gap:6px}
+  .who{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:4px 11px;font-size:13px;font-weight:600}
+  .who .av{width:18px;height:18px;border-radius:50%;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+
+  /* Quick links */
+  .links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .link{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-decoration:none;color:var(--ink);font-weight:700;font-size:14px}
+  .link .ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .link .sub{font-size:11px;color:var(--muted);font-weight:500}
+  .link:active{transform:scale(0.98)}
+
+  .tip{background:linear-gradient(135deg,#fff5ec,#ffece0);border:1px solid #f6d9c6;border-radius:14px;padding:12px 14px;font-size:13px}
+  .tip b{color:var(--orange-d)}
+
+  /* Itinerary */
+  .day{display:flex;gap:12px;margin-bottom:10px}
+  .day .rail{display:flex;flex-direction:column;align-items:center}
+  .day .dot{width:36px;height:36px;border-radius:12px;background:var(--pine);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;line-height:1;font-weight:700;flex-shrink:0}
+  .day .dot b{font-size:14px}
+  .day .line{flex:1;width:2px;background:var(--line);margin:4px 0}
+  .day:last-child .line{display:none}
+  .day .body{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:2px}
+  .day .body .t{font-weight:800;font-size:14px}
+  .day .body .dow{font-size:11px;color:var(--muted);font-weight:600}
+  .day .body textarea{width:100%;border:none;resize:none;background:transparent;font:inherit;color:var(--ink);margin-top:4px;outline:none;font-size:13px}
+  .day .body textarea::placeholder{color:#c3c7d0}
+
+  /* Packing */
+  .pk-cat{font-size:12px;font-weight:800;color:var(--pine);text-transform:uppercase;letter-spacing:0.5px;margin:12px 2px 6px}
+  .pk{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
+  .pk:last-child{border-bottom:none}
+  .pk input[type=checkbox]{width:20px;height:20px;accent-color:var(--pine);flex-shrink:0}
+  .pk .txt{flex:1;font-size:14px}
+  .pk .txt .en{color:var(--muted);font-size:12px;margin-left:4px}
+  .pk.done .txt{text-decoration:line-through;color:var(--muted)}
+  .pk .x{color:#c9cdd6;font-size:18px;padding:0 4px;cursor:pointer}
+  .addrow{display:flex;gap:8px;margin-top:10px}
+  .addrow input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:inherit;outline:none}
+  .addrow input:focus{border-color:var(--accent)}
+
+  /* Bills */
+  .seg{display:flex;gap:6px;margin-bottom:10px}
+  .btn{border:none;border-radius:12px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer;font-size:14px}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-ghost{background:#f1ece4;color:#5a5f6b}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:9px}
+  .btn-block{width:100%}
+  .exp{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+  .exp .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .exp .top .nm{font-weight:800;font-size:15px}
+  .exp .top .amt{font-weight:800;font-size:16px;color:var(--pine)}
+  .exp .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .exp .editor{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;display:none}
+  .exp.open .editor{display:block}
+  .field{margin-bottom:9px}
+  .field label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px}
+  .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;outline:none;background:#fff}
+  .splitrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f2ede6}
+  .splitrow:last-child{border-bottom:none}
+  .splitrow .chip{flex:1;display:flex;align-items:center;gap:7px;font-weight:600;font-size:14px;cursor:pointer;opacity:0.35}
+  .splitrow.on .chip{opacity:1}
+  .splitrow .wt{display:flex;align-items:center;gap:4px}
+  .splitrow .wt button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:16px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .splitrow .wt input{width:38px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:4px;font:inherit}
+  .splitrow .owe{width:64px;text-align:right;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .splitrow.off .wt,.splitrow.off .owe{visibility:hidden}
+  .av{width:22px;height:22px;border-radius:50%;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+
+  .settle .row{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14px}
+  .settle .row:last-child{border-bottom:none}
+  .settle .amt{font-weight:800;color:var(--orange-d)}
+  .balance{display:flex;justify-content:space-between;padding:6px 2px;font-size:13px}
+  .balance .pos{color:var(--green);font-weight:700}
+  .balance .neg{color:var(--red);font-weight:700}
+
+  .empty{color:var(--muted);text-align:center;padding:22px;font-size:14px}
+  .muted{color:var(--muted);font-size:12px}
+
+  /* Tabs */
+  .tabbar{position:fixed;bottom:0;left:0;right:0;max-width:560px;margin:0 auto;background:rgba(255,255,255,0.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;z-index:50}
+  .tabbar button{flex:1;background:none;border:none;padding:9px 0 12px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer}
+  .tabbar button .ico{font-size:21px}
+  .tabbar button.active{color:var(--accent)}
+  .tab{display:none}.tab.active{display:block}
+
+  textarea.share{width:100%;height:70px;border:1px solid var(--line);border-radius:10px;padding:8px;font:12px ui-monospace,monospace;margin-top:8px;display:none}
+  .row-btns{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HERO -->
+  <div class="hero">
+    <svg viewBox="0 0 560 210" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2a3a5c"/><stop offset="0.55" stop-color="#7a5c86"/><stop offset="1" stop-color="#e88b6a"/>
+        </linearGradient>
+        <linearGradient id="dome" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#b9bec9"/><stop offset="1" stop-color="#6f7686"/>
+        </linearGradient>
+      </defs>
+      <rect width="560" height="210" fill="url(#sky)"/>
+      <circle cx="430" cy="66" r="30" fill="#ffe6bf" opacity="0.9"/>
+      <!-- distant range -->
+      <path d="M0,150 L90,110 L150,140 L230,95 L300,135 L360,110 L440,145 L560,120 L560,210 L0,210 Z" fill="#5b5f86" opacity="0.55"/>
+      <!-- Half Dome -->
+      <path d="M150,210 C150,150 175,96 245,86 C255,150 262,180 268,210 Z" fill="url(#dome)"/>
+      <path d="M245,86 C255,150 262,180 268,210 L300,210 C296,150 285,110 245,86 Z" fill="#565d6d" opacity="0.5"/>
+      <!-- foreground pines -->
+      <g fill="#244a2e">
+        <path d="M60,210 L60,150 L44,150 L60,132 L50,132 L64,116 L54,116 L68,100 L82,116 L72,116 L86,132 L76,132 L92,150 L76,150 L76,210 Z"/>
+        <path d="M120,210 L120,164 L108,164 L120,150 L112,150 L124,136 L116,136 L128,122 L140,136 L132,136 L144,150 L136,150 L148,164 L136,164 L136,210 Z" opacity="0.9"/>
+        <path d="M500,210 L500,158 L486,158 L500,142 L490,142 L504,126 L494,126 L508,110 L522,126 L512,126 L526,142 L516,142 L530,158 L516,158 L516,210 Z"/>
+      </g>
+      <rect y="200" width="560" height="10" fill="#1e3a26"/>
+    </svg>
+    <div class="cap">
+      <div class="en">Yosemite National Park</div>
+      <h1>优胜美地之旅</h1>
+      <div class="dates" id="heroDates"></div>
+    </div>
+  </div>
+
+  <!-- ================= HOME ================= -->
+  <div class="tab active" id="tab-home">
+    <div class="wrap">
+      <h2 class="sec">👣 同行 <span class="en">Crew</span></h2>
+      <div class="card"><div class="people" id="homePeople"></div></div>
+
+      <h2 class="sec">🔗 快捷链接 <span class="en">Quick links</span></h2>
+      <div class="links" id="links"></div>
+
+      <h2 class="sec">💡 贴士 <span class="en">Tips</span></h2>
+      <div class="tip">
+        🅿️ <b>停车 Parking：</b>发送短信 <b>ynptraffic</b> 到 <b>333111</b>，即可收到实时停车与交通信息。<br>
+        <span class="muted">Text “ynptraffic” to 333111 for live parking & traffic info.</span>
+      </div>
+      <div class="tip" style="margin-top:10px">
+        🏠 <b>民宿 Airbnb：</b>时间暂定 8.31–9.4，行程可在“行程”页编辑。<br>
+        <span class="muted">Dates tentative. Edit the plan on the Trip tab.</span>
+      </div>
+
+      <h2 class="sec">💾 保存与分享 <span class="en">Save / Share</span></h2>
+      <div class="card">
+        <div class="row-btns">
+          <button class="btn btn-primary btn-sm" id="share">🔗 分享链接 Share</button>
+          <button class="btn btn-ghost btn-sm" id="exportBtn">导出 Export</button>
+          <button class="btn btn-ghost btn-sm" id="importBtn">导入 Import</button>
+          <input type="file" id="fileInput" accept="application/json" style="display:none">
+        </div>
+        <textarea class="share" id="shareOut" readonly></textarea>
+        <div class="muted" style="margin-top:8px">数据自动保存在此浏览器。分享链接可发给同行的人。<br>Auto-saved in this browser; send the share link to the crew.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TRIP ================= -->
+  <div class="tab" id="tab-trip">
+    <div class="wrap">
+      <h2 class="sec">📅 行程 <span class="en">Itinerary</span></h2>
+      <div id="itinerary"></div>
+      <div class="muted" style="text-align:center;margin:6px 0 10px">点击每天的备注可编辑 · Tap notes to edit</div>
+    </div>
+  </div>
+
+  <!-- ================= PACK ================= -->
+  <div class="tab" id="tab-pack">
+    <div class="wrap">
+      <h2 class="sec">🎒 装备清单 <span class="en">Packing</span> <span class="muted" id="packCount"></span></h2>
+      <div class="card" id="packing"></div>
+      <div class="addrow">
+        <input id="newItem" placeholder="添加物品 Add item…">
+        <button class="btn btn-primary" id="addItem">＋</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BILLS ================= -->
+  <div class="tab" id="tab-bills">
+    <div class="wrap">
+      <h2 class="sec">💰 账单分摊 <span class="en">Bill split</span></h2>
+
+      <div class="card">
+        <label class="muted" style="font-weight:700">同行人 People</label>
+        <div class="people" id="billPeople" style="margin:6px 0"></div>
+        <div class="addrow">
+          <input id="newPerson" placeholder="添加成员 Add person…">
+          <button class="btn btn-ghost" id="addPerson">＋</button>
+        </div>
+      </div>
+
+      <h2 class="sec">🧾 花费 <span class="en">Expenses</span></h2>
+      <div class="card">
+        <div class="field"><label>项目 Item（如 Gas / Dinner）</label><input id="expName" placeholder="油费 / 晚餐…"></div>
+        <div class="field"><label>金额 Amount ($)</label><input id="expAmt" type="number" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label>谁付的 Paid by</label><select id="expPayer"></select></div>
+        <button class="btn btn-primary btn-block" id="addExp">＋ 添加花费 Add expense</button>
+      </div>
+
+      <div id="expenses"></div>
+
+      <h2 class="sec">⚖️ 结算 <span class="en">Settle up</span></h2>
+      <div class="card" id="settle"></div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <nav class="tabbar">
+    <button data-tab="home" class="active"><span class="ico">🏔️</span>概览</button>
+    <button data-tab="trip"><span class="ico">📅</span>行程</button>
+    <button data-tab="pack"><span class="ico">🎒</span>装备</button>
+    <button data-tab="bills"><span class="ico">💰</span>账单</button>
+  </nav>
+</div>
+
+<script>
+(function(){
+"use strict";
+const KEY='yosemiteTrip2026';
+const DOW=['周日 Sun','周一 Mon','周二 Tue','周三 Wed','周四 Thu','周五 Fri','周六 Sat'];
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PALETTE=['#e88b6a','#2f8f5b','#4f9cf9','#a86fd0','#e0a83e','#d9534f','#37b3a7'];
+
+// ---------- default state ----------
+function defaults(){
+  return {
+    people:['Leo','Lily','Jazz','Jason','Scott'],
+    links:{
+      doc:'https://docs.google.com/document/d/1jKzCw5-QYVkz8rGyWa7NSdZ1NdH5uQwhagwwcpPAo6U/edit?usp=sharing',
+      airbnb:'https://zh.airbnb.com/wishlists/2106355929',
+      maps:'https://www.google.com/maps/search/?api=1&query=Mist+Trail+Yosemite',
+      dir:'https://www.google.com/maps/dir/?api=1&destination=Yosemite+Valley'
+    },
+    itinerary:[
+      {date:'2026-08-31',title:'出发 · 到达民宿 Arrive',note:'约6小时车程到达民宿 (~6h drive to Airbnb)'},
+      {date:'2026-09-01',title:'雾之小径 Mist Trail',note:'徒步日 Hiking day'},
+      {date:'2026-09-02',title:'悠闲徒步 Chill hike',note:'轻松徒步 / 周边游 Relaxed hiking / travel'},
+      {date:'2026-09-03',title:'悠闲观光 Chill touring',note:'景点观光 Sightseeing'},
+      {date:'2026-09-04',title:'返程回 SD Return',note:'开车返回圣地亚哥 Drive back to San Diego'}
+    ],
+    packing:[
+      {n:'速干衣/裤',e:'Quick-dry clothes',c:'必备',done:false},
+      {n:'防水外套',e:'Waterproof jacket',c:'必备',done:false},
+      {n:'羽绒背心',e:'Down vest',c:'必备',done:false},
+      {n:'防蚊喷雾',e:'Bug spray',c:'必备',done:false},
+      {n:'登山杖',e:'Trekking poles',c:'必备',done:false},
+      {n:'防晒霜',e:'Sunscreen',c:'必备',done:false},
+      {n:'防晒喷雾',e:'Sunscreen spray',c:'必备',done:false},
+      {n:'帽子',e:'Hat',c:'必备',done:false},
+      {n:'登山靴',e:'Hiking boots',c:'必备',done:false},
+      {n:'护膝',e:'Knee brace',c:'可选',done:false},
+      {n:'防熊喷雾',e:'Bear spray',c:'可选',done:false},
+      {n:'墨镜',e:'Sunglasses',c:'可选',done:false},
+      {n:'布洛芬',e:'Ibuprofen',c:'可选',done:false},
+      {n:'头灯',e:'Headlamp',c:'可选',done:false},
+      {n:'路上零食',e:'Road snacks',c:'食物/其他',done:false},
+      {n:'小急救包',e:'First-aid kit',c:'食物/其他',done:false}
+    ],
+    expenses:[]
+  };
+}
+
+let S = load();
+function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)); return s&&s.people?s:defaults(); }catch(_){ return defaults(); } }
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+
+// ---------- helpers ----------
+const $=(id)=>document.getElementById(id);
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+function color(name){ const i=Math.max(0,S.people.indexOf(name)); return PALETTE[i%PALETTE.length]; }
+function initials(n){ return (n||'?').trim().slice(0,2); }
+function av(name){ return `<span class="av" style="background:${color(name)}">${esc(initials(name))}</span>`; }
+function money(x){ return '$'+(Math.round(x*100)/100).toFixed(2); }
+function b64urlEnc(str){ return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function b64urlDec(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4)s+='='; return decodeURIComponent(escape(atob(s))); }
+function fmtDate(ds){ const [y,m,d]=ds.split('-').map(Number); const dow=new Date(Date.UTC(y,m-1,d)).getUTCDay(); return {mmdd:`${m}.${d}`, dow:DOW[dow], big:d, mon:MON[m-1]}; }
+
+// ---------- render: home ----------
+function renderHome(){
+  $('heroDates').textContent = '8.31 – 9.4, 2026 · 暂定 tentative';
+  $('homePeople').innerHTML = S.people.map(p=>`<span class="who">${av(p)}${esc(p)}</span>`).join('');
+  const L=S.links;
+  $('links').innerHTML = `
+    ${linkCard(L.doc,'📄','#4f9cf9','行程文档','Google Doc')}
+    ${linkCard(L.airbnb,'🏠','#ff5a5f','民宿收藏','Airbnb wishlist')}
+    ${linkCard(L.maps,'🗺️','#2f8f5b','地图规划','Mist Trail map')}
+    ${linkCard(L.dir,'🧭','#e0a83e','导航到 Yosemite','Directions')}`;
+}
+function linkCard(href,ic,bg,t,sub){
+  if(!href) return '';
+  return `<a class="link" href="${esc(href)}" target="_blank" rel="noopener">
+    <span class="ic" style="background:${bg}22;color:${bg}">${ic}</span>
+    <span>${esc(t)}<br><span class="sub">${esc(sub)}</span></span></a>`;
+}
+
+// ---------- render: itinerary ----------
+function renderTrip(){
+  $('itinerary').innerHTML = S.itinerary.map((d,i)=>{
+    const f=fmtDate(d.date);
+    return `<div class="day">
+      <div class="rail"><div class="dot"><span>${f.mon}</span><b>${f.big}</b></div><div class="line"></div></div>
+      <div class="body">
+        <div class="t">${esc(d.title)}</div>
+        <div class="dow">${f.dow} · ${f.mmdd}</div>
+        <textarea data-day="${i}" rows="2" placeholder="添加备注 Add notes…">${esc(d.note||'')}</textarea>
+      </div></div>`;
+  }).join('');
+  $('itinerary').querySelectorAll('textarea[data-day]').forEach(t=>{
+    t.addEventListener('input',()=>{ S.itinerary[+t.dataset.day].note=t.value; save(); });
+  });
+}
+
+// ---------- render: packing ----------
+function renderPack(){
+  const cats=['必备','可选','食物/其他'];
+  const catEn={'必备':'Essentials','可选':'Optional','食物/其他':'Food & misc'};
+  const el=$('packing'); let html='';
+  cats.forEach(c=>{
+    const items=S.packing.map((it,idx)=>({it,idx})).filter(x=>x.it.c===c);
+    if(!items.length) return;
+    html+=`<div class="pk-cat">${c} · ${catEn[c]}</div>`;
+    html+=items.map(({it,idx})=>`<div class="pk ${it.done?'done':''}">
+      <input type="checkbox" data-i="${idx}" ${it.done?'checked':''}>
+      <span class="txt">${esc(it.n)}${it.e?`<span class="en">${esc(it.e)}</span>`:''}</span>
+      <span class="x" data-del="${idx}">×</span></div>`).join('');
+  });
+  el.innerHTML=html||'<div class="empty">清单为空 Empty</div>';
+  const done=S.packing.filter(i=>i.done).length;
+  $('packCount').textContent=`${done}/${S.packing.length}`;
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.addEventListener('change',()=>{ S.packing[+cb.dataset.i].done=cb.checked; save(); renderPack(); }));
+  el.querySelectorAll('[data-del]').forEach(x=>x.addEventListener('click',()=>{ S.packing.splice(+x.dataset.del,1); save(); renderPack(); }));
+}
+
+// ---------- render: bills ----------
+function payerOptions(sel){ return S.people.map(p=>`<option value="${esc(p)}" ${p===sel?'selected':''}>${esc(p)}</option>`).join(''); }
+
+function renderBillPeople(){
+  $('billPeople').innerHTML=S.people.map((p,i)=>`<span class="who">${av(p)}${esc(p)} <span class="x" data-delp="${i}" style="color:#c9cdd6;cursor:pointer">×</span></span>`).join('');
+  $('billPeople').querySelectorAll('[data-delp]').forEach(x=>x.addEventListener('click',()=>{
+    const name=S.people[+x.dataset.delp];
+    S.people.splice(+x.dataset.delp,1);
+    S.expenses.forEach(e=>{ if(e.shares) delete e.shares[name]; if(e.payer===name) e.payer=S.people[0]; });
+    save(); renderBillPeople(); renderExpenses(); renderHome(); $('expPayer').innerHTML=payerOptions();
+  }));
+}
+
+function shareWeights(e){ // returns {person:weight} defaulting to 1 for all people not present
+  const w={}; S.people.forEach(p=>{ w[p] = (e.shares && p in e.shares) ? e.shares[p] : 1; }); return w;
+}
+function perPerson(e){
+  const w=shareWeights(e); const tot=S.people.reduce((s,p)=>s+(w[p]>0?w[p]:0),0);
+  const out={}; S.people.forEach(p=>{ out[p] = tot>0 && w[p]>0 ? e.amount*w[p]/tot : 0; }); return out;
+}
+
+function renderExpenses(){
+  const el=$('expenses');
+  if(!S.expenses.length){ el.innerHTML='<div class="empty">还没有花费 No expenses yet.<br>在上面添加，如 Gas / Dinner。</div>'; renderSettle(); return; }
+  el.innerHTML=S.expenses.map((e,i)=>{
+    const w=shareWeights(e); const pp=perPerson(e);
+    const inCount=S.people.filter(p=>w[p]>0).length;
+    const rows=S.people.map(p=>{
+      const on=w[p]>0;
+      return `<div class="splitrow ${on?'on':'off'}" data-exp="${i}" data-p="${esc(p)}">
+        <span class="chip" data-toggle>${av(p)}${esc(p)}</span>
+        <span class="wt"><button data-w="-">−</button><input type="number" min="0" value="${on?w[p]:0}" data-weight><button data-w="+">＋</button></span>
+        <span class="owe">${on?money(pp[p]):'—'}</span></div>`;
+    }).join('');
+    return `<div class="exp" data-i="${i}">
+      <div class="top" data-open>
+        <div><div class="nm">${esc(e.name)}</div><div class="meta">${av(e.payer)} ${esc(e.payer)} 付 · 分 ${inCount} 人</div></div>
+        <div style="text-align:right"><div class="amt">${money(e.amount)}</div><div class="meta" style="color:var(--accent)">点开调整 ▾</div></div>
+      </div>
+      <div class="editor">
+        <div class="field"><label>谁付的 Paid by</label><select data-payer>${payerOptions(e.payer)}</select></div>
+        <div class="muted" style="margin:2px 0 4px">点头像=加入/排除；加减号=改份额(百分比)。<br>Tap avatar to include/exclude; ± changes weight/%.</div>
+        ${rows}
+        <div class="row-btns" style="margin-top:10px">
+          <button class="btn btn-ghost btn-sm" data-even>平均分 Even</button>
+          <button class="btn btn-ghost btn-sm" data-del style="color:var(--red)">删除 Delete</button>
+        </div>
+      </div></div>`;
+  }).join('');
+  wireExpenses();
+  renderSettle();
+}
+
+function wireExpenses(){
+  const el=$('expenses');
+  el.querySelectorAll('[data-open]').forEach(t=>t.addEventListener('click',()=>t.closest('.exp').classList.toggle('open')));
+  el.querySelectorAll('select[data-payer]').forEach(s=>s.addEventListener('change',()=>{ S.expenses[+s.closest('.exp').dataset.i].payer=s.value; save(); renderExpenses(); }));
+  el.querySelectorAll('[data-toggle]').forEach(c=>c.addEventListener('click',()=>{
+    const row=c.closest('.splitrow'); const i=+row.dataset.exp, p=row.dataset.p; const e=S.expenses[i];
+    e.shares=e.shares||{}; const w=shareWeights(e); e.shares[p] = w[p]>0 ? 0 : 1; save(); renderExpenses();
+    const ex=el.querySelector(`.exp[data-i="${i}"]`); if(ex) ex.classList.add('open');
+  }));
+  el.querySelectorAll('input[data-weight]').forEach(inp=>inp.addEventListener('change',()=>{
+    const row=inp.closest('.splitrow'); const i=+row.dataset.exp, p=row.dataset.p; const e=S.expenses[i];
+    e.shares=e.shares||{}; e.shares[p]=Math.max(0,parseFloat(inp.value)||0); save(); renderExpenses();
+    const ex=el.querySelector(`.exp[data-i="${i}"]`); if(ex) ex.classList.add('open');
+  }));
+  el.querySelectorAll('button[data-w]').forEach(b=>b.addEventListener('click',()=>{
+    const row=b.closest('.splitrow'); const i=+row.dataset.exp, p=row.dataset.p; const e=S.expenses[i];
+    e.shares=e.shares||{}; const w=shareWeights(e); let v=w[p]; v += (b.dataset.w==='+'?1:-1); e.shares[p]=Math.max(0,v); save(); renderExpenses();
+    const ex=el.querySelector(`.exp[data-i="${i}"]`); if(ex) ex.classList.add('open');
+  }));
+  el.querySelectorAll('[data-even]').forEach(b=>b.addEventListener('click',()=>{ const i=+b.closest('.exp').dataset.i; S.expenses[i].shares={}; save(); renderExpenses(); const ex=el.querySelector(`.exp[data-i="${i}"]`); if(ex) ex.classList.add('open'); }));
+  el.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{ S.expenses.splice(+b.closest('.exp').dataset.i,1); save(); renderExpenses(); }));
+}
+
+function renderSettle(){
+  const bal={}; S.people.forEach(p=>bal[p]=0);
+  S.expenses.forEach(e=>{ const pp=perPerson(e); S.people.forEach(p=>bal[p]-=pp[p]); if(bal[e.payer]!==undefined) bal[e.payer]+=e.amount; });
+  const total=S.expenses.reduce((s,e)=>s+(+e.amount||0),0);
+  let html=`<div class="balance"><span>总花费 Total</span><b>${money(total)}</b></div><hr style="border:none;border-top:1px solid var(--line);margin:6px 0">`;
+  html+=S.people.map(p=>{
+    const v=Math.round(bal[p]*100)/100;
+    const tag = v>0.001?`<span class="pos">应收 +${money(v)}</span>` : v<-0.001?`<span class="neg">应付 ${money(v)}</span>` : `<span class="muted">已结清 settled</span>`;
+    return `<div class="balance"><span>${av(p)} ${esc(p)}</span>${tag}</div>`;
+  }).join('');
+  // settle transactions (greedy)
+  const cred=[],deb=[];
+  S.people.forEach(p=>{ const v=Math.round(bal[p]*100)/100; if(v>0.001)cred.push({p,v}); else if(v<-0.001)deb.push({p,v:-v}); });
+  cred.sort((a,b)=>b.v-a.v); deb.sort((a,b)=>b.v-a.v);
+  const tx=[]; let ci=0,di=0;
+  while(ci<cred.length&&di<deb.length){
+    const amt=Math.min(cred[ci].v,deb[di].v);
+    tx.push({from:deb[di].p,to:cred[ci].p,amt});
+    cred[ci].v-=amt; deb[di].v-=amt;
+    if(cred[ci].v<0.01)ci++; if(deb[di].v<0.01)di++;
+  }
+  if(tx.length){
+    html+='<div class="pk-cat" style="margin-top:12px">怎么还 Who pays whom</div><div class="settle">';
+    html+=tx.map(t=>`<div class="row"><span>${av(t.from)} ${esc(t.from)} → ${av(t.to)} ${esc(t.to)}</span><span class="amt">${money(t.amt)}</span></div>`).join('');
+    html+='</div>';
+  }
+  $('settle').innerHTML=html;
+}
+
+// ---------- adders ----------
+$('addItem').addEventListener('click',()=>{ const v=$('newItem').value.trim(); if(!v)return; S.packing.push({n:v,e:'',c:'食物/其他',done:false}); $('newItem').value=''; save(); renderPack(); });
+$('newItem').addEventListener('keydown',e=>{ if(e.key==='Enter')$('addItem').click(); });
+$('addPerson').addEventListener('click',()=>{ const v=$('newPerson').value.trim(); if(!v||S.people.includes(v))return; S.people.push(v); $('newPerson').value=''; save(); renderBillPeople(); $('expPayer').innerHTML=payerOptions(); renderExpenses(); renderHome(); });
+$('newPerson').addEventListener('keydown',e=>{ if(e.key==='Enter')$('addPerson').click(); });
+$('addExp').addEventListener('click',()=>{
+  const name=$('expName').value.trim(); const amt=parseFloat($('expAmt').value);
+  if(!name){ $('expName').focus(); return; }
+  if(!(amt>0)){ $('expAmt').focus(); return; }
+  S.expenses.unshift({name, amount:amt, payer:$('expPayer').value||S.people[0], shares:{}});
+  $('expName').value=''; $('expAmt').value=''; save(); renderExpenses();
+});
+
+// ---------- save/share ----------
+$('share').addEventListener('click',()=>{
+  const url=location.origin+location.pathname+'#d='+b64urlEnc(JSON.stringify(S));
+  const ta=$('shareOut'); ta.style.display='block'; ta.value=url; ta.select(); navigator.clipboard?.writeText(url).catch(()=>{});
+});
+$('exportBtn').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='yosemite-trip.json'; a.click();
+});
+$('importBtn').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{ try{ S=Object.assign(defaults(),JSON.parse(r.result)); save(); renderAll(); }catch(_){ alert('文件无法读取 Could not read file'); } }; r.readAsText(f); e.target.value=''; });
+
+function fromHash(){
+  const m=location.hash.match(/[#&]d=([^&]+)/); if(!m)return;
+  try{ const data=JSON.parse(b64urlDec(decodeURIComponent(m[1]))); if(data&&data.people){ if(!confirm('打开分享的行程？将替换当前内容。\nOpen shared trip? Replaces current data.'))return; S=Object.assign(defaults(),data); save(); } }catch(_){}
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tabbar button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabbar button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); $('tab-'+b.dataset.tab).classList.add('active');
+  window.scrollTo(0,0);
+}));
+
+function renderAll(){ renderHome(); renderTrip(); renderPack(); renderBillPeople(); $('expPayer').innerHTML=payerOptions(); renderExpenses(); }
+
+fromHash();
+renderAll();
+})();
+</script>
+</body>
+</html>

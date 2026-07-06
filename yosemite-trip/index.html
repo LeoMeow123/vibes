@@ -45,6 +45,14 @@
 
   .tip{background:linear-gradient(135deg,#fff5ec,#ffece0);border:1px solid #f6d9c6;border-radius:14px;padding:12px 14px;font-size:13px}
   .tip b{color:var(--orange-d)}
+  .stay-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:baseline}
+  .stay-row .k{color:var(--muted);font-weight:700;flex-shrink:0}
+  .stay-row a{color:var(--accent);font-weight:700;text-decoration:none;text-align:right}
+  .stay-row b,.stay-row span{text-align:right}
+  .stay-more{margin-top:8px}
+  .stay-more summary{cursor:pointer;color:var(--accent);font-weight:700;padding:6px 0;font-size:13px;list-style:none}
+  .stay-more .blk{font-size:12.5px;line-height:1.7;margin:6px 0;color:#4a4f5c}
+  .stay-more .blk b{color:var(--ink)}
 
   /* Itinerary */
   .day{display:flex;gap:12px;margin-bottom:10px}
@@ -165,6 +173,23 @@
       <h2 class="sec">🔗 快捷链接 <span class="en">Quick links</span></h2>
       <div class="links" id="links"></div>
 
+      <h2 class="sec">🏡 民宿信息 <span class="en">Stay info</span></h2>
+      <div class="card">
+        <div class="stay-row"><span class="k">📍 地址 Address</span><a href="https://www.google.com/maps/search/?api=1&amp;query=7320+Yosemite+Park+Way,+Yosemite+National+Park,+CA+95389" target="_blank" rel="noopener">7320 Yosemite Park Way, CA 95389 ↗</a></div>
+        <div class="stay-row"><span class="k">🔑 门锁 Door code</span><b>手机号后四位 · last 4 digits of booking phone (Rheya)</b></div>
+        <div class="stay-row"><span class="k">🕓 入住/退房</span><span>入住 after 4 PM · 退房 by 10 AM</span></div>
+        <div class="stay-row"><span class="k">☎️ 房东 Host</span><a href="tel:+12093724945">209-372-4945</a></div>
+        <div class="stay-row"><span class="k">⛽🛒 加油/杂货</span><span>Oakhurst 镇 (途中 on the way)</span></div>
+        <div class="stay-row"><span class="k">📶 WiFi</span><span class="muted">房东信息未提供，到店问 · ask host</span></div>
+        <details class="stay-more">
+          <summary>更多信息 More info ▾</summary>
+          <div class="blk"><b>✅ 提供 Provided：</b>厨具/餐具/银器，被子、枕头、床单、毛巾；调料(热巧克力、Folgers 咖啡+滤纸、糖包、奶精、Lipton 红茶、盐&amp;胡椒)；洗碗剂、洗手液、卫生纸、纸巾；燃气烧烤炉 + 丙烷。</div>
+          <div class="blk"><b>🧳 需自备 Bring your own：</b>洗发水、护发素、沐浴露(因过敏原因不提供)；食用油(易变质不提供)。</div>
+          <div class="blk"><b>🧹 退房前 Before check-out：</b>把碗放进洗碗机并运行、倒垃圾、简单收拾；床单留床上、毛巾放原处；无需大扫除。</div>
+          <div class="blk"><b>🚫 规则 Rules：</b>不可带宠物 No pets · 室内禁烟 No smoking indoors。</div>
+        </details>
+      </div>
+
       <h2 class="sec">💡 贴士 <span class="en">Tips</span></h2>
       <div class="tip">
         🅿️ <b>停车 Parking：</b>发送短信 <b>ynptraffic</b> 到 <b>333111</b>，即可收到实时停车与交通信息。<br>
@@ -272,9 +297,10 @@ function defaults(){
     people:['Leo','Lily','Jazz','Jason','Scott'],
     links:{
       doc:'https://docs.google.com/document/d/1jKzCw5-QYVkz8rGyWa7NSdZ1NdH5uQwhagwwcpPAo6U/edit?usp=sharing',
-      airbnb:'https://zh.airbnb.com/wishlists/2108612526/invite?share_token=bfe947ed-033d-41ab-b599-91dfe64d23dd',
+      airbnb:'https://www.airbnb.com/l/v7x13p6E?s=67&unique_share_id=a2a7794f-61ef-4982-ba32-47b5209b483a',
+      splitwise:'https://www.splitwise.com/join/VqDeCMsCjBv+1cnw31?v=e',
       maps:'https://www.google.com/maps/search/?api=1&query=Mist+Trail+Yosemite',
-      dir:'https://www.google.com/maps/dir/?api=1&destination=Yosemite+Valley'
+      dir:'https://www.google.com/maps/search/?api=1&query=7320+Yosemite+Park+Way,+Yosemite+National+Park,+CA+95389'
     },
     itinerary:[
       {date:'2026-08-31',title:'出发 · 到达民宿 Arrive',note:'约6小时车程到达民宿 (~6h drive to Airbnb)'},
@@ -372,9 +398,10 @@ function renderHome(){
   const L=S.links;
   $('links').innerHTML = `
     ${linkCard(L.doc,'📄','#4f9cf9','行程文档','Google Doc')}
-    ${linkCard(L.airbnb,'🏠','#ff5a5f','民宿收藏','Airbnb wishlist')}
-    ${linkCard(L.maps,'🗺️','#2f8f5b','地图规划','Mist Trail map')}
-    ${linkCard(L.dir,'🧭','#e0a83e','导航到 Yosemite','Directions')}`;
+    ${linkCard(L.airbnb,'🏠','#ff5a5f','民宿 Airbnb','Listing')}
+    ${linkCard(L.splitwise,'💸','#1cc29f','账单 Splitwise','Join group')}
+    ${linkCard(L.maps,'🗺️','#2f8f5b','地图规划','Mist Trail')}
+    ${linkCard(L.dir,'🧭','#e0a83e','导航到民宿','To the stay')}`;
 }
 function linkCard(href,ic,bg,t,sub){
   if(!href) return '';

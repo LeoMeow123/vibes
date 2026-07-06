@@ -196,8 +196,8 @@
         <span class="muted">Text “ynptraffic” to 333111 for live parking & traffic info.</span>
       </div>
       <div class="tip" style="margin-top:10px">
-        🏠 <b>民宿 Airbnb：</b>时间暂定 8.31–9.4，行程可在“行程”页编辑。<br>
-        <span class="muted">Dates tentative. Edit the plan on the Trip tab.</span>
+        🗓️ <b>行程 Plan：</b>已预订 8.31–9.4；行程与清单可实时编辑、所有人共享。<br>
+        <span class="muted">Booked Aug 31–Sep 4. Itinerary & lists are editable and shared live.</span>
       </div>
 
       <div class="scene">
@@ -300,7 +300,7 @@ function defaults(){
       airbnb:'https://www.airbnb.com/l/v7x13p6E?s=67&unique_share_id=a2a7794f-61ef-4982-ba32-47b5209b483a',
       splitwise:'https://www.splitwise.com/join/VqDeCMsCjBv+1cnw31?v=e',
       maps:'https://www.google.com/maps/search/?api=1&query=Mist+Trail+Yosemite',
-      dir:'https://www.google.com/maps/search/?api=1&query=7320+Yosemite+Park+Way,+Yosemite+National+Park,+CA+95389'
+      dir:'https://www.google.com/maps/dir/?api=1&destination=7320+Yosemite+Park+Way,+Yosemite+National+Park,+CA+95389'
     },
     itinerary:[
       {date:'2026-08-31',title:'出发 · 到达民宿 Arrive',note:'约6小时车程到达民宿 (~6h drive to Airbnb)'},
@@ -325,7 +325,13 @@ function defaults(){
       {n:'布洛芬',e:'Ibuprofen',c:'可选',done:false},
       {n:'头灯',e:'Headlamp',c:'可选',done:false},
       {n:'路上零食',e:'Road snacks',c:'食物/其他',done:false},
-      {n:'小急救包',e:'First-aid kit',c:'食物/其他',done:false}
+      {n:'小急救包',e:'First-aid kit',c:'食物/其他',done:false},
+      {n:'食用油',e:'Cooking oil (民宿不提供)',c:'食物/其他',done:false},
+      {n:'洗发水',e:'Shampoo (民宿不提供)',c:'洗漱',done:false},
+      {n:'护发素',e:'Conditioner (民宿不提供)',c:'洗漱',done:false},
+      {n:'沐浴露',e:'Body wash (民宿不提供)',c:'洗漱',done:false},
+      {n:'牙刷',e:'Toothbrush',c:'洗漱',done:false},
+      {n:'牙膏',e:'Toothpaste',c:'洗漱',done:false}
     ],
     expenses:[]
   };
@@ -393,12 +399,12 @@ function fmtDate(ds){ const [y,m,d]=ds.split('-').map(Number); const dow=new Dat
 
 // ---------- render: home ----------
 function renderHome(){
-  $('heroDates').textContent = '8.31 – 9.4, 2026 · 暂定 tentative';
+  $('heroDates').textContent = '8.31 – 9.4, 2026 · 已订 Booked ✓';
   $('homePeople').innerHTML = S.people.map(p=>`<span class="who">${av(p)}${esc(p)}</span>`).join('');
   const L=S.links;
   $('links').innerHTML = `
     ${linkCard(L.doc,'📄','#4f9cf9','行程文档','Google Doc')}
-    ${linkCard(L.airbnb,'🏠','#ff5a5f','民宿 Airbnb','Listing')}
+    ${linkCard(L.airbnb,'🏠','#ff5a5f','民宿 Airbnb','Info / 房源')}
     ${linkCard(L.splitwise,'💸','#1cc29f','账单 Splitwise','Join group')}
     ${linkCard(L.maps,'🗺️','#2f8f5b','地图规划','Mist Trail')}
     ${linkCard(L.dir,'🧭','#e0a83e','导航到民宿','To the stay')}`;
@@ -429,8 +435,8 @@ function renderTrip(){
 
 // ---------- render: packing ----------
 function renderPack(){
-  const cats=['必备','可选','食物/其他'];
-  const catEn={'必备':'Essentials','可选':'Optional','食物/其他':'Food & misc'};
+  const cats=['必备','可选','洗漱','食物/其他'];
+  const catEn={'必备':'Essentials','可选':'Optional','洗漱':'Toiletries','食物/其他':'Food & misc'};
   const el=$('packing'); let html='';
   cats.forEach(c=>{
     const items=S.packing.map((it,idx)=>({it,idx})).filter(x=>x.it.c===c);

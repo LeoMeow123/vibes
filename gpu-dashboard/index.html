@@ -1105,6 +1105,7 @@ function renderMachineCard(m, machineKey) {
           </div>
         ` : '<div class="no-gpus">No GPUs detected</div>'}
 
+        ${m.roi ? renderRoi(m.roi) : ''}
         ${m.inference ? renderInference(m.inference) : ''}
 
         ${allProcesses.length > 0 ? `
@@ -1272,6 +1273,66 @@ function barColorInference(pct) {
   if (pct >= 80) return 'green';
   if (pct >= 40) return 'yellow';
   return 'red';
+}
+
+// ── ROI backfill rendering (reuses the .inference-* styles) ─────────────────
+function renderRoi(roi) {
+  if (!roi || !roi.totals) return '';
+  const t = roi.totals;
+  const pct = t.videos_total > 0 ? (t.videos_done / t.videos_total * 100) : 0;
+  const pctStr = pct.toFixed(1);
+  const eta = roi.eta_minutes;
+  const etaStr = eta == null ? '' : (eta <= 0 ? 'done'
+    : (eta < 90 ? `${eta.toFixed(0)}m remaining` : `${(eta / 60).toFixed(1)}h remaining`));
+  const cameras = roi.cameras || {};
+  const camKeys = Object.keys(cameras).sort();
+  return `
+    <div class="inference-section">
+      <div class="inference-header">
+        <span>ROI Backfill <span style="color:#888;font-weight:400;font-size:11px;">roi-Kuo-Fen-HCM · blackwell-2</span></span>
+        ${etaStr ? `<span class="inference-eta">${esc(etaStr)}</span>` : ''}
+      </div>
+      <div class="inference-totals">
+        <div class="inf-stat"><span class="label">Videos</span><span class="value">${t.videos_done.toLocaleString()} / ${t.videos_total.toLocaleString()}</span></div>
+        <div class="inf-stat"><span class="label">Progress</span><span class="value">${pctStr}%</span></div>
+        <div class="inf-stat"><span class="label">Rate</span><span class="value">${(t.rate_vps ?? 0).toFixed(1)} vid/s</span></div>
+        ${t.errors > 0 ? `<div class="inf-stat"><span class="label">Errors</span><span class="value failed">${t.errors}</span></div>` : ''}
+      </div>
+      <div class="inference-overall-bar">
+        <div class="bar-group">
+          <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
+          <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+        </div>
+      </div>
+      <div class="inference-cam-grid">
+        ${camKeys.map(cam => renderRoiCam(cam, cameras[cam])).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderRoiCam(name, cam) {
+  const pct = cam.videos_total > 0 ? (cam.videos_done / cam.videos_total * 100) : 0;
+  const eta = cam.eta_min;
+  const etaStr = eta == null ? '' : (eta <= 0 ? 'done' : (eta < 90 ? `${eta.toFixed(0)}m` : `${(eta / 60).toFixed(1)}h`));
+  const displayName = CAM_DISPLAY[name] || name;
+  return `
+    <div class="inference-cam-card">
+      <div class="cam-name">
+        <span>${esc(displayName)}${cam.workers ? ` <span class="cam-gpu">${cam.workers}w</span>` : ''}</span>
+        <span style="color:#888;font-size:11px;">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="bar-group">
+        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+      </div>
+      <div class="cam-stats">
+        <span><span class="val">${cam.videos_done.toLocaleString()}</span> / ${cam.videos_total.toLocaleString()}</span>
+        ${cam.rate_vps ? `<span><span class="val">${cam.rate_vps.toFixed(1)}</span> v/s</span>` : ''}
+        ${cam.errors > 0 ? `<span style="color:#f87171;">${cam.errors} err</span>` : ''}
+        ${etaStr ? `<span>${etaStr}</span>` : ''}
+      </div>
+    </div>
+  `;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

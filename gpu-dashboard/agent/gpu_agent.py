@@ -74,6 +74,12 @@ def load_config() -> dict:
         "GPU_DASH_INFERENCE_LOG_DIR", cfg.get("inference_log_dir", "")
     )
     cfg.setdefault("inference_refresh_seconds", 3600)
+    # ROI extraction backfill (reads worker logs on VAST; set on the machine that
+    # can see the VAST roi-Kuo-Fen-HCM dir — usually exx, not the GPU box itself).
+    cfg["roi_log_dir"] = os.environ.get(
+        "GPU_DASH_ROI_LOG_DIR", cfg.get("roi_log_dir", "")
+    )
+    cfg.setdefault("roi_refresh_seconds", 300)
 
     if not cfg["gist_id"]:
         print("ERROR: No gist_id configured.")
@@ -473,6 +479,98 @@ def collect_inference(cfg: dict) -> dict | None:
     return result
 
 
+_roi_cache: dict | None = None
+_roi_cache_time: float = 0.0
+
+# Worker progress line: "cam_01 100/1338 ok=100 err=0 0.98 vid/s ETA 21.0 min"
+_ROI_LINE = re.compile(
+    r"(cam_\d+)\s+(\d+)/(\d+)\s+ok=(\d+)\s+err=(\d+)\s+([\d.]+)\s+vid/s\s+ETA\s+([\d.]+)"
+)
+
+
+def collect_roi(cfg: dict) -> dict | None:
+    """ROI-extraction backfill progress from the worker logs.
+
+    Reads <roi_log_dir>/_log_<cam>.log TAILS (fast) instead of walking the output
+    tree — the video source tree is ~14k session dirs/cam over CIFS, far too slow
+    to scan every refresh. Each cam is split across two date-range workers that
+    share one log, so we keep the latest line per distinct denominator and sum.
+    Cached for roi_refresh_seconds.
+    """
+    global _roi_cache, _roi_cache_time
+
+    log_dir = cfg.get("roi_log_dir", "")
+    if not log_dir or not os.path.isdir(log_dir):
+        return None
+
+    refresh = cfg.get("roi_refresh_seconds", 300)
+    if _roi_cache is not None and (time.time() - _roi_cache_time) < refresh:
+        return _roi_cache
+
+    log_files = sorted(globmod.glob(os.path.join(log_dir, "_log_cam_*.log")))
+    if not log_files:
+        return None
+
+    cameras = {}
+    for lp in log_files:
+        cam = os.path.basename(lp).replace("_log_", "").replace(".log", "")
+        try:
+            with open(lp) as f:
+                lines = f.readlines()[-80:]
+        except OSError:
+            continue
+        latest = {}  # denominator -> last matching line (one per range worker)
+        for ln in lines:
+            m = _ROI_LINE.search(ln)
+            if m:
+                latest[m.group(3)] = m
+        if not latest:
+            continue
+        done = total = errors = 0
+        rate = 0.0
+        for m in latest.values():
+            done += int(m.group(2))
+            total += int(m.group(3))
+            errors += int(m.group(5))
+            rate += float(m.group(6))
+        eta_min = round((total - done) / rate / 60, 1) if rate > 0 and total > done else (
+            0.0 if total and done >= total else None)
+        cameras[cam] = {
+            "videos_done": done,
+            "videos_total": total,
+            "errors": errors,
+            "rate_vps": round(rate, 2),
+            "workers": len(latest),
+            "eta_min": eta_min,
+        }
+
+    if not cameras:
+        return None
+
+    total_done = sum(c["videos_done"] for c in cameras.values())
+    total_total = sum(c["videos_total"] for c in cameras.values())
+    total_rate = sum(c["rate_vps"] for c in cameras.values())
+    total_err = sum(c["errors"] for c in cameras.values())
+    eta_minutes = round((total_total - total_done) / total_rate / 60, 1) if (
+        total_rate > 0 and total_total > total_done) else (
+        0.0 if total_total and total_done >= total_total else None)
+
+    result = {
+        "cameras": cameras,
+        "totals": {
+            "videos_done": total_done,
+            "videos_total": total_total,
+            "errors": total_err,
+            "rate_vps": round(total_rate, 2),
+        },
+        "eta_minutes": eta_minutes,
+        "collected_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+    _roi_cache = result
+    _roi_cache_time = time.time()
+    return result
+
+
 # ── Assemble snapshot ─────────────────────────────────────────────────────────
 
 
@@ -514,6 +612,10 @@ def collect_snapshot(cfg: dict) -> dict:
     inference = collect_inference(cfg)
     if inference is not None:
         snapshot["inference"] = inference
+
+    roi = collect_roi(cfg)
+    if roi is not None:
+        snapshot["roi"] = roi
 
     return snapshot
 

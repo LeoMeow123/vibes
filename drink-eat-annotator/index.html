@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drink / Eat Annotator</title>
+<style>
+  :root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.16);
+    --text:#e8eaf0;--muted:#7a7f94;--accent:#4f9cf9;--drink:#4f9cf9;--eat:#f59e0b;--green:#34d399;--red:#ef4444;--purple:#a78bfa}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px}
+
+  header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:700;white-space:nowrap}
+  header h1 .em{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
+  .grow{flex:1}
+  input,select,button{font-family:inherit}
+  .in{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);padding:6px 9px;font-size:12px;outline:none}
+  .in:focus{border-color:var(--accent)}
+  .btn{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#232838}
+  .btn.p{background:var(--accent);color:#04101f;border-color:var(--accent)}
+  .btn.g{color:var(--green);border-color:rgba(52,211,153,0.4)}
+  .btn.r{color:var(--red);border-color:rgba(239,68,68,0.4)}
+  .btn:disabled{opacity:0.4;cursor:not-allowed}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 320px;gap:0;overflow:hidden}
+  .stage{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+  .videowrap{flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  video{max-width:100%;max-height:100%;background:#000}
+  .drop-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);pointer-events:none;text-align:center;padding:20px}
+  .drop-hint .big{font-size:40px}
+
+  .transport{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-top:1px solid var(--border);flex-wrap:wrap}
+  .transport .fc{font-family:ui-monospace,monospace;font-size:13px;color:var(--text);min-width:150px}
+  .transport .fc .muted{color:var(--muted)}
+  .tbtn{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);width:34px;height:30px;font-size:13px;cursor:pointer}
+  .tbtn:hover{background:#232838}
+  .tbtn.play{width:44px}
+
+  /* timeline */
+  .timeline-wrap{background:var(--bg2);border-top:1px solid var(--border);padding:8px 12px 10px;user-select:none}
+  .tl-row{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+  .tl-label{width:74px;font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0;white-space:nowrap}
+  .tl-track{position:relative;flex:1;height:20px;background:var(--bg3);border-radius:4px;overflow:hidden;cursor:pointer}
+  .tl-seg{position:absolute;top:2px;bottom:2px;border-radius:3px;opacity:0.9}
+  .tl-seg.sel{outline:2px solid #fff;z-index:2}
+  .tl-seg.open{background-image:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.25) 4px,rgba(255,255,255,0.25) 8px)}
+  .tl-playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;z-index:3}
+  .tl-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin:2px 0 0 82px;font-family:ui-monospace,monospace}
+
+  /* sidebar */
+  .side{background:var(--bg2);overflow-y:auto;display:flex;flex-direction:column}
+  .sec{padding:10px 12px;border-bottom:1px solid var(--border)}
+  .sec h2{font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px}
+  .animals{display:flex;flex-wrap:wrap;gap:5px}
+  .animal{width:30px;height:30px;border-radius:8px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-weight:700;cursor:pointer;font-size:13px}
+  .animal.active{background:var(--purple);color:#12081f;border-color:var(--purple)}
+  .animal.hasopen{box-shadow:inset 0 -3px 0 var(--red)}
+
+  .behs{display:flex;flex-direction:column;gap:7px}
+  .beh{display:flex;align-items:center;gap:9px;background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:8px 10px;cursor:pointer}
+  .beh:hover{background:#232838}
+  .beh .kbd{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#04101f;flex-shrink:0}
+  .beh .nm{flex:1;font-weight:600}
+  .beh .st{font-size:11px;color:var(--muted)}
+  .beh.recording{outline:2px solid var(--red)}
+  .beh.recording .st{color:var(--red);font-weight:700}
+
+  .bouts{display:flex;flex-direction:column;gap:0}
+  .bout{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer}
+  .bout:hover{background:var(--bg3)}
+  .bout.sel{background:rgba(79,156,249,0.12)}
+  .bout .dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+  .bout .who{color:var(--muted);font-variant-numeric:tabular-nums}
+  .bout .rng{flex:1;font-family:ui-monospace,monospace;font-size:11px}
+  .bout .dur{color:var(--muted);font-variant-numeric:tabular-nums}
+  .bout .del{color:#c0c6d4;cursor:pointer;padding:0 4px}
+  .bout .del:hover{color:var(--red)}
+  .bout.open .rng{color:var(--red)}
+
+  .stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:var(--muted)}
+  .stat b{color:var(--text);font-variant-numeric:tabular-nums}
+  .keys{font-size:11px;color:var(--muted);line-height:1.9}
+  .keys kbd{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:10px;color:var(--text)}
+  .empty{color:var(--muted);text-align:center;padding:14px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐭 Drink / Eat Annotator <span class="em">bout scoring · HCM</span></h1>
+  <input type="file" id="file" accept="video/*" style="display:none">
+  <button class="btn" id="pick">Open video…</button>
+  <input class="in" id="url" placeholder="…or paste a video URL" style="width:200px">
+  <button class="btn" id="loadUrl">Load</button>
+  <span class="grow"></span>
+  <label style="font-size:12px;color:var(--muted)">FPS <input class="in" id="fps" type="number" min="1" step="0.01" value="30" style="width:66px"></label>
+  <button class="btn" id="detect" title="Estimate FPS from the video">detect</button>
+  <button class="btn g" id="csv">Export CSV</button>
+  <button class="btn" id="json">JSON</button>
+  <button class="btn r" id="clear">Clear</button>
+</header>
+
+<main>
+  <div class="stage">
+    <div class="videowrap" id="videowrap">
+      <video id="video" playsinline></video>
+      <div class="drop-hint" id="dropHint"><div class="big">🎬</div><div>Open a video or drop one here</div><div style="font-size:12px">local file or URL · then score with <b>D</b> / <b>E</b></div></div>
+    </div>
+
+    <div class="transport">
+      <button class="tbtn" id="b-ss" title="Prev 10 frames (Shift+←)">⏮</button>
+      <button class="tbtn" id="b-s" title="Prev frame (←)">◀</button>
+      <button class="tbtn play p" id="b-play" title="Play/Pause (Space)">▶</button>
+      <button class="tbtn" id="b-f" title="Next frame (→)">▶</button>
+      <button class="tbtn" id="b-ff" title="Next 10 frames (Shift+→)">⏭</button>
+      <span class="fc" id="fc">frame <b>0</b> <span class="muted">/ 0 · 0.00s</span></span>
+      <span class="grow"></span>
+      <label style="font-size:12px;color:var(--muted)">speed
+        <select class="in" id="speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>1.5</option><option>2</option><option>4</option></select>
+      </label>
+    </div>
+
+    <div class="timeline-wrap">
+      <div id="timeline"></div>
+      <div class="tl-axis"><span id="ax0">0:00</span><span id="ax1">0:00</span></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="sec">
+      <h2>Active animal <span id="aa" style="color:var(--purple)">0</span> · number keys 0–9</h2>
+      <div class="animals" id="animals"></div>
+    </div>
+    <div class="sec">
+      <h2>Behaviors · press to start / end bout</h2>
+      <div class="behs" id="behs"></div>
+    </div>
+    <div class="sec">
+      <h2>Bouts (<span id="boutCount">0</span>)</h2>
+      <div class="bouts" id="bouts"></div>
+    </div>
+    <div class="sec">
+      <h2>Stats</h2>
+      <div id="stats"></div>
+    </div>
+    <div class="sec">
+      <h2>Shortcuts</h2>
+      <div class="keys">
+        <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> ±1 frame · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> ±10<br>
+        <kbd>,</kbd><kbd>.</kbd> frame step · <kbd>0</kbd>–<kbd>9</kbd> pick animal<br>
+        <kbd>D</kbd> drinking bout · <kbd>E</kbd> eating bout (start, then end)<br>
+        <kbd>[</kbd> set start = now · <kbd>]</kbd> set end = now (selected bout)<br>
+        <kbd>Del</kbd> delete selected · <kbd>Esc</kbd> deselect / cancel open bout
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const video=$('video');
+
+// ---------- state ----------
+let fps=30;
+let videoKey='';          // localStorage key (video name or url)
+let videoName='';
+let bouts=[];             // {id,behavior,animal,startFrame,endFrame} endFrame null while open
+let open={};              // "animal:behavior" -> boutId
+let activeAnimal=0;
+let selected=null;        // selected bout id
+let seq=1;
+const N_ANIMALS=10;
+const BEHAVIORS=[
+  {key:'D', name:'Drinking', color:getComputedStyle(document.documentElement).getPropertyValue('--drink').trim()||'#4f9cf9'},
+  {key:'E', name:'Eating',   color:getComputedStyle(document.documentElement).getPropertyValue('--eat').trim()||'#f59e0b'},
+];
+const behByKey=k=>BEHAVIORS.find(b=>b.key===k.toUpperCase());
+
+// ---------- frame helpers ----------
+function frameOf(t){ return Math.max(0, Math.round(t*fps)); }
+function timeOf(f){ return (f+0.5)/fps; }              // mid-frame → robust seeking
+function curFrame(){ return frameOf(video.currentTime); }
+function totalFrames(){ return video.duration?frameOf(video.duration):0; }
+function fmtTime(s){ if(!isFinite(s))return '0:00'; const m=Math.floor(s/60),ss=Math.floor(s%60); return m+':'+String(ss).padStart(2,'0'); }
+function seek(frame){ frame=Math.max(0,Math.min(frame, Math.max(0,totalFrames()-1))); video.currentTime=timeOf(frame); }
+function step(d){ if(!video.src)return; video.pause(); seek(curFrame()+d); }
+
+// ---------- persistence ----------
+function storeKey(){ return 'drinkEat:'+videoKey; }
+function save(){ if(!videoKey)return; try{ localStorage.setItem(storeKey(), JSON.stringify({fps,videoName,bouts,seq})); localStorage.setItem('drinkEat:last', videoKey); }catch(_){} }
+function restore(key){
+  try{ const s=JSON.parse(localStorage.getItem('drinkEat:'+key)); if(s&&Array.isArray(s.bouts)){ bouts=s.bouts; seq=s.seq||(bouts.length+1); if(s.fps){fps=s.fps;$('fps').value=fps;} rebuildOpen(); return true; } }catch(_){}
+  return false;
+}
+function rebuildOpen(){ open={}; bouts.forEach(b=>{ if(b.endFrame==null) open[b.animal+':'+b.behavior]=b.id; }); }
+
+// ---------- load video ----------
+function loadSrc(src, name, key){
+  video.src=src; videoName=name; videoKey=key;
+  bouts=[]; open={}; selected=null; seq=1;
+  restore(key);              // resume this video's bouts if any
+  $('dropHint').style.display='none';
+  video.load();
+  renderAll();
+}
+$('pick').onclick=()=>$('file').click();
+$('file').onchange=e=>{ const f=e.target.files[0]; if(!f)return; loadSrc(URL.createObjectURL(f), f.name, f.name); };
+$('loadUrl').onclick=()=>{ const u=$('url').value.trim(); if(!u)return; loadSrc(u, u.split('/').pop()||u, u); };
+$('url').addEventListener('keydown',e=>{ if(e.key==='Enter')$('loadUrl').click(); });
+// drag & drop
+const vw=$('videowrap');
+vw.addEventListener('dragover',e=>{e.preventDefault();});
+vw.addEventListener('drop',e=>{e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('video')) loadSrc(URL.createObjectURL(f), f.name, f.name);});
+
+$('fps').addEventListener('change',()=>{ fps=parseFloat($('fps').value)||30; save(); renderAll(); });
+
+// FPS auto-detect via requestVideoFrameCallback (best-effort)
+$('detect').onclick=()=>{
+  if(!video.src||!('requestVideoFrameCallback' in HTMLVideoElement.prototype)){ alert('Play unsupported — set FPS manually.'); return; }
+  let last=null, deltas=[];
+  const wasPaused=video.paused; video.play();
+  const cb=(now,meta)=>{
+    if(last!=null) deltas.push(meta.mediaTime-last);
+    last=meta.mediaTime;
+    if(deltas.length<20){ video.requestVideoFrameCallback(cb); }
+    else{
+      deltas.sort((a,b)=>a-b); const med=deltas[deltas.length>>1];
+      if(med>0){ const est=1/med; const common=[15,24,25,29.97,30,50,59.94,60]; let best=est;
+        for(const c of common){ if(Math.abs(c-est)<Math.abs(best-est)||best===est) if(Math.abs(c-est)<1.2)best=c; }
+        fps=Math.round(best*100)/100; $('fps').value=fps; save(); renderAll(); }
+      if(wasPaused)video.pause();
+    }
+  };
+  video.requestVideoFrameCallback(cb);
+};
+
+// ---------- transport ----------
+function playPause(){ if(!video.src)return; video.paused?video.play():video.pause(); }
+$('b-play').onclick=playPause;
+$('b-s').onclick=()=>step(-1); $('b-f').onclick=()=>step(1);
+$('b-ss').onclick=()=>step(-10); $('b-ff').onclick=()=>step(10);
+$('speed').onchange=()=>{ video.playbackRate=parseFloat($('speed').value); };
+video.addEventListener('play',()=>$('b-play').textContent='⏸');
+video.addEventListener('pause',()=>$('b-play').textContent='▶');
+video.addEventListener('loadedmetadata',()=>{ video.playbackRate=parseFloat($('speed').value); renderAll(); });
+
+// live frame counter + timeline playhead
+function tick(){ renderFrameCounter(); renderPlayhead(); }
+if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
+  const rvfc=()=>{ tick(); video.requestVideoFrameCallback(rvfc); };
+  video.requestVideoFrameCallback(rvfc);
+} else { video.addEventListener('timeupdate',tick); setInterval(()=>{ if(!video.paused)tick(); },100); }
+
+// ---------- bouts ----------
+function toggleBehavior(key){
+  if(!video.src)return;
+  const b=behByKey(key); if(!b)return;
+  const f=curFrame(); const ok=activeAnimal+':'+b.key;
+  if(open[ok]){
+    const bt=bouts.find(x=>x.id===open[ok]);
+    bt.endFrame=f; if(bt.endFrame<bt.startFrame){ const s=bt.startFrame; bt.startFrame=bt.endFrame; bt.endFrame=s; }
+    delete open[ok]; selected=bt.id;
+  } else {
+    const bt={id:seq++, behavior:b.key, animal:activeAnimal, startFrame:f, endFrame:null};
+    bouts.push(bt); open[ok]=bt.id; selected=bt.id;
+  }
+  save(); renderAll();
+}
+function delBout(id){ const b=bouts.find(x=>x.id===id); if(b&&b.endFrame==null)delete open[b.animal+':'+b.behavior]; bouts=bouts.filter(x=>x.id!==id); if(selected===id)selected=null; save(); renderAll(); }
+function setEdge(which){ if(selected==null)return; const b=bouts.find(x=>x.id===selected); if(!b)return; const f=curFrame();
+  if(which==='start'){ b.startFrame=f; if(b.endFrame!=null&&b.endFrame<f)b.endFrame=f; }
+  else { b.endFrame=f; if(b.endFrame<b.startFrame)b.endFrame=b.startFrame; delete open[b.animal+':'+b.behavior]; }
+  save(); renderAll();
+}
+
+// ---------- render ----------
+function renderAnimals(){
+  const anyOpen=a=>BEHAVIORS.some(b=>open[a+':'+b.key]);
+  $('animals').innerHTML='';
+  for(let a=0;a<N_ANIMALS;a++){
+    const el=document.createElement('button');
+    el.className='animal'+(a===activeAnimal?' active':'')+(anyOpen(a)?' hasopen':'');
+    el.textContent=a; el.onclick=()=>{activeAnimal=a; $('aa').textContent=a; renderAnimals(); renderBehs();};
+    $('animals').appendChild(el);
+  }
+  $('aa').textContent=activeAnimal;
+}
+function renderBehs(){
+  $('behs').innerHTML=BEHAVIORS.map(b=>{
+    const rec=!!open[activeAnimal+':'+b.key];
+    const st=rec?`● recording since f${bouts.find(x=>x.id===open[activeAnimal+':'+b.key]).startFrame}`:'press '+b.key+' to start';
+    return `<div class="beh${rec?' recording':''}" data-k="${b.key}">
+      <span class="kbd" style="background:${b.color}">${b.key}</span>
+      <span class="nm">${b.name}</span><span class="st">${st}</span></div>`;
+  }).join('');
+  $('behs').querySelectorAll('.beh').forEach(el=>el.onclick=()=>toggleBehavior(el.dataset.k));
+}
+function renderBouts(){
+  const sorted=[...bouts].sort((a,b)=>a.startFrame-b.startFrame);
+  $('boutCount').textContent=bouts.length;
+  if(!bouts.length){ $('bouts').innerHTML='<div class="empty">No bouts yet. Pick an animal, press D or E to start a bout, press again to end.</div>'; return; }
+  $('bouts').innerHTML=sorted.map(b=>{
+    const beh=behByKey(b.behavior); const openb=b.endFrame==null;
+    const dur=openb?'—':((b.endFrame-b.startFrame)/fps).toFixed(2)+'s';
+    const rng=openb?`f${b.startFrame} → …`:`f${b.startFrame}–${b.endFrame}`;
+    return `<div class="bout${b.id===selected?' sel':''}${openb?' open':''}" data-id="${b.id}">
+      <span class="dot" style="background:${beh.color}"></span>
+      <span class="who">A${b.animal}</span>
+      <span class="rng">${rng}</span>
+      <span class="dur">${dur}</span>
+      <span class="del" data-del="${b.id}">✕</span></div>`;
+  }).join('');
+  $('bouts').querySelectorAll('.bout').forEach(el=>el.onclick=e=>{
+    if(e.target.dataset.del){ delBout(+e.target.dataset.del); return; }
+    const b=bouts.find(x=>x.id===+el.dataset.id); selected=b.id; seek(b.startFrame); renderBouts(); renderTimeline();
+  });
+}
+function renderStats(){
+  const rows=[];
+  BEHAVIORS.forEach(b=>{
+    const bb=bouts.filter(x=>x.behavior===b.key&&x.endFrame!=null);
+    const tot=bb.reduce((s,x)=>s+(x.endFrame-x.startFrame)/fps,0);
+    rows.push(`<div class="stat"><span style="color:${b.color}">${b.name}</span><b>${bb.length} bouts · ${tot.toFixed(1)}s</b></div>`);
+  });
+  const animals=new Set(bouts.map(b=>b.animal));
+  rows.push(`<div class="stat"><span>Animals scored</span><b>${animals.size}</b></div>`);
+  $('stats').innerHTML=rows.join('');
+}
+function renderFrameCounter(){
+  const f=curFrame(), t=video.currentTime||0, tot=totalFrames();
+  $('fc').innerHTML=`frame <b>${f}</b> <span class="muted">/ ${tot} · ${t.toFixed(2)}s</span>`;
+}
+function renderTimeline(){
+  const dur=totalFrames()||1;
+  const animals=[...new Set(bouts.map(b=>b.animal))].sort((a,b)=>a-b);
+  if(!animals.includes(activeAnimal)) animals.push(activeAnimal);
+  animals.sort((a,b)=>a-b);
+  const tl=$('timeline'); tl.innerHTML='';
+  animals.forEach(a=>{
+    const row=document.createElement('div'); row.className='tl-row';
+    const segs=bouts.filter(b=>b.animal===a).map(b=>{
+      const beh=behByKey(b.behavior); const end=b.endFrame==null?curFrame():b.endFrame;
+      const x=Math.min(b.startFrame,end)/dur*100, w=Math.max(0.4,(Math.abs(end-b.startFrame))/dur*100);
+      return `<div class="tl-seg${b.id===selected?' sel':''}${b.endFrame==null?' open':''}" data-id="${b.id}" title="A${a} ${beh.name} f${b.startFrame}${b.endFrame==null?'…':'-'+b.endFrame}" style="left:${x}%;width:${w}%;background:${beh.color}"></div>`;
+    }).join('');
+    row.innerHTML=`<span class="tl-label">Animal ${a}</span><div class="tl-track" data-a="${a}">${segs}<div class="tl-playhead" style="left:${(curFrame()/dur*100)}%"></div></div>`;
+    tl.appendChild(row);
+  });
+  tl.querySelectorAll('.tl-track').forEach(tr=>tr.onclick=e=>{
+    if(e.target.dataset.id){ const b=bouts.find(x=>x.id===+e.target.dataset.id); selected=b.id; seek(b.startFrame); renderAll(); return; }
+    const r=tr.getBoundingClientRect(); const frac=(e.clientX-r.left)/r.width; seek(Math.round(frac*dur)); renderTimeline();
+  });
+  $('ax0').textContent='0:00'; $('ax1').textContent=fmtTime(video.duration||0);
+}
+function renderPlayhead(){ const dur=totalFrames()||1; document.querySelectorAll('.tl-playhead').forEach(p=>p.style.left=(curFrame()/dur*100)+'%'); }
+function renderAll(){ renderAnimals(); renderBehs(); renderBouts(); renderStats(); renderTimeline(); renderFrameCounter(); }
+
+// ---------- export ----------
+function download(name,text,type){ const b=new Blob([text],{type}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
+$('csv').onclick=()=>{
+  let csv='video,animal,behavior,start_frame,end_frame,start_time_s,end_time_s,duration_s\n';
+  [...bouts].sort((a,b)=>a.startFrame-b.startFrame||a.animal-b.animal).forEach(b=>{
+    const beh=behByKey(b.behavior).name;
+    const ef=b.endFrame==null?'':b.endFrame;
+    const st=(b.startFrame/fps).toFixed(3);
+    const et=b.endFrame==null?'':(b.endFrame/fps).toFixed(3);
+    const du=b.endFrame==null?'':((b.endFrame-b.startFrame)/fps).toFixed(3);
+    csv+=`"${videoName}",${b.animal},${beh},${b.startFrame},${ef},${st},${et},${du}\n`;
+  });
+  download((videoName||'bouts').replace(/\.[^.]+$/,'')+'_bouts.csv', csv, 'text/csv');
+};
+$('json').onclick=()=>{
+  download((videoName||'bouts').replace(/\.[^.]+$/,'')+'_bouts.json',
+    JSON.stringify({video:videoName, fps, behaviors:BEHAVIORS, bouts},null,2),'application/json');
+};
+$('clear').onclick=()=>{ if(bouts.length&&!confirm('Clear all bouts for this video?'))return; bouts=[];open={};selected=null;seq=1; save(); renderAll(); };
+
+// ---------- keyboard ----------
+document.addEventListener('keydown',e=>{
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='select'||tag==='textarea') return;
+  const k=e.key;
+  if(k===' '){ e.preventDefault(); playPause(); return; }
+  if(k==='ArrowLeft'){ e.preventDefault(); step(e.shiftKey?-10:-1); return; }
+  if(k==='ArrowRight'){ e.preventDefault(); step(e.shiftKey?10:1); return; }
+  if(k===','){ step(-1); return; }
+  if(k==='.'){ step(1); return; }
+  if(k>='0'&&k<='9'){ activeAnimal=+k; $('aa').textContent=k; renderAnimals(); renderBehs(); renderTimeline(); return; }
+  if(k==='['){ setEdge('start'); return; }
+  if(k===']'){ setEdge('end'); return; }
+  if(k==='Delete'||k==='Backspace'){ if(selected!=null){ e.preventDefault(); delBout(selected); } return; }
+  if(k==='Escape'){ // cancel active open bout for active animal, else deselect
+    let cancelled=false;
+    BEHAVIORS.forEach(b=>{ const id=open[activeAnimal+':'+b.key]; if(id){ delBout(id); cancelled=true; } });
+    if(!cancelled){ selected=null; renderAll(); }
+    return;
+  }
+  const beh=behByKey(k); if(beh){ e.preventDefault(); toggleBehavior(beh.key); }
+});
+
+// ---------- boot ----------
+renderAll();
+const last=localStorage.getItem('drinkEat:last');
+if(last){ /* leave video unloaded; bouts restore on reload of same video via URL, or re-open file */ }
+})();
+</script>
+</body>
+</html>

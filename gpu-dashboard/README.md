@@ -86,7 +86,7 @@ Salk's mail security opens links before recipients do, which consumes one-time s
 <p>It is valid for 1 hour. Or <a href="{{ .ConfirmationURL }}">click here to sign in</a>.</p>
 ```
 
-then flip `CODE_IN_EMAIL` to `true` in `index.html` so the page leads with the code entry. Codes are handier than links when people read email on their phone but want the dashboard on a desktop.
+The dashboard already leads with the code entry (`CODE_IN_EMAIL = true` in `index.html`). Do this for **both** the "Confirm signup" template (first-time users) and the "Magic Link" template (returning users). Leaving the link out means a mail scanner has nothing to consume.
 
 Anyone can *request* a sign-in email, but the database only returns data to `@salk.edu` accounts, so a stray sign-up sees nothing. To admit a collaborator without a Salk address:
 

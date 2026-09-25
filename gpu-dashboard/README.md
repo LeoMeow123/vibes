@@ -29,6 +29,8 @@ The live page is built around one question: **which GPUs are free right now, and
 | "GPUs now" strip: one square per GPU, click to jump to the machine | Rename, hide and reorder, shared with everyone | Who is using it: user, command, memory, runtime | Per machine: utilization, VRAM, temperature, power, CPU/RAM per GPU |
 | Filters: machine type, "Has free GPU", sort, search | | | Ranges 1h to 90d, table view for every chart |
 
+SLEAP inference progress is not shown here anymore; the **Inference progress** tile and the header link jump to the [HCM Monitor](https://leomeow123.github.io/hcm-dashboard/#inference-panel), which tracks inference and recording health.
+
 A GPU counts as **free** when it has no visible process and utilization is below 10%. A machine that has not reported for 10 minutes shows as **offline**.
 
 Raw per-minute history is kept for 14 days (configurable); hourly roll-ups are kept indefinitely, so long ranges always work.

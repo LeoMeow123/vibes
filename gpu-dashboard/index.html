@@ -89,6 +89,12 @@
   .tile .sub .dot { color: var(--faint); }
   .st-free { color: var(--free); } .st-busy { color: var(--busy); } .st-off { color: var(--bad); }
   .st-ws { color: var(--accent); } .st-runai { color: #a78bfa; }
+  a.tile-link { display: block; text-decoration: none; border-color: #2f2a44; transition: border-color 0.15s, background 0.15s; }
+  a.tile-link:hover { border-color: #a78bfa; background: #1d1a26; }
+  a.tile-link .val { font-size: 17px; color: #a78bfa; margin-top: 6px; }
+  .ext { font-size: 11px; opacity: 0.8; margin-left: 3px; }
+  a.hdr-link { text-decoration: none; color: #c9bfff; border-color: #3a3355; }
+  a.hdr-link:hover { background: #26223a; }
 
   /* ── Availability strip ──────────────────────────────────────── */
   .avail { display: flex; gap: 8px 22px; flex-wrap: wrap; align-items: center; padding: 12px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
@@ -276,6 +282,7 @@
   </div>
   <div class="header-actions" id="headerActions" style="display:none;">
     <span class="status-text" id="liveText"></span>
+    <a class="btn btn-secondary btn-sm hdr-link" id="hcmLink" href="#" target="_blank" rel="noopener" title="HCM Monitor: SLEAP inference progress and recording health (opens in a new tab)">Inference progress<span class="ext">&#8599;</span></a>
     <div class="view-tabs">
       <button class="view-tab active" id="tabLive" onclick="setView('live')">Live</button>
       <button class="view-tab" id="tabHistory" onclick="setView('history')">History</button>
@@ -371,6 +378,8 @@ const RANGES = [
 ];
 const SPARK_SECONDS = 3 * 3600, SPARK_BUCKET = 300, SPARK_TTL_MS = 5 * 60 * 1000;
 const FLEET = '__fleet__';
+// SLEAP inference progress and recording health live in the HCM Monitor (its own Pages site).
+const HCM_URL = 'https://leomeow123.github.io/hcm-dashboard/#inference-panel';
 const BUSY_UTIL = 10;          // a GPU with no visible process but util above this is "in use"
 const STALE_SECONDS = 600;     // no report for this long = offline
 
@@ -429,6 +438,7 @@ async function init() {
   document.addEventListener('visibilitychange', onVisibility);
   document.addEventListener('click', closeMenus);
   window.addEventListener('resize', debounce(resizeCharts, 150));
+  document.getElementById('hcmLink').href = HCM_URL;
 
   if (DEMO) { enterDemo(); return; }
 
@@ -836,7 +846,12 @@ function renderSummary(s) {
       <div class="lbl">Power draw</div>
       <div class="val">${(s.totalPowerDraw / 1000).toFixed(1)}<small> kW</small></div>
       <div class="sub">of ${(s.totalPowerLimit / 1000).toFixed(1)} kW limit</div>
-    </div>` : ''}`;
+    </div>` : ''}
+    <a class="tile tile-link" href="${HCM_URL}" target="_blank" rel="noopener" title="Opens the HCM Monitor in a new tab">
+      <div class="lbl">Inference progress</div>
+      <div class="val">HCM Monitor<span class="ext">&#8599;</span></div>
+      <div class="sub">SLEAP inference and recording health</div>
+    </a>`;
 }
 
 function renderAvailability() {

@@ -21,12 +21,15 @@ RunAI pod     ──push──►  (agents, as before) │                 · gp
 
 ## What It Shows
 
-| Live (per machine) | Per GPU | Per process | History |
+The live page is built around one question: **which GPUs are free right now, and who is on the rest?**
+
+| Top of page | Per machine | Per GPU | History tab |
 |---|---|---|---|
-| CPU usage & core count | Utilization % + 30-min peak | Command line | GPU utilization, VRAM, temperature, power per GPU |
-| RAM usage, uptime | VRAM usage | GPU memory | CPU and RAM per machine |
-| Freshness (last report) | Temperature, power draw | User, runtime | Fleet view: average utilization per machine |
-| 3-hour utilization sparkline | | | Ranges 1h → 90d, table view for every chart |
+| Free GPUs / total, machines online, average utilization, VRAM in use, running jobs, power draw | Free-count badge, CPU and RAM, 3-hour utilization sparkline | State (free / busy / offline), utilization with 30-min peak, VRAM, temperature, power | All machines: average utilization and VRAM per machine |
+| "GPUs now" strip: one square per GPU, click to jump to the machine | Rename, hide and reorder, shared with everyone | Who is using it: user, command, memory, runtime | Per machine: utilization, VRAM, temperature, power, CPU/RAM per GPU |
+| Filters: machine type, "Has free GPU", sort, search | | | Ranges 1h to 90d, table view for every chart |
+
+A GPU counts as **free** when it has no visible process and utilization is below 10%. A machine that has not reported for 10 minutes shows as **offline**.
 
 Raw per-minute history is kept for 14 days (configurable); hourly roll-ups are kept indefinitely, so long ranges always work.
 
@@ -172,12 +175,8 @@ Config lives in `~/.config/gpu-dashboard/config.json` or environment variables:
 | `machine_label` | `GPU_DASH_LABEL` | Display name (also the machine key in Supabase) |
 | `machine_type` | `GPU_DASH_TYPE` | `workstation` or `runai` |
 | `interval_seconds` | — | Push interval (default 120) |
-| `inference_log_dir` | `GPU_DASH_INFERENCE_LOG_DIR` | SLEAP inference JSONL logs (optional) |
-| `roi_log_dir` | `GPU_DASH_ROI_LOG_DIR` | ROI backfill worker logs (optional) |
 
-### Inference and ROI progress
-
-If `inference_log_dir` / `roi_log_dir` are set, the agent parses those logs and attaches progress summaries to its snapshot; the dashboard renders per-camera progress bars, FPS and ETA on that machine's card and an "Inference" summary tile. The JSONL format is documented in the agent source (`collect_inference`).
+The agent may still attach SLEAP inference / ROI progress summaries to its snapshot for other consumers; the dashboard ignores those fields.
 
 ## Security Notes
 

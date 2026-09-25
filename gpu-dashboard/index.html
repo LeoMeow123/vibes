@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GPU Dashboard - vibing</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.min.css">
 <style>
   /* ── Reset & base ────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,23 +15,24 @@
     line-height: 1.5;
     min-height: 100vh;
   }
-  button { cursor: pointer; }
+  button { cursor: pointer; font-family: inherit; }
+  a { color: #8b9cf0; }
 
   /* ── Header ──────────────────────────────────────────────────── */
   .header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 24px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
-    position: sticky; top: 0; z-index: 100;
+    position: sticky; top: 0; z-index: 100; gap: 12px; flex-wrap: wrap;
   }
   .header-left { display: flex; align-items: center; gap: 12px; }
   .header h1 { font-size: 18px; font-weight: 600; color: #fff; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
-  .status-dot {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #444; }
   .status-dot.connected { background: #4ade80; box-shadow: 0 0 6px #4ade8066; }
+  .status-dot.polling { background: #facc15; }
   .status-dot.disconnected { background: #f87171; }
   .status-text { font-size: 12px; color: #888; }
+  .user-chip { font-size: 12px; color: #667eea; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 14px; border: none; border-radius: 6px;
@@ -38,35 +40,50 @@
   }
   .btn-primary { background: #667eea; color: #fff; }
   .btn-primary:hover { background: #5a6fd6; }
+  .btn-primary:disabled { background: #3a3f5c; color: #999; cursor: default; }
   .btn-secondary { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; }
   .btn-secondary:hover { background: #333; }
   .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .view-tabs { display: flex; gap: 2px; background: #111; border-radius: 6px; border: 1px solid #2a2a2a; padding: 2px; }
+  .view-tab {
+    padding: 5px 14px; border: none; border-radius: 4px; font-size: 12px; font-weight: 500;
+    background: transparent; color: #888; transition: all 0.15s;
+  }
+  .view-tab:hover { color: #ccc; }
+  .view-tab.active { background: #667eea; color: #fff; }
 
   /* ── Container ───────────────────────────────────────────────── */
   .container { max-width: 1600px; margin: 0 auto; padding: 20px 24px; }
 
-  /* ── Welcome / Setup ─────────────────────────────────────────── */
-  .welcome { text-align: center; padding: 100px 20px; color: #888; }
+  /* ── Sign-in ─────────────────────────────────────────────────── */
+  .welcome { text-align: center; padding: 80px 20px; color: #888; }
   .welcome h2 { font-size: 22px; color: #aaa; margin-bottom: 8px; }
-  .welcome p { font-size: 14px; margin-bottom: 24px; max-width: 500px; margin-left: auto; margin-right: auto; }
-  .setup-form { display: inline-flex; flex-direction: column; gap: 10px; text-align: left; min-width: 360px; }
-  .setup-form label { font-size: 12px; color: #999; display: flex; flex-direction: column; gap: 4px; }
-  .setup-form input {
-    background: #1a1a1a; color: #e0e0e0; border: 1px solid #3a3a3a;
-    border-radius: 6px; padding: 8px 12px; font-size: 14px; outline: none;
-    font-family: inherit;
+  .welcome p { font-size: 14px; margin-bottom: 24px; max-width: 520px; margin-left: auto; margin-right: auto; }
+  .auth-card {
+    display: inline-flex; flex-direction: column; gap: 12px; text-align: left; min-width: 340px; max-width: 420px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 22px 24px;
   }
-  .setup-form input:focus { border-color: #667eea; }
-  .setup-form input::placeholder { color: #555; }
+  .auth-card label { font-size: 12px; color: #999; display: flex; flex-direction: column; gap: 4px; }
+  .auth-card input {
+    background: #0f0f0f; color: #e0e0e0; border: 1px solid #3a3a3a;
+    border-radius: 6px; padding: 9px 12px; font-size: 15px; outline: none; font-family: inherit;
+  }
+  .auth-card input:focus { border-color: #667eea; }
+  .auth-card input::placeholder { color: #555; }
+  .auth-card .btn-primary { justify-content: center; padding: 9px 14px; font-size: 13px; }
+  .auth-step { display: flex; flex-direction: column; gap: 12px; }
+  .auth-sent { font-size: 13px; color: #aaa; margin: 0 !important; }
+  .auth-sent b { color: #e0e0e0; font-weight: 500; }
+  .auth-error { font-size: 12px; color: #f87171; min-height: 16px; }
+  .auth-foot { font-size: 12px; color: #555; margin-top: 20px !important; }
+  .auth-foot a { color: #777; }
+  code.inline { background: #222; border-radius: 4px; padding: 1px 6px; font-size: 12px; color: #ccc; }
 
   /* ── Summary bar ─────────────────────────────────────────────── */
-  .summary-bar {
-    display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
-  }
+  .summary-bar { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
   .summary-card {
     flex: 1; min-width: 130px; padding: 12px 16px;
-    background: #1a1a1a; border-radius: 8px; border: 1px solid #2a2a2a;
-    text-align: center;
+    background: #1a1a1a; border-radius: 8px; border: 1px solid #2a2a2a; text-align: center;
   }
   .summary-card .val { font-size: 28px; font-weight: 700; line-height: 1.2; }
   .summary-card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; margin-top: 2px; }
@@ -81,171 +98,127 @@
   .summary-sub .st-runai { color: #a78bfa; }
   .summary-sub .dot { color: #444; }
 
-  /* ── Detail bar (fleet + users) ──────────────────────────────── */
+  /* ── Detail bar ──────────────────────────────────────────────── */
   .detail-bar {
     display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;
-    padding: 14px 18px;
-    background: #1a1a1a; border-radius: 8px; border: 1px solid #2a2a2a;
+    padding: 14px 18px; background: #1a1a1a; border-radius: 8px; border: 1px solid #2a2a2a;
   }
   .detail-section { flex: 1; min-width: 200px; }
-  .detail-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-    color: #555; margin-bottom: 8px; display: block;
-  }
-  .fleet-chips, .user-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; margin-bottom: 8px; display: block; }
+  .fleet-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .fleet-chip {
     font-size: 11px; padding: 3px 10px; border-radius: 4px;
-    background: #252525; color: #aaa; border: 1px solid #333;
-    font-variant-numeric: tabular-nums;
+    background: #252525; color: #aaa; border: 1px solid #333; font-variant-numeric: tabular-nums;
   }
   .no-data-text { font-size: 11px; color: #444; font-style: italic; }
 
   /* ── Filter bar ──────────────────────────────────────────────── */
-  .filter-bar {
-    display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;
-  }
-  .filter-pills {
-    display: flex; gap: 2px; background: #1a1a1a; border-radius: 6px;
-    border: 1px solid #2a2a2a; padding: 2px;
-  }
+  .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .filter-pills { display: flex; gap: 2px; background: #1a1a1a; border-radius: 6px; border: 1px solid #2a2a2a; padding: 2px; }
   .filter-pill {
-    padding: 5px 14px; border: none; border-radius: 4px;
-    font-size: 11px; font-weight: 500; background: transparent;
-    color: #888; cursor: pointer; transition: all 0.15s;
-    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 14px; border: none; border-radius: 4px; font-size: 11px; font-weight: 500;
+    background: transparent; color: #888; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
   }
   .filter-pill:hover { color: #ccc; }
   .filter-pill.active { background: #667eea; color: #fff; }
   .pill-count { font-size: 10px; opacity: 0.6; }
   .sort-select {
-    background: #1a1a1a; color: #888; border: 1px solid #2a2a2a;
-    border-radius: 6px; padding: 5px 12px; font-size: 11px;
-    font-family: inherit; outline: none; cursor: pointer;
+    background: #1a1a1a; color: #888; border: 1px solid #2a2a2a; border-radius: 6px;
+    padding: 5px 12px; font-size: 11px; font-family: inherit; outline: none; cursor: pointer;
   }
   .sort-select:focus { border-color: #667eea; color: #ccc; }
   .search-input {
-    background: #1a1a1a; color: #e0e0e0; border: 1px solid #2a2a2a;
-    border-radius: 6px; padding: 5px 12px; font-size: 11px;
-    font-family: inherit; outline: none; min-width: 180px;
+    background: #1a1a1a; color: #e0e0e0; border: 1px solid #2a2a2a; border-radius: 6px;
+    padding: 5px 12px; font-size: 11px; font-family: inherit; outline: none; min-width: 180px;
   }
   .search-input:focus { border-color: #667eea; }
   .search-input::placeholder { color: #444; }
-  .filter-separator {
-    width: 1px; height: 20px; background: #2a2a2a;
-  }
+  .filter-separator { width: 1px; height: 20px; background: #2a2a2a; }
+  .hidden-bar { font-size: 12px; color: #666; margin: -6px 0 14px; display: flex; gap: 10px; align-items: center; }
+  .link-btn { background: none; border: none; color: #8b9cf0; font-size: 12px; padding: 0; }
+  .link-btn:hover { text-decoration: underline; }
 
   /* ── Machine cards ───────────────────────────────────────────── */
   .machines { display: flex; flex-direction: column; gap: 16px; }
-  .machine-card {
-    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
-    overflow: hidden; transition: border-color 0.2s;
-  }
+  .machine-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
   .machine-card:hover { border-color: #3a3a3a; }
   .machine-card.stale { border-color: #f8717133; }
   .machine-card.offline { opacity: 0.6; }
-
+  .machine-card.is-hidden { border-style: dashed; opacity: 0.7; }
   .machine-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 18px; background: #151515; border-bottom: 1px solid #2a2a2a;
   }
   .machine-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .machine-title h2 { font-size: 15px; font-weight: 600; color: #fff; }
-  .machine-type {
-    font-size: 10px; padding: 2px 8px; border-radius: 4px;
-    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
-  }
+  .machine-type { font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
   .machine-type.workstation { background: #667eea22; color: #667eea; }
   .machine-type.runai { background: #a78bfa22; color: #a78bfa; }
-  .machine-gpu-info {
-    font-size: 11px; color: #555; padding: 2px 8px;
-    background: #1f1f1f; border-radius: 4px;
-  }
-  .machine-gpu-active-count {
-    font-size: 11px; font-weight: 500;
-  }
+  .machine-gpu-info { font-size: 11px; color: #555; padding: 2px 8px; background: #1f1f1f; border-radius: 4px; }
+  .machine-gpu-active-count { font-size: 11px; font-weight: 500; }
   .machine-gpu-active-count.all-active { color: #4ade80; }
   .machine-gpu-active-count.some-active { color: #facc15; }
   .machine-gpu-active-count.none-active { color: #555; }
-  .machine-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #666; }
-  .remove-btn {
+  .machine-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #666; flex-wrap: wrap; }
+  .card-btn {
     background: none; border: 1px solid #333; border-radius: 4px; color: #666;
-    font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
+    font-size: 11px; padding: 2px 8px; transition: all 0.15s;
   }
-  .remove-btn:hover { border-color: #f87171; color: #f87171; }
-  .rename-btn {
-    background: none; border: 1px solid #333; border-radius: 4px; color: #666;
-    font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
-  }
-  .rename-btn:hover { border-color: #667eea; color: #667eea; }
-  .collapse-btn {
-    background: none; border: 1px solid #333; border-radius: 4px; color: #666;
-    font-size: 11px; padding: 2px 8px; cursor: pointer; transition: all 0.15s;
-    min-width: 20px; text-align: center;
-  }
-  .collapse-btn:hover { border-color: #667eea; color: #667eea; }
-  .drag-handle {
-    cursor: move; user-select: none; padding: 0 6px; color: #555; font-size: 16px;
-  }
+  .card-btn:hover { border-color: #667eea; color: #667eea; }
+  .card-btn.danger:hover { border-color: #f87171; color: #f87171; }
+  .collapse-btn { min-width: 20px; text-align: center; }
+  .drag-handle { cursor: move; user-select: none; padding: 0 6px; color: #555; font-size: 16px; }
   .drag-handle:hover { color: #888; }
   .machine-card.dragging { opacity: 0.4; }
   .machine-card.drag-over { border-top: 3px solid #667eea; }
   .rename-input {
-    background: #222; border: 1px solid #667eea; border-radius: 4px;
-    color: #fff; padding: 2px 8px; font-size: 15px; font-weight: 600;
-    font-family: inherit; outline: none; width: 200px;
+    background: #222; border: 1px solid #667eea; border-radius: 4px; color: #fff;
+    padding: 2px 8px; font-size: 15px; font-weight: 600; font-family: inherit; outline: none; width: 220px;
   }
   .freshness { font-weight: 500; }
   .freshness.fresh { color: #4ade80; }
   .freshness.warm { color: #facc15; }
   .freshness.stale { color: #f87171; }
-
   .machine-body { overflow: hidden; }
   .machine-body.collapsed { display: none; }
 
   /* ── System stats row ────────────────────────────────────────── */
-  .sys-stats {
-    display: flex; gap: 16px; padding: 10px 18px;
-    border-bottom: 1px solid #2a2a2a; flex-wrap: wrap;
-  }
+  .sys-stats { display: flex; gap: 16px; padding: 10px 18px; border-bottom: 1px solid #2a2a2a; flex-wrap: wrap; align-items: center; }
   .sys-stat { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .sys-stat .label { color: #666; }
   .sys-stat .value { color: #ccc; font-weight: 500; font-variant-numeric: tabular-nums; }
 
+  /* ── Sparkline row ───────────────────────────────────────────── */
+  .spark-row { display: flex; align-items: center; gap: 14px; padding: 8px 18px 4px; }
+  .spark-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #555; white-space: nowrap; min-width: 118px; }
+  .spark { flex: 1; height: 54px; min-width: 0; position: relative; }
+  .spark .chart-empty { font-size: 11px; color: #444; font-style: italic; line-height: 54px; }
+
   /* ── GPU rows ────────────────────────────────────────────────── */
   .gpu-list { padding: 6px 0; }
   .gpu-row {
-    display: grid;
-    grid-template-columns: 160px 1fr 1fr auto;
-    gap: 12px; align-items: center;
-    padding: 10px 18px;
-    border-bottom: 1px solid #1f1f1f;
-    font-size: 13px;
+    display: grid; grid-template-columns: 160px 1fr 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 18px; border-bottom: 1px solid #1f1f1f; font-size: 13px;
   }
   .gpu-row:last-child { border-bottom: none; }
   .gpu-name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .gpu-status-dot {
-    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  }
+  .gpu-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .gpu-status-dot.active { background: #4ade80; box-shadow: 0 0 4px #4ade8066; }
   .gpu-status-dot.idle { background: #444; }
   .gpu-name-info { min-width: 0; }
   .gpu-name { color: #aaa; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .gpu-idx { color: #555; font-size: 11px; }
+  .gpu-idx { color: #555; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; }
+  .gpu-key { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
 
   /* ── Progress bars ───────────────────────────────────────────── */
   .bar-group { display: flex; flex-direction: column; gap: 3px; }
   .bar-label { display: flex; justify-content: space-between; font-size: 11px; color: #666; }
   .bar-label .val { color: #ccc; font-weight: 500; font-variant-numeric: tabular-nums; }
-  .bar-track {
-    height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%; border-radius: 3px; transition: width 0.5s ease;
-  }
+  .bar-track { height: 6px; background: #2a2a2a; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
   .bar-fill.green { background: #4ade80; }
   .bar-fill.yellow { background: #facc15; }
   .bar-fill.red { background: #f87171; }
-
   .gpu-temp { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .gpu-temp.cool { color: #4ade80; }
   .gpu-temp.warm { color: #facc15; }
@@ -253,116 +226,102 @@
 
   /* ── Process list ────────────────────────────────────────────── */
   .processes { padding: 0 18px 10px 18px; }
-  .processes-header {
-    font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.05em;
-    padding: 6px 0; border-top: 1px solid #2a2a2a; margin-top: 4px;
-  }
+  .processes-header { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 0; border-top: 1px solid #2a2a2a; margin-top: 4px; }
   .proc-row {
-    display: grid;
-    grid-template-columns: auto 1fr auto auto auto;
-    gap: 12px; align-items: center;
+    display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 12px; align-items: center;
     padding: 5px 0; font-size: 12px; border-bottom: 1px solid #1a1a1a;
   }
   .proc-row:last-child { border-bottom: none; }
-  .proc-gpu-badge {
-    font-size: 10px; font-weight: 600; padding: 1px 6px;
-    border-radius: 3px; background: #2a2a2a; color: #888;
-  }
+  .proc-gpu-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; background: #2a2a2a; color: #888; }
   .proc-cmd { color: #ccc; font-family: "SF Mono", "Fira Code", "Consolas", monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .proc-mem { color: #888; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .proc-user { color: #667eea; font-size: 11px; }
   .proc-runtime { color: #666; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
   .no-processes { color: #444; font-size: 12px; font-style: italic; padding: 8px 0; }
-
-  /* ── No GPU notice ───────────────────────────────────────────── */
   .no-gpus { color: #555; font-size: 13px; padding: 16px 18px; font-style: italic; }
 
-  /* ── Inference progress ─────────────────────────────────── */
-  .inference-section {
-    padding: 10px 18px 14px;
-    border-top: 1px solid #2a2a2a;
-  }
+  /* ── Inference / ROI progress ────────────────────────────────── */
+  .inference-section { padding: 10px 18px 14px; border-top: 1px solid #2a2a2a; }
   .inference-header {
-    font-size: 11px; color: #555; text-transform: uppercase;
-    letter-spacing: 0.05em; padding: 6px 0; margin-bottom: 6px;
+    font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 0; margin-bottom: 6px;
     display: flex; justify-content: space-between; align-items: center;
   }
-  .inference-header .inference-eta {
-    color: #a78bfa; font-weight: 500; text-transform: none;
-    letter-spacing: 0; font-size: 12px;
-  }
-  .inference-totals {
-    display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap;
-    font-size: 12px;
-  }
-  .inference-totals .inf-stat {
-    display: flex; align-items: center; gap: 6px;
-  }
+  .inference-header .inference-eta { color: #a78bfa; font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 12px; }
+  .inference-totals { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; font-size: 12px; }
+  .inference-totals .inf-stat { display: flex; align-items: center; gap: 6px; }
   .inference-totals .inf-stat .label { color: #666; }
   .inference-totals .inf-stat .value { color: #ccc; font-weight: 500; font-variant-numeric: tabular-nums; }
   .inference-totals .inf-stat .value.failed { color: #f87171; }
   .inference-overall-bar { margin-bottom: 12px; }
-  .inference-cam-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
-  }
-  .inference-cam-card {
-    background: #151515; border: 1px solid #252525; border-radius: 6px;
-    padding: 10px 12px;
-  }
-  .inference-cam-card .cam-name {
-    font-size: 12px; font-weight: 600; color: #ccc; margin-bottom: 6px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .inference-cam-card .cam-name .cam-gpu {
-    font-size: 10px; color: #555; font-weight: 400;
-  }
-  .inference-cam-card .cam-stats {
-    display: flex; gap: 10px; font-size: 11px; color: #666; margin-top: 6px;
-    flex-wrap: wrap;
-  }
+  .inference-cam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .inference-cam-card { background: #151515; border: 1px solid #252525; border-radius: 6px; padding: 10px 12px; }
+  .inference-cam-card .cam-name { font-size: 12px; font-weight: 600; color: #ccc; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .inference-cam-card .cam-name .cam-gpu { font-size: 10px; color: #555; font-weight: 400; }
+  .inference-cam-card .cam-stats { display: flex; gap: 10px; font-size: 11px; color: #666; margin-top: 6px; flex-wrap: wrap; }
   .inference-cam-card .cam-stats .val { color: #aaa; font-weight: 500; }
 
-  /* ── Settings modal ──────────────────────────────────────────── */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; background: #000a; z-index: 200;
-    justify-content: center; align-items: center;
+  /* ── Charts ──────────────────────────────────────────────────── */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 16px; }
+  .chart-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 14px 10px; min-width: 0; }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .chart-title { font-size: 12px; color: #aaa; font-weight: 600; }
+  .chart-title .unit { color: #555; font-weight: 400; margin-left: 4px; }
+  .chart { position: relative; min-height: 60px; }
+  .chart.loading { opacity: 0.45; transition: opacity 0.2s; }
+  .chart-empty { font-size: 12px; color: #444; font-style: italic; padding: 40px 0; text-align: center; }
+  .chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; padding: 0 4px; }
+  .legend-item { font-size: 11px; color: #c3c2b7; display: inline-flex; align-items: center; gap: 6px; }
+  .legend-key { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+  .chart-table { display: none; margin-top: 10px; max-height: 320px; overflow: auto; border-top: 1px solid #2a2a2a; }
+  .chart-table.open { display: block; }
+  .chart-table table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .chart-table th, .chart-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid #222; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .chart-table th { color: #888; font-weight: 500; position: sticky; top: 0; background: #1a1a1a; }
+  .chart-table td { color: #c3c2b7; }
+  .chart-table th:first-child, .chart-table td:first-child { text-align: left; color: #888; }
+  .chart-tip {
+    position: absolute; pointer-events: none; z-index: 20; background: #222; border: 1px solid #3a3a3a;
+    border-radius: 6px; padding: 6px 9px; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 12px #0008;
   }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 10px;
-    padding: 24px; width: 400px; max-width: 90vw;
+  .tip-time { color: #898781; margin-bottom: 4px; }
+  .tip-row { display: flex; align-items: center; gap: 7px; line-height: 1.6; }
+  .tip-key { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+  .tip-val { color: #fff; font-weight: 600; min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tip-lbl { color: #c3c2b7; }
+  .uplot { font-family: inherit !important; }
+  .u-cursor-x { border-right: 1px solid #555 !important; }
+  .u-select { background: rgba(255,255,255,0.06) !important; }
+  .u-cursor-pt { border-width: 2px !important; }
+
+  /* ── History view ────────────────────────────────────────────── */
+  .hist-info { font-size: 12px; color: #666; }
+
+  /* ── Toast ───────────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 8px; padding: 10px 16px;
+    font-size: 13px; opacity: 0; transition: all 0.2s; z-index: 500; pointer-events: none; max-width: 90vw;
   }
-  .modal h3 { font-size: 16px; color: #fff; margin-bottom: 16px; }
-  .modal label { font-size: 12px; color: #999; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .modal input {
-    background: #0f0f0f; color: #e0e0e0; border: 1px solid #3a3a3a;
-    border-radius: 6px; padding: 8px 12px; font-size: 13px; outline: none;
-    font-family: inherit; width: 100%;
-  }
-  .modal input:focus { border-color: #667eea; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
-  .danger-zone { margin-top: 16px; padding-top: 12px; border-top: 1px solid #2a2a2a; }
-  .danger-zone .btn { color: #f87171; border-color: #f8717133; }
-  .danger-zone .btn:hover { background: #f8717111; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   /* ── Empty states ────────────────────────────────────────────── */
-  .no-results {
-    text-align: center; padding: 40px 20px; color: #555;
-    font-size: 13px;
-  }
+  .no-results { text-align: center; padding: 40px 20px; color: #555; font-size: 13px; }
+  .no-results code { color: #888; }
 
   /* ── Responsive ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
     .gpu-row { grid-template-columns: 1fr; gap: 6px; }
     .machine-meta { flex-wrap: wrap; gap: 6px; }
     .proc-row { grid-template-columns: 1fr; gap: 2px; }
-    .header { flex-direction: column; gap: 8px; }
+    .header { flex-direction: column; gap: 8px; align-items: flex-start; }
     .container { padding: 12px; }
-    .filter-bar { flex-direction: column; gap: 8px; }
+    .filter-bar { flex-direction: column; gap: 8px; align-items: stretch; }
     .detail-bar { flex-direction: column; }
     .machine-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .auth-card { min-width: 0; width: 100%; }
+    .spark-label { display: none; }
   }
 </style>
 </head>
@@ -375,281 +334,508 @@
     <span class="status-dot" id="statusDot"></span>
     <span class="status-text" id="statusText"></span>
   </div>
-  <div class="header-actions">
-    <span class="status-text" id="refreshText"></span>
-    <button class="btn btn-secondary btn-sm" onclick="fetchData()" title="Refresh now">Refresh</button>
-    <button class="btn btn-secondary btn-sm" onclick="openSettings()">Settings</button>
+  <div class="header-actions" id="headerActions" style="display:none;">
+    <span class="status-text" id="liveText"></span>
+    <div class="view-tabs">
+      <button class="view-tab active" id="tabLive" onclick="setView('live')">Live</button>
+      <button class="view-tab" id="tabHistory" onclick="setView('history')">History</button>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="refreshNow()" title="Refresh now">Refresh</button>
+    <span class="user-chip" id="userChip" title=""></span>
+    <button class="btn btn-secondary btn-sm" onclick="signOut()" id="signOutBtn">Sign out</button>
   </div>
 </div>
 
 <!-- ── Main content ────────────────────────────────────────────────────────── -->
 <div class="container">
-  <!-- Welcome / setup screen -->
-  <div id="welcomeScreen" class="welcome" style="display:none;">
+
+  <!-- Sign-in -->
+  <div id="authScreen" class="welcome" style="display:none;">
     <h2>GPU Dashboard</h2>
-    <p>Monitor GPUs across all your workstations from one page. Enter your Gist ID to get started.</p>
-    <div class="setup-form">
-      <label>
-        GitHub Gist ID
-        <input type="text" id="setupGistId" placeholder="e.g. a1b2c3d4e5f6..." autocomplete="off">
-      </label>
-      <label>
-        GitHub Token <span style="color:#555">(optional, increases rate limit)</span>
-        <input type="password" id="setupToken" placeholder="ghp_..." autocomplete="off">
-      </label>
-      <button class="btn btn-primary" onclick="saveSetup()" style="margin-top:6px;">Connect</button>
+    <p id="authIntro">Sign in with your Salk email. You'll get a one-time sign-in email; there is no password.</p>
+    <div class="auth-card">
+      <div class="auth-step" id="authStep1">
+        <label>Salk email
+          <input type="email" id="authEmail" placeholder="you@salk.edu" autocomplete="email" onkeydown="if(event.key==='Enter')sendCode()">
+        </label>
+        <button class="btn btn-primary" id="authSendBtn" onclick="sendCode()">Send code</button>
+      </div>
+      <div class="auth-step" id="authStep2" style="display:none;">
+        <p class="auth-sent" id="authSentMsg"></p>
+        <div class="auth-step" id="authCodeBlock">
+          <label>6-digit code
+            <input type="text" id="authCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" onkeydown="if(event.key==='Enter')verifyCode()">
+          </label>
+          <button class="btn btn-primary" id="authVerifyBtn" onclick="verifyCode()">Sign in</button>
+        </div>
+        <button class="link-btn" id="authCodeToggle" onclick="showCodeEntry()" style="display:none;">The email shows a code instead of a link?</button>
+        <button class="link-btn" onclick="resetAuth()">Use a different email</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
     </div>
+    <p class="auth-foot">Looking for the old Gist-based page? <a href="legacy.html">legacy.html</a></p>
+  </div>
+
+  <!-- Signed in but not allowed -->
+  <div id="deniedScreen" class="welcome" style="display:none;">
+    <h2>Not authorized</h2>
+    <p>You are signed in as <b id="deniedEmail"></b>, but this dashboard is limited to <code class="inline">@salk.edu</code> accounts. Sign out and use your Salk address, or ask the maintainer to allow-list this email.</p>
+    <button class="btn btn-primary" onclick="signOut()">Sign out</button>
   </div>
 
   <!-- Dashboard -->
   <div id="dashboard" style="display:none;">
-    <div class="summary-bar" id="summaryBar"></div>
-    <div id="detailBar"></div>
-    <div id="filterBar"></div>
-    <div class="machines" id="machinesList"></div>
-  </div>
-</div>
-
-<!-- ── Settings modal ──────────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <h3>Settings</h3>
-    <label>
-      GitHub Gist ID
-      <input type="text" id="settingsGistId" autocomplete="off">
-    </label>
-    <label>
-      GitHub Token <span style="color:#555">(optional)</span>
-      <input type="password" id="settingsToken" autocomplete="off">
-    </label>
-    <label>
-      Refresh interval (seconds)
-      <input type="number" id="settingsInterval" min="10" max="300" value="30">
-    </label>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    <div id="liveView">
+      <div class="summary-bar" id="summaryBar"></div>
+      <div id="detailBar"></div>
+      <div id="filterBar"></div>
+      <div id="hiddenBar"></div>
+      <div class="machines" id="machinesList"></div>
+      <div class="chart-grid" style="margin-top:16px;" id="fleetGrid"></div>
     </div>
-    <div class="danger-zone">
-      <button class="btn btn-secondary btn-sm" onclick="resetConfig()">Reset all settings</button>
+    <div id="historyView" style="display:none;">
+      <div class="filter-bar">
+        <select class="sort-select" id="histMachine" onchange="setHistMachine(this.value)"></select>
+        <div class="filter-pills" id="histRangePills"></div>
+        <span class="hist-info" id="histInfo"></span>
+      </div>
+      <div class="chart-grid" id="histCharts"></div>
     </div>
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js"></script>
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Config
+// ═══════════════════════════════════════════════════════════════════════════
 
-let config = {
-  gistId: localStorage.getItem('gpu_dash_gist_id') || '',
-  token: localStorage.getItem('gpu_dash_token') || '',
-  interval: parseInt(localStorage.getItem('gpu_dash_interval') || '30', 10),
-};
-let machines = {};
-let timer = null;
-let lastFetchOk = false;
-let activeTypeFilter = localStorage.getItem('gpu_dash_filter_type') || 'all';
-let activeSortBy = localStorage.getItem('gpu_dash_sort') || 'recent';
+const SUPA_URL = 'https://xgiqhkcpssakrlemvodx.supabase.co';
+const SUPA_KEY = 'sb_publishable_qbDIUER221OxvA_HvwhpCw_-V5OsMcD';   // publishable (anon) key: safe to ship; RLS does the gating
+const ALLOWED_DOMAIN = 'salk.edu';
+// Supabase only lets you customise auth emails once custom SMTP is configured. Until then the
+// default template is sent, which carries a sign-in LINK and no code. Set this to true after
+// adding {{ .Token }} to the Magic Link template (see README) so the UI leads with the code.
+const CODE_IN_EMAIL = false;
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+// Categorical palette (dark-surface steps). Slot = GPU index for per-machine charts,
+// slot = machine (by first_seen order) for the fleet chart. Never re-assigned on filter.
+const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+const CHROME = { grid: '#2c2c2a', axis: '#383835', muted: '#898781' };
+
+const RANGES = [
+  { id: '1h',  label: '1h',  seconds: 3600,    bucket: 60 },
+  { id: '6h',  label: '6h',  seconds: 21600,   bucket: 300 },
+  { id: '24h', label: '24h', seconds: 86400,   bucket: 600 },
+  { id: '7d',  label: '7d',  seconds: 604800,  bucket: 3600 },
+  { id: '30d', label: '30d', seconds: 2592000, bucket: 10800 },
+  { id: '90d', label: '90d', seconds: 7776000, bucket: 21600 },
+];
+const FLEET_RANGES = ['6h', '24h', '7d'];
+const SPARK_SECONDS = 3 * 3600, SPARK_BUCKET = 300, SPARK_TTL_MS = 5 * 60 * 1000;
+
+// Camera wiring: disk folder → physical cam + genotype (inference / ROI cards)
+const CAM_DISPLAY = { cam_01: 'Cam 1 (Tau)', cam_02: 'Cam 4 (PD)', cam_03: 'Cam 2 (WT)', cam_04: 'Cam 3 (PD)' };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════════════════
+
+let sb = null;
+let currentUser = null;
+let sessionUserId = null;
+let machinesMeta = {};    // key -> gpu_machines row
+let latest = {};          // key -> { machine_key, ts, snapshot }
+let liveChannel = null;
+let liveStatus = 'idle';  // 'live' | 'polling' | 'offline' | 'idle'
+let pollTimer = null, renderTimer = null, freshTimer = null, fullTimer = null, fleetTimer = null;
+let currentView = 'live';
+let showHidden = false;
 let searchQuery = '';
-let collapsedCards = JSON.parse(localStorage.getItem('gpu_dash_collapsed') || '{}');
+let activeTypeFilter = lsGet('gpu_dash_filter_type', 'all');
+let activeSortBy = lsGet('gpu_dash_sort', 'recent');
+let collapsedCards = lsJson('gpu_dash_collapsed', {});
+let fleetRange = lsGet('gpu_dash_fleet_range', '24h');
+let histMachine = null;
+let histRange = lsGet('gpu_dash_hist_range', '24h');
+let histReq = 0;
+const charts = {};        // element id -> uPlot instance
+const chartData = {};     // element id -> cfg (for table view)
+const sparkCache = {};    // machine key -> { fetchedAt, rows }
 
-// ── Init ───────────────────────────────────────────────────────────────────
+function lsGet(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsJson(k, d) { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch (e) { return d; } }
 
-function init() {
-  if (!config.gistId) {
-    showWelcome();
-  } else {
-    showDashboard();
-    fetchData();
-    startPolling();
+// ═══════════════════════════════════════════════════════════════════════════
+// Init & auth
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function init() {
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('resize', debounce(resizeCharts, 150));
+
+  if (DEMO) { enterDemo(); return; }
+
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  sb.auth.onAuthStateChange((_event, session) => handleSession(session));
+  const { data } = await sb.auth.getSession();
+  handleSession(data?.session ?? null);
+}
+
+function handleSession(session) {
+  const user = session?.user ?? null;
+  if (user && user.id === sessionUserId) return;      // token refresh: nothing to do
+  sessionUserId = user?.id ?? null;
+  currentUser = user;
+  if (!user) { stopLive(); showScreen('auth'); return; }
+  showScreen('dashboard');
+  startLive();
+}
+
+function isAllowedEmail(email) {
+  return typeof email === 'string' && email.toLowerCase().endsWith('@' + ALLOWED_DOMAIN);
+}
+
+function showScreen(which) {
+  document.getElementById('authScreen').style.display = which === 'auth' ? '' : 'none';
+  document.getElementById('deniedScreen').style.display = which === 'denied' ? '' : 'none';
+  document.getElementById('dashboard').style.display = which === 'dashboard' ? '' : 'none';
+  document.getElementById('headerActions').style.display = which === 'dashboard' ? '' : 'none';
+  const chip = document.getElementById('userChip');
+  chip.textContent = currentUser?.email || '';
+  chip.title = currentUser?.email || '';
+  if (which !== 'dashboard') {
+    document.getElementById('statusDot').className = 'status-dot';
+    document.getElementById('statusText').textContent = '';
   }
+  if (which === 'denied') document.getElementById('deniedEmail').textContent = currentUser?.email || '';
+  if (which === 'auth') { resetAuth(); setTimeout(() => document.getElementById('authEmail')?.focus(), 50); }
+}
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      stopPolling();
-    } else {
-      fetchData();
-      startPolling();
-    }
+let pendingEmail = '';
+
+async function sendCode() {
+  const email = document.getElementById('authEmail').value.trim().toLowerCase();
+  const re = new RegExp('^[^@\\s]+@' + ALLOWED_DOMAIN.replace(/\./g, '\\.') + '$');
+  if (!re.test(email)) return authError(`Use your @${ALLOWED_DOMAIN} address.`);
+  authError('');
+  setBusy('authSendBtn', true, 'Sending…');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname },
+  });
+  setBusy('authSendBtn', false, 'Send code');
+  if (error) return authError(friendlyAuthError(error));
+  pendingEmail = email;
+  const msg = document.getElementById('authSentMsg');
+  msg.innerHTML = '';
+  const b = document.createElement('b'); b.textContent = email;
+  if (CODE_IN_EMAIL) {
+    msg.append('Code sent to ', b, '. Check your inbox and spam folder. Clicking the link in the email also signs you in.');
+  } else {
+    msg.append('Sign-in link sent to ', b, '. Open the email in this browser and click the link; you land back here signed in. Check the spam folder if it does not arrive within a minute.');
+  }
+  document.getElementById('authCodeBlock').style.display = CODE_IN_EMAIL ? '' : 'none';
+  document.getElementById('authCodeToggle').style.display = CODE_IN_EMAIL ? 'none' : '';
+  document.getElementById('authStep1').style.display = 'none';
+  document.getElementById('authStep2').style.display = '';
+  if (CODE_IN_EMAIL) setTimeout(() => document.getElementById('authCode').focus(), 50);
+}
+
+function showCodeEntry() {
+  document.getElementById('authCodeBlock').style.display = '';
+  document.getElementById('authCodeToggle').style.display = 'none';
+  setTimeout(() => document.getElementById('authCode').focus(), 50);
+}
+window.showCodeEntry = showCodeEntry;
+
+async function verifyCode() {
+  const token = document.getElementById('authCode').value.replace(/\D/g, '');
+  if (token.length < 6) return authError('Enter the 6-digit code from the email.');
+  authError('');
+  setBusy('authVerifyBtn', true, 'Checking…');
+  const { error } = await sb.auth.verifyOtp({ email: pendingEmail, token, type: 'email' });
+  setBusy('authVerifyBtn', false, 'Sign in');
+  if (error) return authError(friendlyAuthError(error));
+  // onAuthStateChange takes it from here
+}
+
+function resetAuth() {
+  pendingEmail = '';
+  document.getElementById('authStep1').style.display = '';
+  document.getElementById('authStep2').style.display = 'none';
+  document.getElementById('authCode').value = '';
+  authError('');
+}
+
+function friendlyAuthError(error) {
+  const m = error?.message || String(error);
+  if (/rate limit|too many|over_email_send_rate_limit/i.test(m)) {
+    return 'Email limit reached. The built-in mailer only sends a couple of sign-in emails per hour. Try again later, or ask the maintainer to add custom SMTP.';
+  }
+  if (/expired|invalid|otp/i.test(m)) return 'That code is invalid or has expired. Request a new one.';
+  return m;
+}
+
+function authError(msg) { document.getElementById('authError').textContent = msg || ''; }
+function setBusy(id, busy, label) { const b = document.getElementById(id); if (!b) return; b.disabled = busy; b.textContent = label; }
+
+async function signOut() {
+  if (DEMO) { location.href = location.pathname; return; }
+  stopLive();
+  await sb.auth.signOut();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Live data: initial load + Realtime + fallback polling
+// ═══════════════════════════════════════════════════════════════════════════
+
+function startLive() {
+  loadLive();
+  subscribeLive();
+  stopTimers();
+  pollTimer = setInterval(() => { if (!document.hidden) loadLive(); }, 120000);
+  freshTimer = setInterval(tickFreshness, 30000);
+  fullTimer = setInterval(scheduleRender, 5 * 60000);
+  fleetTimer = setInterval(() => { if (!document.hidden && currentView === 'live') loadFleet(); }, 5 * 60000);
+}
+
+function stopLive() { unsubscribeLive(); stopTimers(); }
+
+function stopTimers() {
+  for (const t of [pollTimer, freshTimer, fullTimer, fleetTimer]) if (t) clearInterval(t);
+  pollTimer = freshTimer = fullTimer = fleetTimer = null;
+}
+
+function onVisibility() {
+  if (!currentUser) return;
+  if (document.hidden) { stopLive(); }
+  else { startLive(); if (currentView === 'history') renderHistory(); }
+}
+
+async function loadLive() {
+  if (DEMO) { renderDashboard(); return; }
+  const [mRes, lRes] = await Promise.all([
+    sb.from('gpu_machines').select('*'),
+    sb.from('gpu_latest').select('machine_key,ts,received_at,snapshot'),
+  ]);
+  const err = mRes.error || lRes.error;
+  if (err) { setStatus('offline', 'Error: ' + err.message); return; }
+  machinesMeta = Object.fromEntries((mRes.data || []).map(r => [r.key, r]));
+  latest = Object.fromEntries((lRes.data || []).map(r => [r.machine_key, r]));
+  if (!isAllowedEmail(currentUser?.email) && Object.keys(machinesMeta).length === 0) {
+    stopLive();
+    showScreen('denied');
+    return;
+  }
+  renderDashboard();
+  if (currentView === 'live') loadFleet();
+}
+
+function subscribeLive() {
+  if (DEMO || liveChannel) return;
+  liveChannel = sb.channel('gpu-live-' + Math.random().toString(36).slice(2, 8))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'gpu_latest' }, p => {
+      if (p.eventType === 'DELETE') { if (p.old?.machine_key) delete latest[p.old.machine_key]; }
+      else if (p.new?.machine_key) latest[p.new.machine_key] = p.new;
+      scheduleRender();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'gpu_machines' }, p => {
+      if (p.eventType === 'DELETE') { if (p.old?.key) { delete machinesMeta[p.old.key]; delete latest[p.old.key]; } }
+      else if (p.new?.key) machinesMeta[p.new.key] = p.new;
+      scheduleRender();
+      if (currentView === 'history') renderHistoryControls();
+    })
+    .subscribe(status => {
+      liveStatus = status === 'SUBSCRIBED' ? 'live' : (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? 'polling' : liveStatus);
+      updateStatus();
+    });
+}
+
+function unsubscribeLive() {
+  if (liveChannel && sb) { sb.removeChannel(liveChannel); }
+  liveChannel = null;
+  liveStatus = 'idle';
+}
+
+function refreshNow() {
+  loadLive();
+  for (const k of Object.keys(sparkCache)) delete sparkCache[k];
+  if (currentView === 'history') renderHistory();
+  else loadFleet();
+}
+
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(renderDashboard, 250);
+}
+
+function setStatus(kind, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + (kind === 'live' ? 'connected' : kind === 'polling' ? 'polling' : kind === 'offline' ? 'disconnected' : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+function updateStatus() {
+  const n = visibleEntries().length;
+  const label = `${n} machine${n !== 1 ? 's' : ''}`;
+  if (DEMO) { setStatus('live', label + ' · demo data'); document.getElementById('liveText').textContent = 'demo'; return; }
+  setStatus(liveStatus === 'live' ? 'live' : liveStatus === 'polling' ? 'polling' : 'idle', label);
+  document.getElementById('liveText').textContent =
+    liveStatus === 'live' ? 'live' : liveStatus === 'polling' ? 'polling every 2 min' : '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared preferences (rename / hide / order) — stored in gpu_machines for everyone
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function updateMeta(key, patch) {
+  if (!machinesMeta[key]) return;
+  machinesMeta[key] = { ...machinesMeta[key], ...patch };     // optimistic
+  renderDashboard();
+  if (DEMO) return;
+  const { error } = await sb.from('gpu_machines').update(patch).eq('key', key);
+  if (error) { toast('Could not save: ' + error.message); loadLive(); }
+}
+
+function renameMachine(key) {
+  const h2 = document.querySelector(`.machine-card[data-machine-key="${CSS.escape(key)}"] h2`);
+  if (!h2) return;
+  const currentName = h2.textContent;
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'rename-input'; input.value = currentName;
+  h2.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  const save = () => {
+    if (done) return; done = true;
+    const newName = input.value.trim();
+    const orig = latest[key]?.snapshot?.machine?.label || key;
+    if (!newName || newName === orig) updateMeta(key, { display_name: null });
+    else if (newName !== currentName) updateMeta(key, { display_name: newName });
+    else renderDashboard();
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { done = true; renderDashboard(); }
   });
 }
+window.renameMachine = renameMachine;
 
-function showWelcome() {
-  document.getElementById('welcomeScreen').style.display = '';
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('statusDot').className = 'status-dot';
-  document.getElementById('statusText').textContent = '';
-  document.getElementById('refreshText').textContent = '';
+function hideMachine(key) {
+  const name = displayName(key);
+  if (!confirm(`Hide "${name}" for everyone? It keeps reporting and can be shown again from the hidden list.`)) return;
+  updateMeta(key, { hidden: true });
+}
+function unhideMachine(key) { updateMeta(key, { hidden: false }); }
+window.hideMachine = hideMachine; window.unhideMachine = unhideMachine;
+
+function toggleShowHidden() { showHidden = !showHidden; renderDashboard(); }
+window.toggleShowHidden = toggleShowHidden;
+
+async function saveCustomOrder() {
+  const keys = Array.from(document.querySelectorAll('.machine-card')).map(c => c.dataset.machineKey).filter(Boolean);
+  keys.forEach((k, i) => { if (machinesMeta[k]) machinesMeta[k].sort_order = i + 1; });
+  if (activeSortBy !== 'recent') { activeSortBy = 'recent'; lsSet('gpu_dash_sort', 'recent'); }
+  if (DEMO) return;
+  const { error } = await sb.rpc('gpu_set_order', { p_keys: keys });
+  if (error) toast('Could not save order: ' + error.message);
 }
 
-function showDashboard() {
-  document.getElementById('welcomeScreen').style.display = 'none';
-  document.getElementById('dashboard').style.display = '';
+// ═══════════════════════════════════════════════════════════════════════════
+// Entries, stats
+// ═══════════════════════════════════════════════════════════════════════════
+
+// One entry per machine that has both a meta row and a latest snapshot.
+function allEntries() {
+  return Object.keys(latest)
+    .filter(k => machinesMeta[k] && latest[k]?.snapshot)
+    .map(k => ({ key: k, meta: machinesMeta[k], snap: latest[k].snapshot, ts: latest[k].ts }));
 }
+function visibleEntries() { return allEntries().filter(e => showHidden || !e.meta.hidden); }
+function hiddenEntries() { return allEntries().filter(e => e.meta.hidden); }
 
-function saveSetup() {
-  const gistId = document.getElementById('setupGistId').value.trim();
-  const token = document.getElementById('setupToken').value.trim();
-  if (!gistId) return;
-  config.gistId = gistId;
-  config.token = token;
-  localStorage.setItem('gpu_dash_gist_id', gistId);
-  if (token) localStorage.setItem('gpu_dash_token', token);
-  showDashboard();
-  fetchData();
-  startPolling();
+function entryType(e) { return (e.meta.type || e.snap.machine?.type || 'workstation').toLowerCase(); }
+function displayName(key) {
+  const meta = machinesMeta[key], snap = latest[key]?.snapshot;
+  return meta?.display_name || snap?.machine?.label || meta?.label || snap?.machine?.hostname || key;
 }
-
-// ── Polling ────────────────────────────────────────────────────────────────
-
-function startPolling() {
-  stopPolling();
-  timer = setInterval(fetchData, config.interval * 1000);
+function machineSlot(key) {
+  // colour slot = order of first_seen among all known machines (stable as machines are added)
+  const keys = Object.values(machinesMeta).sort((a, b) => (a.first_seen || '').localeCompare(b.first_seen || '') || a.key.localeCompare(b.key)).map(m => m.key);
+  const i = keys.indexOf(key);
+  return SERIES[(i < 0 ? 0 : i) % SERIES.length];
 }
-
-function stopPolling() {
-  if (timer) { clearInterval(timer); timer = null; }
-}
-
-// ── Fetch from Gist ────────────────────────────────────────────────────────
-
-async function fetchData() {
-  if (!config.gistId) return;
-
-  const dot = document.getElementById('statusDot');
-  const statusEl = document.getElementById('statusText');
-  const refreshEl = document.getElementById('refreshText');
-
-  try {
-    const headers = { 'Accept': 'application/vnd.github.v3+json' };
-    if (config.token) headers['Authorization'] = `token ${config.token}`;
-
-    const resp = await fetch(`https://api.github.com/gists/${config.gistId}`, { headers });
-
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-    }
-
-    const gist = await resp.json();
-    machines = {};
-
-    for (const [filename, file] of Object.entries(gist.files)) {
-      if (!filename.startsWith('gpu-status-')) continue;
-      try {
-        const data = JSON.parse(file.content);
-        const key = data.machine?.hostname || filename;
-        machines[key] = data;
-      } catch (e) {
-        console.warn(`Failed to parse ${filename}:`, e);
-      }
-    }
-
-    lastFetchOk = true;
-    dot.className = 'status-dot connected';
-    statusEl.textContent = `${Object.keys(machines).length} machine${Object.keys(machines).length !== 1 ? 's' : ''}`;
-    refreshEl.textContent = `every ${config.interval}s`;
-
-    renderDashboard();
-  } catch (e) {
-    lastFetchOk = false;
-    dot.className = 'status-dot disconnected';
-    statusEl.textContent = `Error: ${e.message}`;
-    console.error('Fetch error:', e);
-  }
-}
-
-// ── Stats computation ──────────────────────────────────────────────────────
 
 function computeStats() {
-  let all = Object.values(machines);
-  if (activeTypeFilter !== 'all') {
-    all = all.filter(m => (m.machine?.type || 'workstation').toLowerCase() === activeTypeFilter);
-  }
+  let all = visibleEntries();
+  if (activeTypeFilter !== 'all') all = all.filter(e => entryType(e) === activeTypeFilter);
 
   let wsCount = 0, runaiCount = 0;
   let totalGpus = 0, activeGpus = 0, idleGpus = 0, offlineGpus = 0;
   const gpuModels = {};
   let totalPowerDraw = 0, totalPowerLimit = 0, hasPower = false;
-  let totalVramUsed = 0, totalVramTotal = 0;
-  let utilSum = 0;
-  let totalProcesses = 0;
+  let totalVramUsed = 0, totalVramTotal = 0, utilSum = 0, totalProcesses = 0;
   let onlineMachines = 0, staleMachines = 0;
 
-  for (const m of all) {
-    const type = (m.machine?.type || 'workstation').toLowerCase();
-    if (type === 'runai') runaiCount++;
-    else wsCount++;
-
-    const age = machineAge(m.timestamp);
-    const isStale = age.seconds > 600;
-    if (isStale) staleMachines++;
-    else onlineMachines++;
-
+  for (const e of all) {
+    const m = e.snap;
+    if (entryType(e) === 'runai') runaiCount++; else wsCount++;
+    const isStale = machineAge(e.ts).seconds > 600;
+    if (isStale) staleMachines++; else onlineMachines++;
     for (const g of (m.gpus || [])) {
       totalGpus++;
-
       const model = shortenGpuName(g.name || 'Unknown');
       gpuModels[model] = (gpuModels[model] || 0) + 1;
-
       const hasProcs = g.processes && g.processes.length > 0;
-      if (isStale) offlineGpus++;
-      else if (hasProcs) activeGpus++;
-      else idleGpus++;
-
+      if (isStale) offlineGpus++; else if (hasProcs) activeGpus++; else idleGpus++;
       totalVramUsed += (g.memory_used_mb || 0);
       totalVramTotal += (g.memory_total_mb || 0);
       utilSum += (g.utilization_peak_percent ?? g.utilization_percent ?? 0);
-
-      if (g.power_draw_w != null) {
-        totalPowerDraw += g.power_draw_w;
-        hasPower = true;
-      }
-      if (g.power_limit_w != null) {
-        totalPowerLimit += g.power_limit_w;
-      }
-
+      if (g.power_draw_w != null) { totalPowerDraw += g.power_draw_w; hasPower = true; }
+      if (g.power_limit_w != null) totalPowerLimit += g.power_limit_w;
       totalProcesses += (g.processes || []).length;
     }
   }
-
   const avgUtil = totalGpus > 0 ? Math.round(utilSum / totalGpus) : 0;
-
   const sortedModels = Object.entries(gpuModels).sort((a, b) => b[1] - a[1]);
-
-  const infMachines = all.filter(m => m.inference?.totals);
-  let infDone = 0, infTotal = 0;
-  if (infMachines.length > 0) {
-    infDone = infMachines.reduce((s, m) => s + (m.inference.totals.videos_done || 0), 0);
-    infTotal = infMachines.reduce((s, m) => s + (m.inference.totals.videos_total || 0), 0);
-  }
+  const infMachines = all.filter(e => e.snap.inference?.totals);
+  const infDone = infMachines.reduce((s, e) => s + (e.snap.inference.totals.videos_done || 0), 0);
+  const infTotal = infMachines.reduce((s, e) => s + (e.snap.inference.totals.videos_total || 0), 0);
 
   return {
-    totalMachines: all.length, onlineMachines, staleMachines,
-    wsCount, runaiCount,
-    totalGpus, activeGpus, idleGpus, offlineGpus,
-    sortedModels, avgUtil,
-    totalVramUsed, totalVramTotal,
-    totalProcesses,
-    totalPowerDraw: Math.round(totalPowerDraw),
-    totalPowerLimit: Math.round(totalPowerLimit),
-    hasPower,
-    infDone, infTotal,
-    hasInference: infMachines.length > 0,
+    totalMachines: all.length, onlineMachines, staleMachines, wsCount, runaiCount,
+    totalGpus, activeGpus, idleGpus, offlineGpus, sortedModels, avgUtil,
+    totalVramUsed, totalVramTotal, totalProcesses,
+    totalPowerDraw: Math.round(totalPowerDraw), totalPowerLimit: Math.round(totalPowerLimit), hasPower,
+    infDone, infTotal, hasInference: infMachines.length > 0,
   };
 }
 
-// ── Render ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Render: live view
+// ═══════════════════════════════════════════════════════════════════════════
 
 function renderDashboard() {
+  updateStatus();
   const stats = computeStats();
   renderSummary(stats);
   renderDetailBar(stats);
   renderFilterBar(stats);
+  renderHiddenBar();
   renderMachines();
 }
 
 function renderSummary(stats) {
   const bar = document.getElementById('summaryBar');
-
   let infHtml = '';
   if (stats.hasInference) {
     const infPct = stats.infTotal > 0 ? (stats.infDone / stats.infTotal * 100).toFixed(1) : '0.0';
@@ -658,31 +844,23 @@ function renderSummary(stats) {
         <div class="val" style="color:#a78bfa;">${infPct}%</div>
         <div class="lbl">Inference</div>
         <div class="summary-sub">${stats.infDone.toLocaleString()} / ${stats.infTotal.toLocaleString()}</div>
-      </div>
-    `;
+      </div>`;
   }
-
   let powerHtml = '';
   if (stats.hasPower) {
-    const drawKw = (stats.totalPowerDraw / 1000).toFixed(1);
-    const limitKw = (stats.totalPowerLimit / 1000).toFixed(1);
     powerHtml = `
       <div class="summary-card">
-        <div class="val" style="color:#facc15;">${drawKw}</div>
+        <div class="val" style="color:#facc15;">${(stats.totalPowerDraw / 1000).toFixed(1)}</div>
         <div class="lbl">Power (kW)</div>
-        <div class="summary-sub">of ${limitKw} kW limit</div>
-      </div>
-    `;
+        <div class="summary-sub">of ${(stats.totalPowerLimit / 1000).toFixed(1)} kW limit</div>
+      </div>`;
   }
-
   bar.innerHTML = `
     <div class="summary-card">
       <div class="val" style="color:#fff;">${stats.totalMachines}</div>
       <div class="lbl">Machines</div>
       <div class="summary-sub">
-        <span class="st-ws">${stats.wsCount} WS</span>
-        <span class="dot">&middot;</span>
-        <span class="st-runai">${stats.runaiCount} RunAI</span>
+        <span class="st-ws">${stats.wsCount} WS</span><span class="dot">&middot;</span><span class="st-runai">${stats.runaiCount} RunAI</span>
         ${stats.staleMachines > 0 ? `<span class="dot">&middot;</span><span class="st-offline">${stats.staleMachines} stale</span>` : ''}
       </div>
     </div>
@@ -690,9 +868,7 @@ function renderSummary(stats) {
       <div class="val" style="color:#667eea;">${stats.totalGpus}</div>
       <div class="lbl">GPUs</div>
       <div class="summary-sub">
-        <span class="st-active">${stats.activeGpus} active</span>
-        <span class="dot">&middot;</span>
-        <span class="st-idle">${stats.idleGpus} idle</span>
+        <span class="st-active">${stats.activeGpus} active</span><span class="dot">&middot;</span><span class="st-idle">${stats.idleGpus} idle</span>
         ${stats.offlineGpus > 0 ? `<span class="dot">&middot;</span><span class="st-offline">${stats.offlineGpus} offline</span>` : ''}
       </div>
     </div>
@@ -708,270 +884,143 @@ function renderSummary(stats) {
       <div class="val" style="color:${stats.totalProcesses > 0 ? '#4ade80' : '#555'};">${stats.totalProcesses}</div>
       <div class="lbl">Running Jobs</div>
     </div>
-    ${powerHtml}
-    ${infHtml}
-  `;
+    ${powerHtml}${infHtml}`;
 }
 
 function renderDetailBar(stats) {
   const el = document.getElementById('detailBar');
-
-  let fleetHtml;
-  if (stats.sortedModels.length > 0) {
-    fleetHtml = stats.sortedModels.map(([model, count]) =>
-      `<span class="fleet-chip">${count}&times; ${esc(model)}</span>`
-    ).join('');
-  } else {
-    fleetHtml = '<span class="no-data-text">No GPUs detected</span>';
-  }
-
+  const fleetHtml = stats.sortedModels.length > 0
+    ? stats.sortedModels.map(([model, count]) => `<span class="fleet-chip">${count}&times; ${esc(model)}</span>`).join('')
+    : '<span class="no-data-text">No GPUs detected</span>';
   el.innerHTML = `
     <div class="detail-bar">
       <div class="detail-section">
         <span class="detail-label">GPU Fleet</span>
         <div class="fleet-chips">${fleetHtml}</div>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 function renderFilterBar(stats) {
-  const el = document.getElementById('filterBar');
-
-  el.innerHTML = `
+  document.getElementById('filterBar').innerHTML = `
     <div class="filter-bar">
       <div class="filter-pills">
-        <button class="filter-pill ${activeTypeFilter === 'all' ? 'active' : ''}" onclick="setTypeFilter('all')">
-          All <span class="pill-count">${stats.totalMachines}</span>
-        </button>
-        <button class="filter-pill ${activeTypeFilter === 'workstation' ? 'active' : ''}" onclick="setTypeFilter('workstation')">
-          Workstation <span class="pill-count">${stats.wsCount}</span>
-        </button>
-        <button class="filter-pill ${activeTypeFilter === 'runai' ? 'active' : ''}" onclick="setTypeFilter('runai')">
-          RunAI <span class="pill-count">${stats.runaiCount}</span>
-        </button>
+        <button class="filter-pill ${activeTypeFilter === 'all' ? 'active' : ''}" onclick="setTypeFilter('all')">All <span class="pill-count">${stats.totalMachines}</span></button>
+        <button class="filter-pill ${activeTypeFilter === 'workstation' ? 'active' : ''}" onclick="setTypeFilter('workstation')">Workstation <span class="pill-count">${stats.wsCount}</span></button>
+        <button class="filter-pill ${activeTypeFilter === 'runai' ? 'active' : ''}" onclick="setTypeFilter('runai')">RunAI <span class="pill-count">${stats.runaiCount}</span></button>
       </div>
       <div class="filter-separator"></div>
       <select class="sort-select" onchange="setSortBy(this.value)">
-        <option value="recent" ${activeSortBy === 'recent' ? 'selected' : ''}>Sort: Recent</option>
+        <option value="recent" ${activeSortBy === 'recent' ? 'selected' : ''}>Sort: Custom / Recent</option>
         <option value="name" ${activeSortBy === 'name' ? 'selected' : ''}>Sort: Name</option>
         <option value="util" ${activeSortBy === 'util' ? 'selected' : ''}>Sort: GPU Utilization</option>
         <option value="gpus" ${activeSortBy === 'gpus' ? 'selected' : ''}>Sort: GPU Count</option>
         <option value="jobs" ${activeSortBy === 'jobs' ? 'selected' : ''}>Sort: Active Jobs</option>
       </select>
       <input class="search-input" type="text" placeholder="Search machines, GPUs, users..." value="${esc(searchQuery)}" oninput="setSearch(this.value)" id="searchInput">
-    </div>
-  `;
+    </div>`;
 }
 
-// ── Filter / Sort handlers ─────────────────────────────────────────────────
-
-function setTypeFilter(type) {
-  activeTypeFilter = type;
-  localStorage.setItem('gpu_dash_filter_type', type);
-  renderDashboard();
+function renderHiddenBar() {
+  const el = document.getElementById('hiddenBar');
+  const n = hiddenEntries().length;
+  if (!n) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="hidden-bar">${n} hidden machine${n !== 1 ? 's' : ''}
+    <button class="link-btn" onclick="toggleShowHidden()">${showHidden ? 'Hide them again' : 'Show'}</button></div>`;
 }
 
-function setSortBy(sort) {
-  activeSortBy = sort;
-  localStorage.setItem('gpu_dash_sort', sort);
-  renderMachines();
-}
-
-function setSearch(query) {
-  searchQuery = query.toLowerCase();
-  renderMachines();
-}
+function setTypeFilter(type) { activeTypeFilter = type; lsSet('gpu_dash_filter_type', type); renderDashboard(); }
+function setSortBy(sort) { activeSortBy = sort; lsSet('gpu_dash_sort', sort); renderMachines(); }
+function setSearch(q) { searchQuery = q.toLowerCase(); renderMachines(); }
+window.setTypeFilter = setTypeFilter; window.setSortBy = setSortBy; window.setSearch = setSearch;
 
 function toggleCollapse(key, event) {
   if (event) event.stopPropagation();
   collapsedCards[key] = !collapsedCards[key];
-  localStorage.setItem('gpu_dash_collapsed', JSON.stringify(collapsedCards));
+  lsSet('gpu_dash_collapsed', JSON.stringify(collapsedCards));
   const card = document.querySelector(`.machine-card[data-machine-key="${CSS.escape(key)}"]`);
   if (card) {
-    const body = card.querySelector('.machine-body');
+    card.querySelector('.machine-body')?.classList.toggle('collapsed');
     const btn = card.querySelector('.collapse-btn');
-    if (body) body.classList.toggle('collapsed');
     if (btn) btn.textContent = collapsedCards[key] ? '+' : '-';
+    if (!collapsedCards[key]) mountSparklines([{ key }]);
   }
 }
 window.toggleCollapse = toggleCollapse;
 
-// ── Remove machine ─────────────────────────────────────────────────────────
-
-async function removeMachine(key) {
-  if (!confirm('Remove "' + key + '" from the dashboard? The agent can re-add it on next push.')) return;
-  if (!config.token) { alert('Add your GitHub token in Settings to delete machines.'); return; }
-
-  const m = machines[key];
-  if (!m) return;
-  const label = m.machine?.label || m.machine?.hostname || key;
-  const hostname = m.machine?.hostname || key;
-  const safeName = (s) => s.replace(/[^a-zA-Z0-9_-]/g, '-');
-  const possibleFiles = [
-    'gpu-status-' + safeName(label) + '.json',
-    'gpu-status-' + safeName(hostname) + '.json',
-  ];
-
-  try {
-    const resp = await fetch('https://api.github.com/gists/' + config.gistId, {
-      headers: { 'Authorization': 'token ' + config.token, 'Accept': 'application/vnd.github.v3+json' }
-    });
-    const gist = await resp.json();
-    let fileToDelete = null;
-    for (const fn of Object.keys(gist.files)) {
-      if (possibleFiles.includes(fn)) { fileToDelete = fn; break; }
-    }
-    if (!fileToDelete) {
-      for (const [fn, file] of Object.entries(gist.files)) {
-        if (!fn.startsWith('gpu-status-')) continue;
-        try {
-          const d = JSON.parse(file.content);
-          if (d.machine?.hostname === hostname || d.machine?.label === label) { fileToDelete = fn; break; }
-        } catch(e) {}
-      }
-    }
-    if (!fileToDelete) { alert('Could not find the gist file for this machine.'); return; }
-
-    const delResp = await fetch('https://api.github.com/gists/' + config.gistId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'token ' + config.token, 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify({ files: { [fileToDelete]: null } })
-    });
-    if (delResp.ok) {
-      delete machines[key];
-      renderDashboard();
-    } else {
-      alert('Failed to remove: HTTP ' + delResp.status);
-    }
-  } catch(e) {
-    alert('Error: ' + e.message);
-  }
-}
-window.removeMachine = removeMachine;
-
-// ── Render machines ────────────────────────────────────────────────────────
-
 function renderMachines() {
   const list = document.getElementById('machinesList');
-  let filtered = Object.values(machines);
+  let filtered = visibleEntries();
 
-  // Type filter
-  if (activeTypeFilter !== 'all') {
-    filtered = filtered.filter(m => {
-      const type = (m.machine?.type || 'workstation').toLowerCase();
-      return type === activeTypeFilter;
-    });
-  }
+  if (activeTypeFilter !== 'all') filtered = filtered.filter(e => entryType(e) === activeTypeFilter);
 
-  // Search filter
   if (searchQuery) {
-    const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
-    filtered = filtered.filter(m => {
-      const key = m.machine?.hostname || m.machine?.label || '';
-      const label = (m.machine?.label || '').toLowerCase();
-      const hostname = (m.machine?.hostname || '').toLowerCase();
-      const renamed = (renames[key] || '').toLowerCase();
-      const gpuNames = (m.gpus || []).map(g => (g.name || '').toLowerCase()).join(' ');
-      const userNames = (m.gpus || []).flatMap(g => (g.processes || []).map(p => (p.user || '').toLowerCase())).join(' ');
-      const q = searchQuery;
-      return label.includes(q) || hostname.includes(q) || renamed.includes(q) || gpuNames.includes(q) || userNames.includes(q);
+    const q = searchQuery;
+    filtered = filtered.filter(e => {
+      const m = e.snap;
+      const hay = [
+        displayName(e.key), m.machine?.label, m.machine?.hostname, e.key,
+        ...(m.gpus || []).map(g => g.name || ''),
+        ...(m.gpus || []).flatMap(g => (g.processes || []).map(p => p.user || '')),
+      ].join(' ').toLowerCase();
+      return hay.includes(q);
     });
   }
-
-  // Sort
-  const customOrder = JSON.parse(localStorage.getItem('gpu_dash_order') || '[]');
 
   if (activeSortBy === 'recent') {
-    const ordered = [];
-    const used = new Set();
-    for (const key of customOrder) {
-      const m = filtered.find(x => (x.machine?.hostname || x.machine?.label) === key);
-      if (m) { ordered.push(m); used.add(key); }
-    }
-    const rest = filtered
-      .filter(m => !used.has(m.machine?.hostname || m.machine?.label))
-      .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    filtered = [...ordered, ...rest];
+    filtered.sort((a, b) => {
+      const oa = a.meta.sort_order ?? Infinity, ob = b.meta.sort_order ?? Infinity;
+      if (oa !== ob) return oa - ob;
+      return new Date(b.ts || 0) - new Date(a.ts || 0);
+    });
   } else if (activeSortBy === 'name') {
-    const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
-    filtered.sort((a, b) => {
-      const keyA = a.machine?.hostname || a.machine?.label || '';
-      const keyB = b.machine?.hostname || b.machine?.label || '';
-      const nameA = (renames[keyA] || a.machine?.label || keyA).toLowerCase();
-      const nameB = (renames[keyB] || b.machine?.label || keyB).toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    filtered.sort((a, b) => displayName(a.key).toLowerCase().localeCompare(displayName(b.key).toLowerCase()));
   } else if (activeSortBy === 'util') {
-    filtered.sort((a, b) => {
-      const utilA = avgMachineUtil(a);
-      const utilB = avgMachineUtil(b);
-      return utilB - utilA;
-    });
+    filtered.sort((a, b) => avgMachineUtil(b.snap) - avgMachineUtil(a.snap));
   } else if (activeSortBy === 'gpus') {
-    filtered.sort((a, b) => (b.gpus || []).length - (a.gpus || []).length);
+    filtered.sort((a, b) => (b.snap.gpus || []).length - (a.snap.gpus || []).length);
   } else if (activeSortBy === 'jobs') {
-    filtered.sort((a, b) => countMachineJobs(b) - countMachineJobs(a));
+    filtered.sort((a, b) => countMachineJobs(b.snap) - countMachineJobs(a.snap));
   }
 
+  destroyCharts(id => id.startsWith('spark-'));
+
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="no-results">No machines match your filters</div>';
+    const anyData = allEntries().length > 0;
+    list.innerHTML = anyData
+      ? '<div class="no-results">No machines match your filters</div>'
+      : `<div class="no-results">No machines have reported yet.<br><br>The bridge copies the agents' Gist snapshots into Supabase; start it with <code>bash gpu-dashboard/bridge/install.sh</code> on the lab workstation.</div>`;
     return;
   }
 
-  list.innerHTML = filtered.map(m => {
-    const mKey = m.machine?.hostname || m.machine?.label || '?';
-    return renderMachineCard(m, mKey);
-  }).join('');
-
+  list.innerHTML = filtered.map(e => renderMachineCard(e)).join('');
   setupDragAndDrop();
+  mountSparklines(filtered.filter(e => !collapsedCards[e.key]));
 }
 
 function avgMachineUtil(m) {
   const gpus = m.gpus || [];
-  if (gpus.length === 0) return 0;
+  if (!gpus.length) return 0;
   return gpus.reduce((s, g) => s + (g.utilization_peak_percent ?? g.utilization_percent ?? 0), 0) / gpus.length;
 }
-
-function countMachineJobs(m) {
-  return (m.gpus || []).reduce((s, g) => s + (g.processes?.length || 0), 0);
-}
+function countMachineJobs(m) { return (m.gpus || []).reduce((s, g) => s + (g.processes?.length || 0), 0); }
 
 function setupDragAndDrop() {
   const cards = document.querySelectorAll('.machine-card');
   let dragged = null;
-
   cards.forEach(card => {
     card.draggable = true;
-    card.addEventListener('dragstart', e => {
-      dragged = card;
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    card.addEventListener('dragend', () => {
-      card.classList.remove('dragging');
-      cards.forEach(c => c.classList.remove('drag-over'));
-    });
-    card.addEventListener('dragover', e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
-    card.addEventListener('dragenter', e => {
-      if (card !== dragged) card.classList.add('drag-over');
-    });
+    card.addEventListener('dragstart', e => { dragged = card; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); cards.forEach(c => c.classList.remove('drag-over')); });
+    card.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    card.addEventListener('dragenter', () => { if (card !== dragged) card.classList.add('drag-over'); });
     card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
     card.addEventListener('drop', e => {
       e.preventDefault();
       if (card !== dragged && dragged) {
-        const list = document.getElementById('machinesList');
-        const cardsArr = Array.from(list.children);
-        const draggedIdx = cardsArr.indexOf(dragged);
-        const targetIdx = cardsArr.indexOf(card);
-        if (draggedIdx < targetIdx) {
-          card.parentNode.insertBefore(dragged, card.nextSibling);
-        } else {
-          card.parentNode.insertBefore(dragged, card);
-        }
+        const arr = Array.from(document.getElementById('machinesList').children);
+        if (arr.indexOf(dragged) < arr.indexOf(card)) card.parentNode.insertBefore(dragged, card.nextSibling);
+        else card.parentNode.insertBefore(dragged, card);
         saveCustomOrder();
       }
       card.classList.remove('drag-over');
@@ -979,175 +1028,99 @@ function setupDragAndDrop() {
   });
 }
 
-function saveCustomOrder() {
-  const keys = Array.from(document.querySelectorAll('.machine-card'))
-    .map(c => c.dataset.machineKey)
-    .filter(k => k);
-  localStorage.setItem('gpu_dash_order', JSON.stringify(keys));
-}
-
-function renameMachine(key) {
-  const h2 = document.querySelector(`.machine-card[data-machine-key="${CSS.escape(key)}"] h2`);
-  if (!h2) return;
-  const currentName = h2.textContent;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'rename-input';
-  input.value = currentName;
-  h2.replaceWith(input);
-  input.focus();
-  input.select();
-
-  const save = () => {
-    const newName = input.value.trim();
-    const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
-    if (newName && newName !== currentName) {
-      renames[key] = newName;
-    } else {
-      delete renames[key];
-    }
-    localStorage.setItem('gpu_dash_renames', JSON.stringify(renames));
-    renderDashboard();
-  };
-
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { input.blur(); }
-    if (e.key === 'Escape') { renderDashboard(); }
-  });
-}
-window.renameMachine = renameMachine;
-
-function renderMachineCard(m, machineKey) {
-  const age = machineAge(m.timestamp);
+function renderMachineCard(e) {
+  const { key, meta, snap: m, ts } = e;
+  const age = machineAge(ts);
   const freshnessClass = age.seconds < 120 ? 'fresh' : age.seconds < 600 ? 'warm' : 'stale';
-  const cardClass = age.seconds > 600 ? 'stale' : age.seconds > 1800 ? 'offline' : '';
-  const machineType = m.machine?.type || 'workstation';
-  const origLabel = m.machine?.label || m.machine?.hostname || '?';
-  const renames = JSON.parse(localStorage.getItem('gpu_dash_renames') || '{}');
-  const label = renames[machineKey] || origLabel;
+  const cardClass = [age.seconds > 1800 ? 'offline' : age.seconds > 600 ? 'stale' : '', meta.hidden ? 'is-hidden' : ''].join(' ');
+  const machineType = entryType(e);
+  const origLabel = m.machine?.label || m.machine?.hostname || key;
+  const label = displayName(key);
   const hostname = m.machine?.hostname || '';
   const isStale = age.seconds > 600;
-
   const gpus = m.gpus || [];
   const allProcesses = gpus.flatMap(g => (g.processes || []).map(p => ({ ...p, gpu_index: g.index })));
 
-  // Per-machine GPU model summary
   const modelCounts = {};
-  for (const g of gpus) {
-    const model = shortenGpuName(g.name || 'Unknown');
-    modelCounts[model] = (modelCounts[model] || 0) + 1;
-  }
-  const gpuInfoStr = Object.entries(modelCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([model, count]) => `${count}&times; ${esc(model)}`)
-    .join(', ');
+  for (const g of gpus) { const model = shortenGpuName(g.name || 'Unknown'); modelCounts[model] = (modelCounts[model] || 0) + 1; }
+  const gpuInfoStr = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]).map(([model, count]) => `${count}&times; ${esc(model)}`).join(', ');
 
-  // GPU active count for this machine
   const activeCount = gpus.filter(g => g.processes && g.processes.length > 0).length;
-  let activeLabel, activeClass;
-  if (gpus.length === 0) {
-    activeLabel = '';
-    activeClass = '';
-  } else if (isStale) {
-    activeLabel = `${gpus.length} offline`;
-    activeClass = 'none-active';
-  } else if (activeCount === gpus.length) {
-    activeLabel = `${activeCount}/${gpus.length} active`;
-    activeClass = 'all-active';
-  } else if (activeCount > 0) {
-    activeLabel = `${activeCount}/${gpus.length} active`;
-    activeClass = 'some-active';
-  } else {
-    activeLabel = `${gpus.length} idle`;
-    activeClass = 'none-active';
-  }
+  let activeLabel = '', activeClass = '';
+  if (gpus.length === 0) { activeLabel = ''; }
+  else if (isStale) { activeLabel = `${gpus.length} offline`; activeClass = 'none-active'; }
+  else if (activeCount === gpus.length) { activeLabel = `${activeCount}/${gpus.length} active`; activeClass = 'all-active'; }
+  else if (activeCount > 0) { activeLabel = `${activeCount}/${gpus.length} active`; activeClass = 'some-active'; }
+  else { activeLabel = `${gpus.length} idle`; activeClass = 'none-active'; }
 
-  const isCollapsed = !!collapsedCards[machineKey];
+  const isCollapsed = !!collapsedCards[key];
 
   return `
-    <div class="machine-card ${cardClass}" data-machine-key="${esc(machineKey)}">
+    <div class="machine-card ${cardClass}" data-machine-key="${esc(key)}">
       <div class="machine-header">
         <div class="machine-title">
-          <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+          <span class="drag-handle" title="Drag to reorder (saved for everyone)">&#8942;&#8942;</span>
           <h2>${esc(label)}</h2>
           <span class="machine-type ${machineType}">${machineType}</span>
           ${gpuInfoStr ? `<span class="machine-gpu-info">${gpuInfoStr}</span>` : ''}
           ${activeLabel ? `<span class="machine-gpu-active-count ${activeClass}">${activeLabel}</span>` : ''}
-          ${hostname !== label && hostname !== origLabel ? `<span style="color:#555;font-size:12px;">${esc(hostname)}</span>` : ''}
+          ${hostname && hostname !== label && hostname !== origLabel ? `<span style="color:#555;font-size:12px;">${esc(hostname)}</span>` : ''}
+          ${meta.hidden ? `<span style="color:#f87171;font-size:11px;">hidden</span>` : ''}
         </div>
         <div class="machine-meta">
-          <span class="freshness ${freshnessClass}">${age.text}</span>
+          <span class="freshness ${freshnessClass}" data-fresh-for="${esc(key)}">${age.text}</span>
           ${m.uptime_seconds ? `<span>uptime ${formatDuration(m.uptime_seconds)}</span>` : ''}
-          <button class="rename-btn" onclick="event.stopPropagation(); renameMachine('${esc(machineKey)}')" title="Rename">Rename</button>
-          <button class="remove-btn" onclick="event.stopPropagation(); removeMachine('${esc(machineKey)}')" title="Remove">Remove</button>
-          <button class="collapse-btn" onclick="toggleCollapse('${esc(machineKey)}', event)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${isCollapsed ? '+' : '-'}</button>
+          <button class="card-btn" onclick="event.stopPropagation(); openHistory('${esc(key)}')" title="Utilization history">History</button>
+          <button class="card-btn" onclick="event.stopPropagation(); renameMachine('${esc(key)}')" title="Rename (for everyone)">Rename</button>
+          ${meta.hidden
+            ? `<button class="card-btn" onclick="event.stopPropagation(); unhideMachine('${esc(key)}')">Unhide</button>`
+            : `<button class="card-btn danger" onclick="event.stopPropagation(); hideMachine('${esc(key)}')" title="Hide from the dashboard">Hide</button>`}
+          <button class="card-btn collapse-btn" onclick="toggleCollapse('${esc(key)}', event)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${isCollapsed ? '+' : '-'}</button>
         </div>
       </div>
-
       <div class="machine-body ${isCollapsed ? 'collapsed' : ''}">
         <div class="sys-stats">
-          <div class="sys-stat">
-            <span class="label">CPU</span>
-            <span class="value">${m.cpu?.percent ?? '?'}%</span>
-            <span style="color:#555;font-size:11px;">(${m.cpu?.cores_physical ?? '?'}C/${m.cpu?.cores_logical ?? '?'}T)</span>
-          </div>
-          <div class="sys-stat">
-            <span class="label">RAM</span>
-            <span class="value">${m.ram?.used_gb ?? '?'} / ${m.ram?.total_gb ?? '?'} GB</span>
-            <span style="color:#555;font-size:11px;">(${m.ram?.percent ?? '?'}%)</span>
-          </div>
+          <div class="sys-stat"><span class="label">CPU</span><span class="value">${m.cpu?.percent ?? '?'}%</span>
+            <span style="color:#555;font-size:11px;">(${m.cpu?.cores_physical ?? '?'}C/${m.cpu?.cores_logical ?? '?'}T)</span></div>
+          <div class="sys-stat"><span class="label">RAM</span><span class="value">${m.ram?.used_gb ?? '?'} / ${m.ram?.total_gb ?? '?'} GB</span>
+            <span style="color:#555;font-size:11px;">(${m.ram?.percent ?? '?'}%)</span></div>
         </div>
-
         ${gpus.length > 0 ? `
-          <div class="gpu-list">
-            ${gpus.map(g => renderGpuRow(g, isStale)).join('')}
+          <div class="spark-row">
+            <span class="spark-label">GPU util · last 3h</span>
+            <div class="spark" id="spark-${esc(key)}"></div>
           </div>
+          <div class="gpu-list">${gpus.map(g => renderGpuRow(g, isStale)).join('')}</div>
         ` : '<div class="no-gpus">No GPUs detected</div>'}
-
         ${m.roi ? renderRoi(m.roi) : ''}
         ${m.inference ? renderInference(m.inference) : ''}
-
         ${allProcesses.length > 0 ? `
           <div class="processes">
             <div class="processes-header">Running Jobs (${allProcesses.length})</div>
             ${allProcesses.map(p => renderProcess(p)).join('')}
-          </div>
-        ` : `
-          <div class="processes">
-            <div class="no-processes">No GPU processes running</div>
-          </div>
-        `}
+          </div>` : `<div class="processes"><div class="no-processes">No GPU processes running</div></div>`}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 function renderGpuRow(g, isStale) {
   const util = g.utilization_percent || 0;
   const peak = g.utilization_peak_percent ?? util;
-  const memUsed = g.memory_used_mb || 0;
-  const memTotal = g.memory_total_mb || 1;
+  const memUsed = g.memory_used_mb || 0, memTotal = g.memory_total_mb || 1;
   const memPct = Math.round(memUsed / memTotal * 100);
   const temp = g.temperature_c;
   const name = shortenGpuName(g.name || 'Unknown');
-
   const hasProcs = g.processes && g.processes.length > 0;
   const statusClass = isStale ? 'idle' : hasProcs ? 'active' : 'idle';
-
-  let powerStr = '';
-  if (g.power_draw_w != null && g.power_limit_w != null) {
-    powerStr = `${Math.round(g.power_draw_w)}/${Math.round(g.power_limit_w)}W`;
-  }
-
+  const powerStr = (g.power_draw_w != null && g.power_limit_w != null) ? `${Math.round(g.power_draw_w)}/${Math.round(g.power_limit_w)}W` : '';
   const utilLabel = peak > util ? `${util}% (peak ${peak}%)` : `${util}%`;
-
+  const color = SERIES[(g.index || 0) % SERIES.length];
   return `
     <div class="gpu-row">
       <div class="gpu-name-cell">
         <span class="gpu-status-dot ${statusClass}" title="${statusClass === 'active' ? 'Active - running processes' : 'Idle - no processes'}"></span>
         <div class="gpu-name-info">
-          <span class="gpu-idx">GPU ${g.index}</span>
+          <span class="gpu-idx"><span class="gpu-key" style="background:${color}"></span>GPU ${g.index}</span>
           <div class="gpu-name" title="${esc(g.name || '')}">${esc(name)}</div>
         </div>
       </div>
@@ -1163,8 +1136,7 @@ function renderGpuRow(g, isStale) {
         ${temp != null ? `<span class="gpu-temp ${tempClass(temp)}">${temp}&deg;C</span>` : ''}
         ${powerStr ? `<span style="color:#555;font-size:11px;margin-left:8px;">${powerStr}</span>` : ''}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 function renderProcess(p) {
@@ -1175,80 +1147,53 @@ function renderProcess(p) {
       <span class="proc-mem">${formatMB(p.gpu_memory_mb || 0)}</span>
       <span class="proc-user">${esc(p.user || '?')}</span>
       <span class="proc-runtime">${esc(p.runtime_human || '?')}</span>
-    </div>
-  `;
+    </div>`;
 }
 
-// ── Inference rendering ─────────────────────────────────────────────────────
+function tickFreshness() {
+  document.querySelectorAll('.machine-card[data-machine-key]').forEach(card => {
+    const key = card.dataset.machineKey;
+    const ts = latest[key]?.ts;
+    if (!ts) return;
+    const age = machineAge(ts);
+    const span = card.querySelector('.freshness');
+    if (span) { span.textContent = age.text; span.className = 'freshness ' + (age.seconds < 120 ? 'fresh' : age.seconds < 600 ? 'warm' : 'stale'); }
+    card.classList.toggle('stale', age.seconds > 600 && age.seconds <= 1800);
+    card.classList.toggle('offline', age.seconds > 1800);
+  });
+}
+
+// ── Inference / ROI (unchanged from v1) ─────────────────────────────────────
 
 function renderInference(inf) {
   if (!inf || !inf.totals) return '';
-
   const t = inf.totals;
   const pct = t.videos_total > 0 ? (t.videos_done / t.videos_total * 100) : 0;
   const pctStr = pct.toFixed(1);
   const etaStr = inf.wall_eta_hours != null
-    ? (inf.wall_eta_hours < 24
-        ? `${inf.wall_eta_hours.toFixed(1)}h remaining`
-        : `${(inf.wall_eta_hours / 24).toFixed(1)} days remaining`)
-    : '';
-
+    ? (inf.wall_eta_hours < 24 ? `${inf.wall_eta_hours.toFixed(1)}h remaining` : `${(inf.wall_eta_hours / 24).toFixed(1)} days remaining`) : '';
   const cameras = inf.cameras || {};
   const camKeys = Object.keys(cameras).sort();
-
   return `
     <div class="inference-section">
-      <div class="inference-header">
-        <span>Inference Progress</span>
-        ${etaStr ? `<span class="inference-eta">${esc(etaStr)}</span>` : ''}
-      </div>
-
+      <div class="inference-header"><span>Inference Progress</span>${etaStr ? `<span class="inference-eta">${esc(etaStr)}</span>` : ''}</div>
       <div class="inference-totals">
-        <div class="inf-stat">
-          <span class="label">Videos</span>
-          <span class="value">${t.videos_done.toLocaleString()} / ${t.videos_total.toLocaleString()}</span>
-        </div>
-        <div class="inf-stat">
-          <span class="label">Progress</span>
-          <span class="value">${pctStr}%</span>
-        </div>
-        <div class="inf-stat">
-          <span class="label">Avg FPS</span>
-          <span class="value">${t.avg_fps?.toFixed(1) ?? '?'}</span>
-        </div>
-        ${t.failed > 0 ? `
-          <div class="inf-stat">
-            <span class="label">Failed</span>
-            <span class="value failed">${t.failed}</span>
-          </div>
-        ` : ''}
+        <div class="inf-stat"><span class="label">Videos</span><span class="value">${(t.videos_done || 0).toLocaleString()} / ${(t.videos_total || 0).toLocaleString()}</span></div>
+        <div class="inf-stat"><span class="label">Progress</span><span class="value">${pctStr}%</span></div>
+        <div class="inf-stat"><span class="label">Avg FPS</span><span class="value">${t.avg_fps?.toFixed(1) ?? '?'}</span></div>
+        ${t.failed > 0 ? `<div class="inf-stat"><span class="label">Failed</span><span class="value failed">${t.failed}</span></div>` : ''}
       </div>
-
-      <div class="inference-overall-bar">
-        <div class="bar-group">
-          <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
-          <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
-        </div>
-      </div>
-
-      <div class="inference-cam-grid">
-        ${camKeys.map(cam => renderInferenceCam(cam, cameras[cam])).join('')}
-      </div>
-    </div>
-  `;
+      <div class="inference-overall-bar"><div class="bar-group">
+        <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+      </div></div>
+      <div class="inference-cam-grid">${camKeys.map(cam => renderInferenceCam(cam, cameras[cam])).join('')}</div>
+    </div>`;
 }
-
-// Camera wiring: disk folder → physical cam + genotype
-const CAM_DISPLAY = {
-  cam_01: 'Cam 1 (Tau)', cam_02: 'Cam 4 (PD)',
-  cam_03: 'Cam 2 (WT)',  cam_04: 'Cam 3 (PD)',
-};
 
 function renderInferenceCam(name, cam) {
   const pct = cam.videos_total > 0 ? (cam.videos_done / cam.videos_total * 100) : 0;
-  const etaStr = cam.eta_hours != null
-    ? (cam.eta_hours < 24 ? `${cam.eta_hours.toFixed(1)}h` : `${(cam.eta_hours / 24).toFixed(1)}d`)
-    : '';
+  const etaStr = cam.eta_hours != null ? (cam.eta_hours < 24 ? `${cam.eta_hours.toFixed(1)}h` : `${(cam.eta_hours / 24).toFixed(1)}d`) : '';
   const displayName = CAM_DISPLAY[name] || name;
   return `
     <div class="inference-cam-card">
@@ -1256,34 +1201,25 @@ function renderInferenceCam(name, cam) {
         <span>${esc(displayName)}${cam.gpu != null ? ` <span class="cam-gpu">GPU ${cam.gpu}</span>` : ''}</span>
         <span style="color:#888;font-size:11px;">${pct.toFixed(1)}%</span>
       </div>
-      <div class="bar-group">
-        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
-      </div>
+      <div class="bar-group"><div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div></div>
       <div class="cam-stats">
-        <span><span class="val">${cam.videos_done.toLocaleString()}</span> / ${cam.videos_total.toLocaleString()}</span>
+        <span><span class="val">${(cam.videos_done || 0).toLocaleString()}</span> / ${(cam.videos_total || 0).toLocaleString()}</span>
         ${cam.avg_fps ? `<span><span class="val">${cam.avg_fps.toFixed(1)}</span> fps</span>` : ''}
         ${cam.failed > 0 ? `<span style="color:#f87171;">${cam.failed} failed</span>` : ''}
         ${etaStr ? `<span>${etaStr}</span>` : ''}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function barColorInference(pct) {
-  if (pct >= 80) return 'green';
-  if (pct >= 40) return 'yellow';
-  return 'red';
-}
+function barColorInference(pct) { return pct >= 80 ? 'green' : pct >= 40 ? 'yellow' : 'red'; }
 
-// ── ROI backfill rendering (reuses the .inference-* styles) ─────────────────
 function renderRoi(roi) {
   if (!roi || !roi.totals) return '';
   const t = roi.totals;
   const pct = t.videos_total > 0 ? (t.videos_done / t.videos_total * 100) : 0;
   const pctStr = pct.toFixed(1);
   const eta = roi.eta_minutes;
-  const etaStr = eta == null ? '' : (eta <= 0 ? 'done'
-    : (eta < 90 ? `${eta.toFixed(0)}m remaining` : `${(eta / 60).toFixed(1)}h remaining`));
+  const etaStr = eta == null ? '' : (eta <= 0 ? 'done' : (eta < 90 ? `${eta.toFixed(0)}m remaining` : `${(eta / 60).toFixed(1)}h remaining`));
   const cameras = roi.cameras || {};
   const camKeys = Object.keys(cameras).sort();
   return `
@@ -1293,22 +1229,17 @@ function renderRoi(roi) {
         ${etaStr ? `<span class="inference-eta">${esc(etaStr)}</span>` : ''}
       </div>
       <div class="inference-totals">
-        <div class="inf-stat"><span class="label">Videos</span><span class="value">${t.videos_done.toLocaleString()} / ${t.videos_total.toLocaleString()}</span></div>
+        <div class="inf-stat"><span class="label">Videos</span><span class="value">${(t.videos_done || 0).toLocaleString()} / ${(t.videos_total || 0).toLocaleString()}</span></div>
         <div class="inf-stat"><span class="label">Progress</span><span class="value">${pctStr}%</span></div>
         <div class="inf-stat"><span class="label">Rate</span><span class="value">${(t.rate_vps ?? 0).toFixed(1)} vid/s</span></div>
         ${t.errors > 0 ? `<div class="inf-stat"><span class="label">Errors</span><span class="value failed">${t.errors}</span></div>` : ''}
       </div>
-      <div class="inference-overall-bar">
-        <div class="bar-group">
-          <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
-          <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
-        </div>
-      </div>
-      <div class="inference-cam-grid">
-        ${camKeys.map(cam => renderRoiCam(cam, cameras[cam])).join('')}
-      </div>
-    </div>
-  `;
+      <div class="inference-overall-bar"><div class="bar-group">
+        <div class="bar-label"><span>Overall</span><span class="val">${pctStr}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
+      </div></div>
+      <div class="inference-cam-grid">${camKeys.map(cam => renderRoiCam(cam, cameras[cam])).join('')}</div>
+    </div>`;
 }
 
 function renderRoiCam(name, cam) {
@@ -1322,20 +1253,491 @@ function renderRoiCam(name, cam) {
         <span>${esc(displayName)}${cam.workers ? ` <span class="cam-gpu">${cam.workers}w</span>` : ''}</span>
         <span style="color:#888;font-size:11px;">${pct.toFixed(1)}%</span>
       </div>
-      <div class="bar-group">
-        <div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div>
-      </div>
+      <div class="bar-group"><div class="bar-track"><div class="bar-fill ${barColorInference(pct)}" style="width:${Math.min(pct, 100)}%"></div></div></div>
       <div class="cam-stats">
-        <span><span class="val">${cam.videos_done.toLocaleString()}</span> / ${cam.videos_total.toLocaleString()}</span>
+        <span><span class="val">${(cam.videos_done || 0).toLocaleString()}</span> / ${(cam.videos_total || 0).toLocaleString()}</span>
         ${cam.rate_vps ? `<span><span class="val">${cam.rate_vps.toFixed(1)}</span> v/s</span>` : ''}
         ${cam.errors > 0 ? `<span style="color:#f87171;">${cam.errors} err</span>` : ''}
         ${etaStr ? `<span>${etaStr}</span>` : ''}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Data access for history (Supabase RPC or demo generator)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function rpcHistory(key, fromMs, toMs, bucket) {
+  if (DEMO) return demoHistory(key, fromMs, toMs, bucket);
+  const { data, error } = await sb.rpc('gpu_history', {
+    p_machine: key, p_from: new Date(fromMs).toISOString(), p_to: new Date(toMs).toISOString(), p_bucket_seconds: bucket,
+  });
+  if (error) { toast('History query failed: ' + error.message); return []; }
+  return data || [];
+}
+
+async function rpcHostHistory(key, fromMs, toMs, bucket) {
+  if (DEMO) return demoHostHistory(key, fromMs, toMs, bucket);
+  const { data, error } = await sb.rpc('gpu_host_history', {
+    p_machine: key, p_from: new Date(fromMs).toISOString(), p_to: new Date(toMs).toISOString(), p_bucket_seconds: bucket,
+  });
+  if (error) { toast('History query failed: ' + error.message); return []; }
+  return data || [];
+}
+
+async function rpcFleetHistory(fromMs, toMs, bucket) {
+  if (DEMO) return demoFleetHistory(fromMs, toMs, bucket);
+  const { data, error } = await sb.rpc('gpu_fleet_history', {
+    p_from: new Date(fromMs).toISOString(), p_to: new Date(toMs).toISOString(), p_bucket_seconds: bucket,
+  });
+  if (error) { toast('Fleet history failed: ' + error.message); return []; }
+  return data || [];
+}
+
+// rows -> { x: [sec...], byKey: Map(key -> values[]) } aligned on the union of buckets
+function pivot(rows, keyField, valueField) {
+  const xs = Array.from(new Set(rows.map(r => r.bucket))).sort();
+  const xi = new Map(xs.map((b, i) => [b, i]));
+  const byKey = new Map();
+  for (const r of rows) {
+    const k = r[keyField];
+    if (!byKey.has(k)) byKey.set(k, new Array(xs.length).fill(null));
+    const v = r[valueField];
+    byKey.get(k)[xi.get(r.bucket)] = (v == null || Number.isNaN(Number(v))) ? null : Number(v);
+  }
+  return { x: xs.map(b => Math.round(Date.parse(b) / 1000)), byKey };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sparklines (per machine card, last 3 h)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function getSparkRows(key) {
+  const c = sparkCache[key];
+  if (c && Date.now() - c.fetchedAt < SPARK_TTL_MS) return c.rows;
+  const now = Date.now();
+  const rows = await rpcHistory(key, now - SPARK_SECONDS * 1000, now, SPARK_BUCKET);
+  sparkCache[key] = { fetchedAt: Date.now(), rows };
+  return rows;
+}
+
+async function mountSparklines(entries) {
+  const results = await Promise.all(entries.map(e => getSparkRows(e.key).catch(() => [])));
+  entries.forEach((e, i) => {
+    const el = document.getElementById('spark-' + e.key);
+    if (!el) return;
+    const rows = results[i];
+    const { x, byKey } = pivot(rows, 'gpu_index', 'util');
+    const series = Array.from(byKey.keys()).sort((a, b) => a - b).map(gi => ({
+      label: `GPU ${gi}`, color: SERIES[gi % SERIES.length], values: byKey.get(gi),
+    }));
+    createChart(el, { x, series, spark: true, height: 54, yRange: [0, 100], fmt: v => Math.round(v) + '%', spanSeconds: SPARK_SECONDS });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Fleet chart (live view)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadFleet() {
+  const grid = document.getElementById('fleetGrid');
+  if (!grid) return;
+  if (!grid.querySelector('#chart-fleet')) {
+    grid.innerHTML = chartCard('chart-fleet', 'Fleet GPU utilization', 'avg % per machine',
+      rangePills('fleetRangePills', RANGES.filter(r => FLEET_RANGES.includes(r.id)), fleetRange, 'setFleetRange'), true);
+  }
+  const range = RANGES.find(r => r.id === fleetRange) || RANGES[2];
+  const now = Date.now();
+  const el = document.getElementById('chart-fleet');
+  el.classList.add('loading');
+  const rows = await rpcFleetHistory(now - range.seconds * 1000, now, range.bucket);
+  el.classList.remove('loading');
+  const { x, byKey } = pivot(rows, 'machine_key', 'util');
+  const keys = Array.from(byKey.keys()).filter(k => showHidden || !machinesMeta[k]?.hidden);
+  const series = keys.map(k => ({ label: displayName(k), color: machineSlot(k), values: byKey.get(k) }));
+  setChart('chart-fleet', { x, series, height: 220, yRange: [0, 100], fmt: v => Math.round(v) + '%', spanSeconds: range.seconds });
+}
+
+function setFleetRange(id) { fleetRange = id; lsSet('gpu_dash_fleet_range', id); loadFleet(); }
+window.setFleetRange = setFleetRange;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// History view
+// ═══════════════════════════════════════════════════════════════════════════
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('liveView').style.display = v === 'live' ? '' : 'none';
+  document.getElementById('historyView').style.display = v === 'history' ? '' : 'none';
+  document.getElementById('tabLive').classList.toggle('active', v === 'live');
+  document.getElementById('tabHistory').classList.toggle('active', v === 'history');
+  if (v === 'history') renderHistory();
+  else { renderDashboard(); loadFleet(); }
+}
+window.setView = setView;
+
+function openHistory(key) { histMachine = key; setView('history'); }
+window.openHistory = openHistory;
+
+function setHistMachine(key) { histMachine = key; renderHistory(); }
+function setHistRange(id) { histRange = id; lsSet('gpu_dash_hist_range', id); renderHistory(); }
+window.setHistMachine = setHistMachine; window.setHistRange = setHistRange;
+
+function renderHistoryControls() {
+  const sel = document.getElementById('histMachine');
+  const entries = allEntries().filter(e => showHidden || !e.meta.hidden || e.key === histMachine)
+    .sort((a, b) => displayName(a.key).toLowerCase().localeCompare(displayName(b.key).toLowerCase()));
+  if (!histMachine || !entries.find(e => e.key === histMachine)) histMachine = entries[0]?.key || null;
+  sel.innerHTML = entries.map(e => `<option value="${esc(e.key)}" ${e.key === histMachine ? 'selected' : ''}>${esc(displayName(e.key))}</option>`).join('');
+  document.getElementById('histRangePills').outerHTML = rangePills('histRangePills', RANGES, histRange, 'setHistRange');
+}
+
+async function renderHistory() {
+  renderHistoryControls();
+  const grid = document.getElementById('histCharts');
+  const info = document.getElementById('histInfo');
+  if (!histMachine) { grid.innerHTML = '<div class="no-results">No machines yet</div>'; info.textContent = ''; return; }
+
+  const range = RANGES.find(r => r.id === histRange) || RANGES[2];
+  const now = Date.now(), from = now - range.seconds * 1000;
+  const req = ++histReq;
+
+  if (!grid.querySelector('#chart-util')) {
+    grid.innerHTML =
+      chartCard('chart-util', 'GPU utilization', '%') +
+      chartCard('chart-vram', 'VRAM used', 'GB') +
+      chartCard('chart-temp', 'GPU temperature', '°C') +
+      chartCard('chart-power', 'GPU power', 'W') +
+      chartCard('chart-host', 'CPU and RAM', '%');
+  }
+  grid.querySelectorAll('.chart').forEach(c => c.classList.add('loading'));
+  info.textContent = 'Loading…';
+
+  const [gpuRows, hostRows] = await Promise.all([
+    rpcHistory(histMachine, from, now, range.bucket),
+    rpcHostHistory(histMachine, from, now, range.bucket),
+  ]);
+  if (req !== histReq) return;   // a newer request superseded this one
+  grid.querySelectorAll('.chart').forEach(c => c.classList.remove('loading'));
+
+  const gpuIdx = Array.from(new Set(gpuRows.map(r => r.gpu_index))).sort((a, b) => a - b);
+  const mkSeries = (field, scale = 1) => {
+    const { x, byKey } = pivot(gpuRows, 'gpu_index', field);
+    return { x, series: gpuIdx.filter(gi => byKey.has(gi)).map(gi => ({
+      label: `GPU ${gi}`, color: SERIES[gi % SERIES.length],
+      values: byKey.get(gi).map(v => v == null ? null : v * scale),
+    })) };
+  };
+  const span = range.seconds;
+
+  const util = mkSeries('util');
+  setChart('chart-util', { ...util, height: 220, yRange: [0, 100], fmt: v => Math.round(v) + '%', spanSeconds: span });
+
+  const vram = mkSeries('mem_used_mb', 1 / 1024);
+  const memTotal = Math.max(0, ...gpuRows.map(r => Number(r.mem_total_mb) || 0)) / 1024;
+  setChart('chart-vram', { ...vram, height: 220, yRange: memTotal > 0 ? [0, Math.ceil(memTotal)] : null, fmt: v => v.toFixed(1) + ' GB', spanSeconds: span });
+
+  const temp = mkSeries('temp_c');
+  setChart('chart-temp', { ...temp, height: 220, yRange: [0, 100], fmt: v => Math.round(v) + '°C', spanSeconds: span });
+
+  const power = mkSeries('power_w');
+  const hasPower = power.series.some(s => s.values.some(v => v != null));
+  const powerCard = document.getElementById('chart-power')?.closest('.chart-card');
+  if (powerCard) powerCard.style.display = hasPower ? '' : 'none';
+  if (hasPower) setChart('chart-power', { ...power, height: 220, yRange: null, fmt: v => Math.round(v) + ' W', spanSeconds: span });
+
+  const hx = hostRows.map(r => Math.round(Date.parse(r.bucket) / 1000));
+  const host = {
+    x: hx,
+    series: [
+      { label: 'CPU', color: SERIES[0], values: hostRows.map(r => r.cpu_percent == null ? null : Number(r.cpu_percent)) },
+      { label: 'RAM', color: SERIES[1], values: hostRows.map(r => r.ram_percent == null ? null : Number(r.ram_percent)) },
+    ],
+  };
+  setChart('chart-host', { ...host, height: 220, yRange: [0, 100], fmt: v => Math.round(v) + '%', spanSeconds: span });
+
+  const nPts = util.x.length;
+  info.textContent = nPts ? `${nPts} points · ${range.bucket >= 3600 ? (range.bucket / 3600) + 'h' : (range.bucket / 60) + 'min'} buckets` : 'No history for this range yet';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Chart helpers (uPlot)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function chartCard(id, title, unit, controlsHtml = '', wide = false) {
+  return `
+    <div class="chart-card ${wide ? 'wide' : ''}">
+      <div class="chart-head">
+        <span class="chart-title">${esc(title)}<span class="unit">${esc(unit)}</span></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${controlsHtml}
+          <button class="card-btn" onclick="toggleTable('${id}')" title="Show the plotted values as a table">Table</button>
+        </div>
+      </div>
+      <div class="chart" id="${id}"></div>
+      <div class="chart-legend" id="${id}-legend"></div>
+      <div class="chart-table" id="${id}-table"></div>
+    </div>`;
+}
+
+function rangePills(id, ranges, active, handler) {
+  return `<div class="filter-pills" id="${id}">${ranges.map(r =>
+    `<button class="filter-pill ${r.id === active ? 'active' : ''}" onclick="${handler}('${r.id}')">${r.label}</button>`).join('')}</div>`;
+}
+
+function setChart(id, cfg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  chartData[id] = cfg;
+  createChart(el, cfg);
+  const legend = document.getElementById(id + '-legend');
+  if (legend) {
+    legend.innerHTML = cfg.series.length >= 2
+      ? cfg.series.map(s => `<span class="legend-item"><span class="legend-key" style="background:${s.color}"></span>${esc(s.label)}</span>`).join('')
+      : '';
+  }
+  const table = document.getElementById(id + '-table');
+  if (table && table.classList.contains('open')) fillTable(id);
+}
+
+function toggleTable(id) {
+  const t = document.getElementById(id + '-table');
+  if (!t) return;
+  t.classList.toggle('open');
+  if (t.classList.contains('open')) fillTable(id);
+}
+window.toggleTable = toggleTable;
+
+function fillTable(id) {
+  const t = document.getElementById(id + '-table');
+  const cfg = chartData[id];
+  if (!t || !cfg) return;
+  if (!cfg.x.length) { t.innerHTML = '<div class="chart-empty">No data</div>'; return; }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const hr = document.createElement('tr');
+  for (const h of ['Time', ...cfg.series.map(s => s.label)]) { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }
+  thead.appendChild(hr); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  const start = Math.max(0, cfg.x.length - 500);
+  for (let i = cfg.x.length - 1; i >= start; i--) {
+    const tr = document.createElement('tr');
+    const td0 = document.createElement('td'); td0.textContent = fmtTime(cfg.x[i], cfg.spanSeconds, true); tr.appendChild(td0);
+    for (const s of cfg.series) { const td = document.createElement('td'); const v = s.values[i]; td.textContent = v == null ? '–' : cfg.fmt(v); tr.appendChild(td); }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  t.innerHTML = '';
+  if (cfg.x.length > 500) { const note = document.createElement('div'); note.className = 'hist-info'; note.style.padding = '6px 8px'; note.textContent = `Showing the latest 500 of ${cfg.x.length} rows`; t.appendChild(note); }
+  t.appendChild(table);
+}
+
+function createChart(el, cfg) {
+  destroyChart(el.id);
+  el.innerHTML = '';
+  if (!cfg.x || !cfg.x.length || !cfg.series.length) {
+    el.innerHTML = `<div class="chart-empty">${cfg.spark ? 'no history yet' : 'No data for this range yet'}</div>`;
+    return null;
+  }
+  const width = Math.max(el.clientWidth || el.parentElement?.clientWidth || 600, 120);
+  const yRange = cfg.yRange;
+  const opts = {
+    width, height: cfg.height || 220,
+    padding: cfg.spark ? [4, 6, 4, 6] : [10, 14, 0, 0],
+    cursor: { y: false, points: { size: 8, width: 2 }, drag: { x: !cfg.spark, y: false, setScale: !cfg.spark } },
+    legend: { show: false },
+    scales: {
+      x: { time: true },
+      y: yRange ? { range: () => yRange } : { range: (u, min, max) => [Math.min(0, min), max <= 0 ? 1 : max * 1.08] },
+    },
+    axes: cfg.spark ? [{ show: false }, { show: false }] : [
+      { stroke: CHROME.muted, font: '11px system-ui, sans-serif', grid: { stroke: CHROME.grid, width: 1 }, ticks: { show: false }, border: { show: true, stroke: CHROME.axis, width: 1 } },
+      { stroke: CHROME.muted, font: '11px system-ui, sans-serif', size: 56, grid: { stroke: CHROME.grid, width: 1 }, ticks: { show: false }, values: (u, vals) => vals.map(v => cfg.fmt(v)) },
+    ],
+    series: [{}, ...cfg.series.map(s => ({ label: s.label, stroke: s.color, width: 2, points: { show: false }, spanGaps: false }))],
+    hooks: { setCursor: [u => updateTip(u, cfg)] },
+  };
+  const u = new uPlot(opts, [cfg.x, ...cfg.series.map(s => s.values)], el);
+  const tip = document.createElement('div');
+  tip.className = 'chart-tip'; tip.style.display = 'none';
+  u.over.appendChild(tip);
+  u._tip = tip; u._el = el;
+  u.over.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  charts[el.id] = u;
+  return u;
+}
+
+function updateTip(u, cfg) {
+  const tip = u._tip;
+  if (!tip) return;
+  const idx = u.cursor.idx;
+  if (idx == null || u.cursor.left == null || u.cursor.left < 0) { tip.style.display = 'none'; return; }
+  const t = u.data[0][idx];
+  const rows = cfg.series.map((s, i) => ({ s, v: u.data[i + 1][idx] })).filter(r => r.v != null);
+  if (!rows.length) { tip.style.display = 'none'; return; }
+  tip.innerHTML = `<div class="tip-time">${esc(fmtTime(t, cfg.spanSeconds, true))}</div>` +
+    rows.map(r => `<div class="tip-row"><span class="tip-key" style="background:${r.s.color}"></span><span class="tip-val">${esc(cfg.fmt(r.v))}</span><span class="tip-lbl">${esc(r.s.label)}</span></div>`).join('');
+  tip.style.display = 'block';
+  const W = u.over.clientWidth, H = u.over.clientHeight, tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = u.cursor.left + 14;
+  if (left + tw > W) left = u.cursor.left - tw - 14;
+  if (left < 0) left = 0;
+  let top = cfg.spark ? -th - 4 : (u.cursor.top ?? H / 2) - th / 2;
+  if (!cfg.spark) top = Math.max(0, Math.min(top, H - th));
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+
+function destroyChart(id) {
+  if (charts[id]) { try { charts[id].destroy(); } catch (e) {} delete charts[id]; }
+}
+function destroyCharts(pred) { for (const id of Object.keys(charts)) if (pred(id)) destroyChart(id); }
+
+function resizeCharts() {
+  for (const [id, u] of Object.entries(charts)) {
+    const el = document.getElementById(id);
+    if (!el) { destroyChart(id); continue; }
+    const w = el.clientWidth;
+    if (w && Math.abs(w - u.width) > 2) u.setSize({ width: w, height: u.height });
+  }
+}
+
+function fmtTime(sec, spanSeconds, withDate = false) {
+  const d = new Date(sec * 1000);
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (!withDate && spanSeconds <= 86400) return time;
+  const date = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return `${date} ${time}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Demo mode (?demo=1): synthetic machines and history, no sign-in, no Supabase
+// ═══════════════════════════════════════════════════════════════════════════
+
+function seeded(seedStr) {
+  let h = 1779033703 ^ seedStr.length;
+  for (let i = 0; i < seedStr.length; i++) { h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+
+function demoUtil(key, gi, tSec) {
+  // deterministic, smooth-ish utilization curve per (machine, gpu)
+  const r = seeded(key + ':' + gi);
+  const base = 20 + r() * 50, amp = 15 + r() * 35, period = 1800 + r() * 7200, phase = r() * 6.28;
+  const busy = r() > 0.25;
+  if (!busy) return Math.max(0, Math.round(3 + 4 * Math.sin(tSec / 900)));
+  const v = base + amp * Math.sin(tSec / period + phase) + 8 * Math.sin(tSec / 240 + phase * 2);
+  return Math.max(0, Math.min(100, Math.round(v)));
+}
+
+const DEMO_MACHINES = [
+  { key: 'blackwell-1', label: 'blackwell-1', hostname: 'Lee-Talmo-HCM', type: 'workstation', gpuName: 'NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition', n: 4, vram: 97887, ageSec: 40, inference: true, first: '2026-03-01' },
+  { key: 'blackwell-2', label: 'Blackwell-2', hostname: 'lee-hcm', type: 'workstation', gpuName: 'NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition', n: 4, vram: 97887, ageSec: 95, first: '2026-03-02' },
+  { key: 'divya-workstation', label: 'Divya-workstation', hostname: 'talmo-lab-03', type: 'workstation', gpuName: 'NVIDIA RTX A6000', n: 1, vram: 49140, ageSec: 70, first: '2026-04-10' },
+  { key: 'amick-runai', label: 'amick-runai', hostname: 'amick-train-roots-2-0-0', type: 'runai', gpuName: 'NVIDIA A40', n: 2, vram: 46068, ageSec: 50, first: '2026-06-15' },
+  { key: 'runai', label: 'runai', hostname: 'leo-tempworkspace-large-shm-0-8', type: 'runai', gpuName: 'NVIDIA A40', n: 2, vram: 46068, ageSec: 150 * 86400, hidden: true, first: '2026-02-20' },
+];
+const DEMO_USERS = ['leo', 'divya', 'amick', 'kuofen'];
+const DEMO_CMDS = ['python train.py --config configs/centered_instance.yaml --gpu 0', 'sleap-track /vast/leo/datasets/cam_03.08.mp4 --model models/250915_topdown', 'python -m roi_extract --cam cam_01 --range 2025-01..2025-06', 'jupyter-lab --no-browser --port 8890', 'python infer.py --batch 64'];
+
+function demoSnapshot(d, nowMs) {
+  const tSec = Math.floor(nowMs / 1000) - d.ageSec;
+  const r = seeded(d.key + ':snap');
+  const gpus = [];
+  for (let i = 0; i < d.n; i++) {
+    const util = demoUtil(d.key, i, tSec);
+    const busy = util > 8;
+    const procs = busy ? [{ pid: 1000 + i, gpu_memory_mb: Math.round(d.vram * (0.3 + r() * 0.5)), user: DEMO_USERS[Math.floor(r() * DEMO_USERS.length)], command: DEMO_CMDS[Math.floor(r() * DEMO_CMDS.length)], runtime_human: `${Math.floor(r() * 30)}h ${Math.floor(r() * 60)}m` }] : [];
+    gpus.push({
+      index: i, name: d.gpuName, utilization_percent: util, utilization_peak_percent: Math.min(100, util + Math.round(r() * 20)),
+      memory_used_mb: busy ? procs[0].gpu_memory_mb + 800 : 500, memory_total_mb: d.vram,
+      temperature_c: Math.round(35 + util * 0.45), power_draw_w: Math.round(40 + util * 2.4), power_limit_w: 300, processes: procs,
+    });
+  }
+  const snap = {
+    machine: { hostname: d.hostname, label: d.label, type: d.type },
+    timestamp: new Date(tSec * 1000).toISOString(),
+    uptime_seconds: 86400 * 12 + 3600 * 5,
+    cpu: { percent: Math.round(10 + r() * 50), cores_physical: 64, cores_logical: 128 },
+    ram: { used_gb: 120.4, total_gb: 503.3, percent: 23.9 },
+    gpus,
+  };
+  if (d.inference) {
+    const cams = {};
+    ['cam_01', 'cam_02', 'cam_03', 'cam_04'].forEach((c, i) => {
+      const total = 15935, done = Math.round(total * (0.3 + i * 0.15));
+      cams[c] = { gpu: i, videos_done: done, videos_total: total, completed: done, failed: i === 1 ? 3 : 0, avg_fps: 110 + i * 4, eta_hours: (total - done) / 400 };
+    });
+    const done = Object.values(cams).reduce((s, c) => s + c.videos_done, 0), total = Object.values(cams).reduce((s, c) => s + c.videos_total, 0);
+    snap.inference = { cameras: cams, totals: { videos_done: done, videos_total: total, completed: done, failed: 3, avg_fps: 116.1 }, wall_eta_hours: Math.max(...Object.values(cams).map(c => c.eta_hours)) };
+  }
+  return snap;
+}
+
+function enterDemo() {
+  const now = Date.now();
+  currentUser = { email: 'demo@salk.edu', id: 'demo' };
+  machinesMeta = {}; latest = {};
+  DEMO_MACHINES.forEach((d, i) => {
+    machinesMeta[d.key] = { key: d.key, label: d.label, display_name: d.key === 'blackwell-1' ? 'Blackwell Workstation' : null, hostname: d.hostname, type: d.type, hidden: !!d.hidden, sort_order: i + 1, first_seen: d.first + 'T00:00:00Z', last_seen: null };
+    const snap = demoSnapshot(d, now);
+    latest[d.key] = { machine_key: d.key, ts: snap.timestamp, snapshot: snap };
+  });
+  showScreen('dashboard');
+  liveStatus = 'live';
+  renderDashboard();
+  loadFleet();
+  if (new URLSearchParams(location.search).get('view') === 'history') setView('history');
+  freshTimer = setInterval(tickFreshness, 30000);
+  setInterval(() => {   // refresh the live machines every 20 s so freshness + values move
+    const t = Date.now();
+    for (const d of DEMO_MACHINES) if (d.ageSec < 3600) { const snap = demoSnapshot(d, t); latest[d.key] = { machine_key: d.key, ts: snap.timestamp, snapshot: snap }; }
+    scheduleRender();
+  }, 20000);
+}
+
+function demoHistory(key, fromMs, toMs, bucket) {
+  const d = DEMO_MACHINES.find(m => m.key === key);
+  if (!d) return [];
+  const rows = [];
+  const start = Math.floor(fromMs / 1000 / bucket) * bucket, end = Math.floor(toMs / 1000);
+  for (let t = start; t < end; t += bucket) {
+    if (d.ageSec > 3600 && t > end - d.ageSec) continue;    // stale machine: no recent data
+    for (let gi = 0; gi < d.n; gi++) {
+      const u = demoUtil(key, gi, t);
+      rows.push({ bucket: new Date(t * 1000).toISOString(), gpu_index: gi, util: u, util_max: Math.min(100, u + 10), mem_used_mb: u > 8 ? d.vram * (0.35 + u / 300) : 500, mem_total_mb: d.vram, temp_c: 35 + u * 0.45, power_w: 40 + u * 2.4 });
+    }
+  }
+  return rows;
+}
+
+function demoHostHistory(key, fromMs, toMs, bucket) {
+  const d = DEMO_MACHINES.find(m => m.key === key);
+  if (!d) return [];
+  const rows = [];
+  const start = Math.floor(fromMs / 1000 / bucket) * bucket, end = Math.floor(toMs / 1000);
+  for (let t = start; t < end; t += bucket) {
+    if (d.ageSec > 3600 && t > end - d.ageSec) continue;
+    const cpu = Math.max(2, Math.min(100, 25 + 20 * Math.sin(t / 3000) + 10 * Math.sin(t / 700)));
+    rows.push({ bucket: new Date(t * 1000).toISOString(), cpu_percent: cpu, cpu_max: cpu + 8, ram_percent: 24 + 6 * Math.sin(t / 9000), ram_max: 30, ram_used_gb: 120, ram_total_gb: 503 });
+  }
+  return rows;
+}
+
+function demoFleetHistory(fromMs, toMs, bucket) {
+  const rows = [];
+  for (const d of DEMO_MACHINES) {
+    const per = demoHistory(d.key, fromMs, toMs, bucket);
+    const byBucket = new Map();
+    for (const r of per) { if (!byBucket.has(r.bucket)) byBucket.set(r.bucket, []); byBucket.get(r.bucket).push(r); }
+    for (const [b, rs] of byBucket) rows.push({ bucket: b, machine_key: d.key, util: rs.reduce((s, r) => s + r.util, 0) / rs.length, gpus: rs.length, mem_used_mb: rs.reduce((s, r) => s + r.mem_used_mb, 0) });
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════════════
 
 function machineAge(timestamp) {
   if (!timestamp) return { seconds: Infinity, text: 'never' };
@@ -1346,115 +1748,31 @@ function machineAge(timestamp) {
   if (seconds < 86400) return { seconds, text: `${Math.floor(seconds / 3600)}h ago` };
   return { seconds, text: `${Math.floor(seconds / 86400)}d ago` };
 }
-
 function formatDuration(s) {
   s = Math.floor(s);
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   const h = Math.floor(s / 3600);
   if (h < 24) return `${h}h ${Math.floor((s % 3600) / 60)}m`;
-  const d = Math.floor(h / 24);
-  return `${d}d ${h % 24}h`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
-
-function formatMB(mb) {
-  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-  return `${Math.round(mb)} MB`;
-}
-
-function formatGB(mb) {
-  return `${(mb / 1024).toFixed(0)} GB`;
-}
-
-function barColor(pct) {
-  if (pct < 50) return '#4ade80';
-  if (pct < 80) return '#facc15';
-  return '#f87171';
-}
-
-function barColorClass(pct) {
-  if (pct < 50) return 'green';
-  if (pct < 80) return 'yellow';
-  return 'red';
-}
-
-function tempClass(t) {
-  if (t < 60) return 'cool';
-  if (t < 80) return 'warm';
-  return 'hot';
-}
-
+function formatMB(mb) { return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`; }
+function formatGB(mb) { return `${(mb / 1024).toFixed(0)} GB`; }
+function barColor(pct) { return pct < 50 ? '#4ade80' : pct < 80 ? '#facc15' : '#f87171'; }
+function barColorClass(pct) { return pct < 50 ? 'green' : pct < 80 ? 'yellow' : 'red'; }
+function tempClass(t) { return t < 60 ? 'cool' : t < 80 ? 'warm' : 'hot'; }
 function shortenGpuName(name) {
-  return name
-    .replace(/^NVIDIA\s+/i, '')
-    .replace(/\s+(Max-Q|Laptop|Desktop|Mobile)$/i, '')
-    .replace(/\s+Blackwell$/i, '')
-    .replace(/\s+Ada$/i, '')
-    .replace(/\s+Ampere$/i, '')
-    .replace(/\s+Hopper$/i, '');
+  return name.replace(/^NVIDIA\s+/i, '').replace(/\s+Workstation Edition$/i, '').replace(/\s+(Max-Q|Laptop|Desktop|Mobile)$/i, '')
+    .replace(/\s+Blackwell$/i, '').replace(/\s+Ada$/i, '').replace(/\s+Ampere$/i, '').replace(/\s+Hopper$/i, '');
 }
-
-function esc(str) {
-  const el = document.createElement('span');
-  el.textContent = str;
-  return el.innerHTML;
+function esc(str) { const el = document.createElement('span'); el.textContent = str == null ? '' : String(str); return el.innerHTML; }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
 }
-
-// ── Settings ────────────────────────────────────────────────────────────────
-
-function openSettings() {
-  document.getElementById('settingsGistId').value = config.gistId;
-  document.getElementById('settingsToken').value = config.token;
-  document.getElementById('settingsInterval').value = config.interval;
-  document.getElementById('settingsModal').classList.add('open');
-}
-
-function closeSettings() {
-  document.getElementById('settingsModal').classList.remove('open');
-}
-
-function saveSettings() {
-  const gistId = document.getElementById('settingsGistId').value.trim();
-  const token = document.getElementById('settingsToken').value.trim();
-  const interval = parseInt(document.getElementById('settingsInterval').value, 10) || 30;
-
-  if (!gistId) return;
-
-  config.gistId = gistId;
-  config.token = token;
-  config.interval = Math.max(10, Math.min(300, interval));
-
-  localStorage.setItem('gpu_dash_gist_id', config.gistId);
-  localStorage.setItem('gpu_dash_token', config.token);
-  localStorage.setItem('gpu_dash_interval', String(config.interval));
-
-  closeSettings();
-  fetchData();
-  startPolling();
-}
-
-function resetConfig() {
-  if (!confirm('Reset all settings? You will need to re-enter your Gist ID.')) return;
-  localStorage.removeItem('gpu_dash_gist_id');
-  localStorage.removeItem('gpu_dash_token');
-  localStorage.removeItem('gpu_dash_interval');
-  localStorage.removeItem('gpu_dash_filter_type');
-  localStorage.removeItem('gpu_dash_sort');
-  localStorage.removeItem('gpu_dash_collapsed');
-  config = { gistId: '', token: '', interval: 30 };
-  machines = {};
-  activeTypeFilter = 'all';
-  activeSortBy = 'recent';
-  searchQuery = '';
-  collapsedCards = {};
-  stopPolling();
-  closeSettings();
-  showWelcome();
-}
-
-// Close modal on overlay click
-document.getElementById('settingsModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeSettings();
-});
 
 // ── Start ───────────────────────────────────────────────────────────────────
 init();

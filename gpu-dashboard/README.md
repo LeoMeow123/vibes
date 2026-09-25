@@ -1,308 +1,193 @@
 # GPU Dashboard
 
-Monitor GPUs across multiple workstations from a single web page. No server required.
+Monitor the lab's GPUs from one web page, with live status and utilization history. Anyone with a **@salk.edu** email can sign in; no GitHub account or token is needed.
 
 ![GPU Dashboard Screenshot](screenshot.png)
 
 ## How It Works
 
 ```
-Workstation 1  ──push──►                              ◄──read── GitHub Pages
-Workstation 2  ──push──►  GitHub Gist (JSON store)    ◄──       Dashboard
-RunAI Pod      ──push──►
+Workstation 1 ──push──►                      ┌─ bridge ─►  Supabase (Postgres + Auth + Realtime)  ◄──read──  Dashboard (GitHub Pages)
+Workstation 2 ──push──►  GitHub Gist  ───────┤                 · gpu_latest    live cards
+RunAI pod     ──push──►  (agents, as before) │                 · gpu_samples   history & charts
+                                             └─ read ───►  Slack bot · daily report · 30-min alert (still on the Gist)
 ```
 
-A lightweight Python agent runs on each machine, collects GPU/CPU/RAM stats every 30 seconds, and pushes them to a GitHub Gist. The dashboard (a static HTML page on GitHub Pages) reads the Gist and displays everything.
-
-- **No server needed** — GitHub Gist is the data store, GitHub Pages hosts the dashboard
-- **No inbound ports** — agents push outbound to GitHub API
-- **Auto-pause** — stops polling when you switch browser tabs
-- **Works anywhere** — Ubuntu workstations, RunAI, any machine with `nvidia-smi` and Python
+- **Agents are unchanged.** Each machine runs the same small Python agent, pushing a JSON snapshot to the shared GitHub Gist every 30 s.
+- **A bridge copies the Gist into Supabase.** One instance (on the lab workstation) polls the Gist and writes the latest snapshot per machine, plus one history sample per GPU per minute. It also rolls history up to hourly rows and prunes raw rows after 14 days.
+- **The dashboard reads Supabase, not GitHub.** Sign in with a one-time code sent to your Salk email. Live cards update over Realtime; history charts are bucketed server-side.
+- **Access is enforced in the database.** Row-level security allows reads only for signed-in users whose email ends in `@salk.edu` (plus an optional allow-list). Writes are only possible with the service-role key, which lives on the bridge machine.
+- **Preferences are shared.** Renaming, hiding and reordering machines is stored in Supabase, so everyone sees the same layout. "Hide" replaces the old "Remove" (nothing is deleted; the machine keeps reporting).
 
 ## What It Shows
 
-| Per Machine | Per GPU | Per Process |
-|-------------|---------|-------------|
-| CPU usage & core count | Utilization % | Command line |
-| RAM usage | VRAM usage | GPU memory |
-| Uptime | Temperature | User |
-| Freshness (last report) | Power draw | Runtime |
+| Live (per machine) | Per GPU | Per process | History |
+|---|---|---|---|
+| CPU usage & core count | Utilization % + 30-min peak | Command line | GPU utilization, VRAM, temperature, power per GPU |
+| RAM usage, uptime | VRAM usage | GPU memory | CPU and RAM per machine |
+| Freshness (last report) | Temperature, power draw | User, runtime | Fleet view: average utilization per machine |
+| 3-hour utilization sparkline | | | Ranges 1h → 90d, table view for every chart |
+
+Raw per-minute history is kept for 14 days (configurable); hourly roll-ups are kept indefinitely, so long ranges always work.
+
+## Viewing the Dashboard
+
+1. Open **https://leomeow123.github.io/vibes/gpu-dashboard/**
+2. Enter your `@salk.edu` email and click **Send code**.
+3. Open the email **in the same browser** and click the sign-in link. You land back on the dashboard, signed in, and stay signed in on that browser. (Once custom SMTP is configured the email carries a 6-digit code instead, which you type into the page.)
+
+The built-in mailer can only send a couple of sign-in emails per hour across the whole lab. If you see "Email limit reached", wait a bit, or ask the maintainer to configure custom SMTP (see below).
+
+Preview without signing in: append `?demo=1` to the URL for synthetic data.
 
 ## Quick Start (Add Your Machine)
 
-No clone needed. Just run this on any machine with `nvidia-smi` and Python.
-
-### Workstation (Ubuntu with sudo)
+Unchanged from before. Run this on any machine with `nvidia-smi` and Python:
 
 ```bash
-# Install dependencies
 pip install psutil requests
-
-# Download and run the installer
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
 curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
-curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \
 SCRIPT_DIR=/tmp bash /tmp/gpu-install.sh
 ```
 
-The installer sets up a **systemd service** that auto-starts on boot. You're done.
-
-### RunAI (no sudo, no systemd)
+The installer asks for the lab Gist ID and token (ask the maintainer), sets up a systemd user service on workstations, and prints tmux/cron instructions on RunAI. Files are also on VAST:
 
 ```bash
-# Install dependencies (use whichever works in your environment)
-pip install psutil requests
-# or: uv pip install psutil requests --system
-# or: pip install --user psutil requests
-
-# Download and run the installer
-curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/install.sh -o /tmp/gpu-install.sh && \
-curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/gpu_agent.py -o /tmp/gpu_agent.py && \
-curl -sL https://raw.githubusercontent.com/LeoMeow123/vibes/main/gpu-dashboard/agent/config.json -o /tmp/config.json && \
-SCRIPT_DIR=/tmp bash /tmp/gpu-install.sh
+bash /home/exx/vast/leo/vibing/gpu-dashboard/agent/install.sh    # workstation
+bash /root/vast/leo/vibing/gpu-dashboard/agent/install.sh        # RunAI
 ```
 
-RunAI doesn't have systemd, so the installer will print manual instructions. **Run the agent in tmux** so it survives terminal disconnects:
+RunAI workspace restarts wipe the agent; re-run the installer and `tmux new -d -s gpu-agent "python3 ~/.local/bin/gpu-agent"` afterwards.
+
+## Maintainer Setup (one-time)
+
+### 1. Database
+
+In the lab Supabase project: **SQL Editor → New query**, paste `supabase/schema.sql`, **Run**. It is idempotent. If the editor limits paste size, run `supabase/parts/part1_of_6.sql` … `part6_of_6.sql` in order instead.
+
+This creates the `gpu_*` tables, the `gpu_is_salk_user()` check, the history functions, the maintenance functions, and adds `gpu_latest` / `gpu_machines` to the Realtime publication. Other tools sharing the project are untouched.
+
+### 2. Authentication
+
+In **Authentication**:
+
+- **Sign In / Providers → Email**: enabled (default). "Confirm email" stays on.
+- **URL Configuration** (required): set **Site URL** to `https://leomeow123.github.io/vibes/gpu-dashboard/` and add the same address under **Redirect URLs**. The sign-in link in the email redirects here; without this the link is refused.
+
+That is all that is needed. The default email carries a sign-in **link**, and `index.html` is set up for that (`CODE_IN_EMAIL = false`).
+
+**Optional, needs custom SMTP:** Supabase only lets you edit email templates once custom SMTP is configured (or on the Pro plan). After step 3 below, open **Emails → Templates → Magic Link**, put `{{ .Token }}` in the body so the email carries a 6-digit code, e.g.
+
+```html
+<h2>GPU Dashboard sign-in</h2>
+<p>Your one-time code is</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>It is valid for 1 hour. Or <a href="{{ .ConfirmationURL }}">click here to sign in</a>.</p>
+```
+
+then flip `CODE_IN_EMAIL` to `true` in `index.html` so the page leads with the code entry. Codes are handier than links when people read email on their phone but want the dashboard on a desktop.
+
+Anyone can *request* a sign-in email, but the database only returns data to `@salk.edu` accounts, so a stray sign-up sees nothing. To admit a collaborator without a Salk address:
+
+```sql
+insert into public.gpu_allowed_emails (email, note) values ('someone@ucsd.edu', 'rotation student');
+```
+
+### 3. Optional: custom SMTP
+
+Supabase's built-in mailer allows **2 auth emails per hour** per project and locks the email templates. That is workable once everyone is signed in (sessions persist per browser), but onboarding the lab in one afternoon needs more, and the code-in-email flow needs editable templates.
+
+Most SMTP providers (Resend, Postmark, SendGrid) require a verified sending domain, which the lab does not have. The zero-domain option is a Gmail account with an app password:
+
+1. On a Google account you control (a lab Gmail is ideal), turn on 2-step verification, then create an **App password** (Google Account → Security → App passwords).
+2. In Supabase: **Authentication → Emails → SMTP Settings** (older layout: **Project Settings → Authentication → SMTP**). Enable custom SMTP with host `smtp.gmail.com`, port `587`, username = the Gmail address, password = the app password, sender email = the Gmail address, sender name `GPU Dashboard`.
+3. Under **Authentication → Rate Limits**, raise "emails sent per hour" to something like 30.
+
+Gmail allows about 500 messages per day, far more than the lab will use.
+
+### 4. Bridge
+
+On one machine that has the agent config (the lab workstation that runs the Slack bot is the natural choice):
 
 ```bash
-tmux new -d -s gpu-agent "python3 ~/.local/bin/gpu-agent"
+bash /home/exx/vast/leo/vibing/gpu-dashboard/bridge/install.sh
 ```
 
-Check it's running:
+It asks for the project URL and the **service_role** key (Project Settings → API Keys; never the anon/publishable key), writes `~/.config/gpu-dashboard/supabase.json` with mode 600, does a dry run, one real pass, and installs the `gpu-bridge` systemd user service.
+
 ```bash
-tmux ls                      # should show gpu-agent session
-tmux attach -t gpu-agent     # peek at output (Ctrl+B, D to detach)
+systemctl --user status gpu-bridge        # running?
+journalctl --user -u gpu-bridge -f        # logs: one line per pass
+gpu-bridge --status                       # what Supabase holds
+gpu-bridge --dry-run                      # read the Gist, write nothing
 ```
 
-> **Note:** RunAI workspace restarts wipe everything. After a restart, re-run the installer and the tmux command.
+### 5. Dashboard
 
-### If you already have VAST access
+`index.html` has the project URL and publishable key near the top of the script (`SUPA_URL`, `SUPA_KEY`). The publishable key is meant to be public; row-level security does the gating. Push to `main` and GitHub Pages serves it. The previous Gist-based page is kept as `legacy.html`.
 
-Even simpler — the files are already on VAST:
-```bash
-# Workstation:
-bash /home/exx/vast/leo/vibing/gpu-dashboard/agent/install.sh
+## Data Model
 
-# RunAI:
-bash /root/vast/leo/vibing/gpu-dashboard/agent/install.sh
+| Table | Contents | Retention |
+|---|---|---|
+| `gpu_machines` | one row per machine: label, hostname, type, `display_name`, `hidden`, `sort_order` | forever |
+| `gpu_latest` | latest full agent snapshot per machine (JSON, same shape as the Gist file) | latest only |
+| `gpu_samples` | per-GPU util / VRAM / temp / power, ~1 row per GPU per minute | 14 days |
+| `gpu_host_samples` | CPU / RAM per machine, same cadence | 14 days |
+| `gpu_samples_hourly`, `gpu_host_samples_hourly` | hourly averages and maxima | forever |
+| `gpu_allowed_emails` | viewers without a Salk address | forever |
 
-# Divya:
-bash /mnt/vast/leo/vibing/gpu-dashboard/agent/install.sh
-```
+Functions viewers can call: `gpu_history`, `gpu_host_history`, `gpu_fleet_history` (bucketed server-side, raw where available and hourly beyond), `gpu_set_order`. Maintenance (service role only): `gpu_rollup_hourly`, `gpu_prune`.
 
-### First-time setup (dashboard owner only)
-
-If you're setting up a NEW dashboard from scratch:
-
-1. Create a **secret** [GitHub Gist](https://gist.github.com) with any content → copy the Gist ID from the URL
-2. Create a [Personal Access Token](https://github.com/settings/tokens) → classic → check only `gist` → Generate
-3. Run the installer on your first machine (it will ask for the Gist ID and token)
-4. Open [GPU Dashboard](https://leomeow123.github.io/vibes/gpu-dashboard/) → click Settings → enter your Gist ID
-5. Share the Gist ID with your team so they can add their machines
+At the current scale (about 13 GPUs) raw history is roughly 20k rows per day, well inside the free tier.
 
 ## Slack Integration
 
-Get GPU status directly in Slack with the `/gpu-status` command.
-
-![GPU Monitor Slack App](slack-app.png)
-
-### Slack Commands
-
-![Slack Commands](slack-commands.png)
+Unchanged: `/gpu-status` and the daily report still read the Gist, which the agents keep writing.
 
 | Command | Description |
-|---------|-------------|
-| `/gpu-status` | Show the shared lab dashboard (all lab machines) |
-| `/gpu-status mine` | Show your personal dashboard |
-| `/gpu-status register GIST_ID` | Link your Gist ID (one-time setup, for public gists) |
-| `/gpu-status register GIST_ID TOKEN` | Link your Gist with a GitHub token (for private gists) |
-| `/gpu-status unregister` | Remove your linked Gist |
-| `/gpu-status help` | Show all commands |
-
-### Example Output
-
-![Slack Status Report](slack-status.png)
-
-### Setup for your personal dashboard
-
-1. Set up the GPU agent on your machine (see Quick Start above)
-2. Register your Gist ID in Slack (one-time):
-   ```
-   /gpu-status register YOUR_GIST_ID
-   ```
-3. View your dashboard anytime:
-   ```
-   /gpu-status mine
-   ```
-
-The lab dashboard (`/gpu-status`) works for everyone without registration.
+|---|---|
+| `/gpu-status` | Shared lab dashboard (all machines) |
+| `/gpu-status mine` | Your personal dashboard |
+| `/gpu-status register GIST_ID [TOKEN]` | Link your own Gist |
+| `/gpu-status unregister` | Remove the link |
+| `/gpu-status help` | All commands |
 
 ## Agent Usage
 
 ```bash
-# Run continuously (default 30s interval)
-python3 gpu_agent.py
-
-# Single snapshot then exit (for cron)
-python3 gpu_agent.py --once
-
-# Custom interval
+python3 gpu_agent.py              # run continuously (default 30 s)
+python3 gpu_agent.py --once       # single snapshot (for cron)
 python3 gpu_agent.py --interval 60
-
-# Print snapshot without pushing (test)
-python3 gpu_agent.py --dry-run
+python3 gpu_agent.py --dry-run    # print the snapshot without pushing
 ```
 
-## RunAI Workspaces
+Config lives in `~/.config/gpu-dashboard/config.json` or environment variables:
 
-RunAI workspaces don't have systemd. Run the agent in tmux instead:
-
-```bash
-tmux new -s gpu-agent
-python3 ~/.local/bin/gpu-agent
-# Ctrl-B, D to detach
-```
-
-Or use cron for single snapshots every minute:
-```bash
-crontab -e
-# Add: * * * * * python3 ~/.local/bin/gpu-agent --once
-```
-
-Note: RunAI workspace restarts wipe the agent — re-run `install.sh` after a restart.
-
-## Inference Progress Tracking
-
-The dashboard can track long-running SLEAP inference jobs. When configured, each machine card shows per-camera progress bars, video counts, FPS, and estimated time remaining. A summary card in the top bar shows overall inference completion across all machines.
-
-### How It Works
-
-```
-JSONL progress logs ──read──► GPU Agent ──push──► Gist ──read──► Dashboard
-(written by inference)         (parses & summarizes)              (renders progress)
-```
-
-The inference script writes one JSONL line per completed video to `{camera}_progress.jsonl` files. The agent reads these logs, computes summary stats (videos done/total, avg FPS, ETA), and includes them in the Gist snapshot. The dashboard renders progress bars and per-camera breakdowns.
-
-### JSONL Log Format
-
-Each line in `{camera}_progress.jsonl` must be valid JSON with these fields:
-
-```json
-{
-  "status": "completed",
-  "camera": "cam_01",
-  "gpu": 0,
-  "session": "2024-12-07-00-01-04",
-  "video": "cam_01.08.mp4",
-  "fps": 119.6,
-  "runtime_sec": 1503.2,
-  "frames": 180000,
-  "videos_done": 42,
-  "videos_total": 15935,
-  "sessions_done": 3,
-  "sessions_total": 10900,
-  "timestamp": "2026-02-27T00:44:52Z"
-}
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `status` | yes | `"completed"` or `"failed"` |
-| `videos_done` | yes | Cumulative count of finished videos for this camera |
-| `videos_total` | yes | Total videos to process for this camera |
-| `fps` | no | Frames per second for this video (used for avg FPS) |
-| `runtime_sec` | no | Wall-clock seconds for this video (used for ETA) |
-| `camera` | no | Camera name (also derived from filename) |
-| `gpu` | no | GPU index (shown in dashboard) |
-| `timestamp` | no | ISO 8601 timestamp (used for wall-clock ETA) |
-| `session` | no | Session identifier |
-| `video` | no | Video filename |
-| `sessions_done` / `sessions_total` | no | Session-level progress |
-| `frames` | no | Frame count (informational only) |
-
-### Setup
-
-Add two fields to `~/.config/gpu-dashboard/config.json`:
-
-```json
-{
-    "gist_id": "YOUR_GIST_ID",
-    "github_token": "ghp_YOUR_TOKEN",
-    "machine_label": "blackwell-workstation",
-    "machine_type": "workstation",
-    "interval_seconds": 120,
-    "inference_log_dir": "/path/to/inference_log",
-    "inference_refresh_seconds": 3600
-}
-```
-
-| Config Key | Env Variable | Description |
-|------------|-------------|-------------|
-| `inference_log_dir` | `GPU_DASH_INFERENCE_LOG_DIR` | Directory containing `*_progress.jsonl` files. Leave empty to disable. |
-| `inference_refresh_seconds` | — | How often to re-parse the JSONL logs (default: 3600 = 1 hour). Between refreshes, the cached summary is included in every push. |
-
-Then restart the agent:
-
-```bash
-systemctl --user restart gpu-agent
-```
-
-Verify with a dry run:
-
-```bash
-GPU_DASH_INFERENCE_LOG_DIR=/path/to/inference_log gpu-agent --dry-run | python3 -m json.tool
-```
-
-Look for the `"inference"` key in the output.
-
-### Dashboard Display
-
-When inference data is present, the dashboard shows:
-
-- **Summary bar** — purple "Inference" card with overall completion percentage
-- **Machine card** — "Inference Progress" section with:
-  - Total videos done / total, overall percentage, average FPS, failed count
-  - Overall progress bar (red → yellow → green as completion increases)
-  - Per-camera cards with individual progress bars, video counts, FPS, and ETA
-
-### Caching & Performance
-
-The agent caches inference stats to avoid re-parsing thousands of JSONL lines on every push cycle (default every 120s). The cache refreshes once per `inference_refresh_seconds` (default 1 hour). With ~6,000 JSONL lines across 4 cameras, a full re-parse takes under 1 second.
-
-### Backward Compatibility
-
-- If `inference_log_dir` is empty or missing, no inference data is collected — existing behavior is unchanged
-- Old agents (without inference code) work with the new dashboard — the inference section simply doesn't appear
-- New agents work with old dashboards — the extra `inference` key in the Gist is ignored
-
-## Configuration
-
-The agent reads config from `~/.config/gpu-dashboard/config.json` or environment variables:
-
-| Config Key | Env Variable | Description |
-|------------|-------------|-------------|
-| `gist_id` | `GPU_DASH_GIST_ID` | GitHub Gist ID |
-| `github_token` | `GPU_DASH_GITHUB_TOKEN` | GitHub PAT with `gist` scope |
-| `machine_label` | `GPU_DASH_LABEL` | Display name on dashboard |
+| Config key | Env variable | Description |
+|---|---|---|
+| `gist_id` | `GPU_DASH_GIST_ID` | Shared Gist ID |
+| `github_token` | `GPU_DASH_GITHUB_TOKEN` | GitHub token with `gist` scope |
+| `machine_label` | `GPU_DASH_LABEL` | Display name (also the machine key in Supabase) |
 | `machine_type` | `GPU_DASH_TYPE` | `workstation` or `runai` |
-| `interval_seconds` | — | Polling interval (default 120) |
-| `inference_log_dir` | `GPU_DASH_INFERENCE_LOG_DIR` | Path to JSONL inference logs (optional) |
-| `inference_refresh_seconds` | — | Cache duration for inference parsing (default 3600) |
+| `interval_seconds` | — | Push interval (default 120) |
+| `inference_log_dir` | `GPU_DASH_INFERENCE_LOG_DIR` | SLEAP inference JSONL logs (optional) |
+| `roi_log_dir` | `GPU_DASH_ROI_LOG_DIR` | ROI backfill worker logs (optional) |
 
-## Security
+### Inference and ROI progress
 
-- PAT only needs `gist` scope — cannot access repos or org settings
-- Config file stored with `chmod 600` (owner-only read)
-- Gist is **secret** (not listed on your profile, but readable by anyone with the URL)
-- Dashboard stores Gist ID in browser `localStorage`
+If `inference_log_dir` / `roi_log_dir` are set, the agent parses those logs and attaches progress summaries to its snapshot; the dashboard renders per-camera progress bars, FPS and ETA on that machine's card and an "Inference" summary tile. The JSONL format is documented in the agent source (`collect_inference`).
 
-## Rate Limits
+## Security Notes
 
-| Action | Rate Limit | Typical Usage |
-|--------|-----------|---------------|
-| Agent writes (with PAT) | 5,000/hr | 3 machines × 2/min = 360/hr |
-| Dashboard reads (no token) | 60/hr | 1/min = 60/hr |
-| Dashboard reads (with token) | 5,000/hr | comfortable margin |
+- Viewers authenticate with Supabase Auth; data access is enforced by row-level security on every `gpu_*` table. Anonymous requests get nothing.
+- The service-role key exists only in `~/.config/gpu-dashboard/supabase.json` (mode 600) on the bridge machine.
+- The Gist and its token still work exactly as before, but nobody needs them to *view* anything anymore.
+- Snapshots include usernames and command lines of GPU processes, as they always did; they are now visible only to Salk accounts.
 
-Add your token in dashboard Settings for reliable polling at 30s intervals.
+## Roadmap
+
+- **Phase 2, ingest:** agents post straight to Supabase with a per-machine key (revocable), retiring the shared Gist token and the bridge.
+- Slack bot and reports read Supabase instead of the Gist.
+- "Sign in with Microsoft" via Salk's Entra tenant, if IT ever registers the app; Supabase Auth supports it with no other changes.

@@ -352,7 +352,7 @@
   <!-- Sign-in -->
   <div id="authScreen" class="welcome" style="display:none;">
     <h2>GPU Dashboard</h2>
-    <p id="authIntro">Sign in with your Salk email. You'll get a one-time sign-in email; there is no password.</p>
+    <p id="authIntro">Sign in with your Salk email. You'll get a 6-digit code by email; there is no password.</p>
     <div class="auth-card">
       <div class="auth-step" id="authStep1">
         <label>Salk email
@@ -419,7 +419,7 @@ const ALLOWED_DOMAIN = 'salk.edu';
 // Supabase only lets you customise auth emails once custom SMTP is configured. Until then the
 // default template is sent, which carries a sign-in LINK and no code. Set this to true after
 // adding {{ .Token }} to the Magic Link template (see README) so the UI leads with the code.
-const CODE_IN_EMAIL = false;
+const CODE_IN_EMAIL = true;
 const DEMO = new URLSearchParams(location.search).has('demo');
 
 // Categorical palette (dark-surface steps). Slot = GPU index for per-machine charts,

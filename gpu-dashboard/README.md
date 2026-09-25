@@ -75,7 +75,7 @@ In **Authentication**:
 - **Sign In / Providers → Email**: enabled (default). "Confirm email" stays on.
 - **URL Configuration** (required): set **Site URL** to `https://leomeow123.github.io/vibes/gpu-dashboard/` and add the same address under **Redirect URLs**. The sign-in link in the email redirects here; without this the link is refused.
 
-That is all that is needed. The default email carries a sign-in **link**, and `index.html` is set up for that (`CODE_IN_EMAIL = false`).
+Salk's mail security opens links before recipients do, which consumes one-time sign-in links, so the dashboard is set to code-based sign-in (`CODE_IN_EMAIL = true`). That requires the SMTP and template steps below.
 
 **Optional, needs custom SMTP:** Supabase only lets you edit email templates once custom SMTP is configured (or on the Pro plan). After step 3 below, open **Emails → Templates → Magic Link**, put `{{ .Token }}` in the body so the email carries a 6-digit code, e.g.
 

@@ -475,12 +475,29 @@ function lsJson(k, d) { try { return JSON.parse(localStorage.getItem(k) || 'null
 // Init & auth
 // ═══════════════════════════════════════════════════════════════════════════
 
+let pendingUrlError = '';
+
+// Supabase redirects failed link sign-ins back here with #error=...&error_description=...
+function readUrlAuthError() {
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const q = new URLSearchParams(location.search);
+  const code = h.get('error_code') || q.get('error_code') || '';
+  const desc = h.get('error_description') || q.get('error_description') || '';
+  if (!code && !desc) return '';
+  history.replaceState(null, '', location.pathname);
+  if (/otp_expired|expired|invalid/i.test(code + ' ' + desc)) {
+    return 'That sign-in link was already used or has expired. Salk\'s email security often opens links before you do, which uses them up. Request a new email, and ask the maintainer to switch to code-based sign-in, which scanners cannot consume.';
+  }
+  return 'Sign-in failed: ' + desc.replace(/\+/g, ' ');
+}
+
 async function init() {
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('resize', debounce(resizeCharts, 150));
 
   if (DEMO) { enterDemo(); return; }
 
+  pendingUrlError = readUrlAuthError();
   sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   });
@@ -516,7 +533,12 @@ function showScreen(which) {
     document.getElementById('statusText').textContent = '';
   }
   if (which === 'denied') document.getElementById('deniedEmail').textContent = currentUser?.email || '';
-  if (which === 'auth') { resetAuth(); setTimeout(() => document.getElementById('authEmail')?.focus(), 50); }
+  if (which === 'auth') {
+    resetAuth();
+    if (pendingUrlError) authError(pendingUrlError);
+    setTimeout(() => document.getElementById('authEmail')?.focus(), 50);
+  }
+  if (which === 'dashboard') pendingUrlError = '';
 }
 
 let pendingEmail = '';
@@ -525,6 +547,7 @@ async function sendCode() {
   const email = document.getElementById('authEmail').value.trim().toLowerCase();
   const re = new RegExp('^[^@\\s]+@' + ALLOWED_DOMAIN.replace(/\./g, '\\.') + '$');
   if (!re.test(email)) return authError(`Use your @${ALLOWED_DOMAIN} address.`);
+  pendingUrlError = '';
   authError('');
   setBusy('authSendBtn', true, 'Sending…');
   const { error } = await sb.auth.signInWithOtp({

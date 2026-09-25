@@ -83,7 +83,7 @@ Salk's mail security opens links before recipients do, which consumes one-time s
 <h2>GPU Dashboard sign-in</h2>
 <p>Your one-time code is</p>
 <p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
-<p>It is valid for 1 hour. Or <a href="{{ .ConfirmationURL }}">click here to sign in</a>.</p>
+<p>Type it into the dashboard page you already have open. It is valid for 1 hour.</p>
 ```
 
 The dashboard already leads with the code entry (`CODE_IN_EMAIL = true` in `index.html`). Do this for **both** the "Confirm signup" template (first-time users) and the "Magic Link" template (returning users). Leaving the link out means a mail scanner has nothing to consume.

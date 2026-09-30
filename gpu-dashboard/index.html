@@ -383,7 +383,9 @@ const SPARK_SECONDS = 3 * 3600, SPARK_BUCKET = 300, SPARK_TTL_MS = 5 * 60 * 1000
 const FLEET = '__fleet__';
 // SLEAP inference progress and recording health live in the HCM Monitor (its own Pages site).
 const HCM_URL = 'https://leomeow123.github.io/hcm-dashboard/#inference-panel';
-const BUSY_UTIL = 10;          // a GPU with no visible process but util above this is "in use"
+const BUSY_UTIL = 10;          // util at/above this is "in use"
+const BUSY_MEM_MB = 2048;      // processes holding this much VRAM count as in use even at 0% (idle kernel with a model loaded);
+                               // below it with 0% util is desktop use (remote desktop, file manager) and the GPU is free
 const RECENT_PEAK = 30;        // idle right now, but peaked above this in the agent's 30-min window: not safe to grab
 const GLITCH_UTIL = 90;        // util this high with ~no memory and no process = driver reporting glitch
 const GLITCH_MEM_MB = 64;
@@ -759,12 +761,12 @@ function machineSlot(key) {
 // 'free' | 'busy' | 'recent' | 'offline'
 // 'recent' = nothing running at the sampled instant, but the GPU peaked above RECENT_PEAK within
 // the agent's 30-minute window. Jobs that restart per file look like this between files; treat as taken.
+function procMemMb(g) { return (g.processes || []).reduce((s, p) => s + (Number(p.gpu_memory_mb) || 0), 0); }
 function gpuState(g, stale) {
   if (stale) return 'offline';
-  const procs = (g.processes || []).length;
   const util = g.utilization_percent ?? 0;
   const peak = g.utilization_peak_percent ?? util;
-  if (procs > 0 || util >= BUSY_UTIL) return 'busy';
+  if (util >= BUSY_UTIL || procMemMb(g) >= BUSY_MEM_MB) return 'busy';
   if (peak >= RECENT_PEAK) return 'recent';
   return 'free';
 }
@@ -1118,6 +1120,10 @@ function renderGpuRow(g, stale) {
   }
   else if (state === 'busy') who = `<span class="who-idle">in use · ${util}% util, no visible process</span>`;
   else if (state === 'recent') who = `<span class="who-recent" title="Nothing was running at the last sample, but this GPU was active within the past 30 minutes. Jobs that restart per file look like this between files.">idle now · ${peak ?? 0}% peak in the last 30 min</span>`;
+  else if (procs.length) {
+    const users = [...new Set(procs.map(p => p.user).filter(Boolean))].join(', ');
+    who = `<span class="who-free">free</span> <span class="who-idle" title="${esc(procs.map(p => p.command || '').join('\n'))}">· light desktop use, ${formatMB(procMemMb(g))}${users ? ' by ' + esc(users) : ''}</span>`;
+  }
   else who = `<span class="who-free">free</span>`;
 
   return `

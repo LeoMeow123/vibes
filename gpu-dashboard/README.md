@@ -31,7 +31,7 @@ The live page is built around one question: **which GPUs are free right now, and
 
 SLEAP inference progress is not shown here anymore; the **Inference progress** tile and the header link jump to the [HCM Monitor](https://leomeow123.github.io/hcm-dashboard/#inference-panel), which tracks inference and recording health.
 
-GPU states: **busy** = a visible process or utilization at or above 10%; **recently active** = idle at the last sample but above 30% at some point in the agent's 30-minute peak window (jobs that restart per file look like this between files, so it is not counted as free); **free** = neither; **offline** = the machine has not reported for 10 minutes. A GPU reporting 90%+ utilization with under 64 MB in use and no process is flagged as a likely driver reporting glitch, since no CUDA context can exist in 0 MB.
+GPU states: **busy** = utilization at or above 10%, or processes holding 2 GB or more of VRAM (an idle kernel with a model loaded still owns the GPU; desktop apps below that do not); **recently active** = idle at the last sample but above 30% at some point in the agent's 30-minute peak window (jobs that restart per file look like this between files, so it is not counted as free); **free** = neither; **offline** = the machine has not reported for 10 minutes. A GPU reporting 90%+ utilization with under 64 MB in use and no process is flagged as a likely driver reporting glitch, since no CUDA context can exist in 0 MB.
 
 Agents should push every 30 s (`interval_seconds`); a 5-minute interval makes a momentary reading stick on the page for 5 minutes.
 
@@ -151,15 +151,25 @@ At the current scale (about 13 GPUs) raw history is roughly 20k rows per day, we
 
 ## Slack Integration
 
-Unchanged: `/gpu-status` and the daily report still read the Gist, which the agents keep writing.
+Everything Slack lives in `agent/`; secrets live in `~/.config/gpu-dashboard/slack.json` (`webhook`, `bot_token`, `app_token`), never in the scripts.
 
-| Command | Description |
-|---|---|
-| `/gpu-status` | Shared lab dashboard (all machines) |
-| `/gpu-status mine` | Your personal dashboard |
-| `/gpu-status register GIST_ID [TOKEN]` | Link your own Gist |
-| `/gpu-status unregister` | Remove the link |
-| `/gpu-status help` | All commands |
+| What | When | Script |
+|---|---|---|
+| `/gpu-status` slash command | on demand, reply visible only to you | `slack_bot.py` (systemd user service `gpu-slack-bot`) |
+| Daily GPU report | weekdays 8 AM | `slack_status.sh` → `slack_report.py --daily --post` |
+| Offline / recovery alert | every 30 min, only on change | `slack_alert.sh` |
+| `/hcm-status` | on demand | `slack_bot.py` |
+
+The status message is built once, in `slack_report.py`, from the same Supabase data the dashboard shows (renames and hidden machines included), with the same free / busy / recently active / offline rules. It leads with the number of free GPUs, gives one line per machine (state squares, free count, average utilization, who), adds a **Needs attention** block only when something is wrong (offline machine, driver glitch, GPU above 88 °C, VRAM nearly full), and ends with who is using GPUs and links to the dashboard and the HCM Monitor. The daily report adds one line: last-24-hour fleet utilization with the busiest and quietest machine. No per-process dumps, no inference sections.
+
+```bash
+python3 agent/slack_report.py --dry            # preview the status as text
+python3 agent/slack_report.py --daily --dry    # preview the daily report
+python3 agent/slack_report.py --json           # Block Kit JSON
+systemctl --user restart gpu-slack-bot         # after editing slack_bot.py
+```
+
+`/gpu-status mine`, `register` and `unregister` still work for personal Gists.
 
 ## Agent Usage
 
@@ -191,6 +201,28 @@ The agent may still attach SLEAP inference / ROI progress summaries to its snaps
 
 ## Roadmap
 
-- **Phase 2, ingest:** agents post straight to Supabase with a per-machine key (revocable), retiring the shared Gist token and the bridge.
-- Slack bot and reports read Supabase instead of the Gist.
-- "Sign in with Microsoft" via Salk's Entra tenant, if IT ever registers the app; Supabase Auth supports it with no other changes.
+Ideas gathered from using the dashboard as a lab tool. Roughly in priority order; nothing here is started unless marked.
+
+### Next up
+
+- **Claim a GPU.** Click a free GPU, enter your name and an expected duration, and everyone sees "reserved by … until …". Claims expire on their own and clear when a process appears. Same shared-prefs mechanism as rename/hide.
+- **Notify me when a GPU frees up.** A button on a busy machine that sends a Slack DM the next time a GPU there turns free. Same path gives "machine went offline" and "GPU over 85 °C" alerts.
+- **`gpu-pick` command line tool.** Prints the freest GPU on a machine so scripts can do `CUDA_VISIBLE_DEVICES=$(gpu-pick)`.
+- **Phase 2 ingest.** Agents post straight to Supabase with a per-machine revocable key; the shared Gist token and the bridge retire.
+
+### Later
+
+- **Usage by person.** Store process users with each history sample; show GPU-hours per user per week and a day-by-hour heatmap of when the fleet is usually free.
+- **Machine health beyond GPUs.** Agent reports disk free on home and the VAST mount, driver and CUDA versions, and its own version. Disk-full is what actually kills jobs.
+- **Small UI things.** Free-GPU count in the browser tab title; shareable URLs that encode view, machine and range; a compact wall-monitor mode.
+- **Slack bot reads Supabase** for everything (the status report already does).
+
+### Shared with the HCM Monitor
+
+- **One visual language.** Same header, a nav strip linking every lab tool (GPU, HCM, Colony, T-maze, Papers), same status colours and card styles from one small shared stylesheet.
+- **Phone layout** for both, since people check from home.
+- **Freshness everywhere.** Every number says when it was measured and when the next update is due.
+
+### Slack
+
+The bot and the daily report were redesigned to lead with free GPUs, one line per machine, a "Needs attention" block only when something is wrong, and who is using what. Inference progress is linked to the HCM Monitor rather than repeated. See `agent/slack_report.py`.

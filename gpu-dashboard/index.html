@@ -87,7 +87,7 @@
   .tile .val small { font-size: 14px; color: var(--muted); font-weight: 500; }
   .tile .sub { font-size: 11px; color: var(--muted); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; }
   .tile .sub .dot { color: var(--faint); }
-  .st-free { color: var(--free); } .st-busy { color: var(--busy); } .st-off { color: var(--bad); }
+  .st-free { color: var(--free); } .st-busy { color: var(--busy); } .st-off { color: var(--bad); } .st-recent { color: #8fa3ff; }
   .st-ws { color: var(--accent); } .st-runai { color: #a78bfa; }
   a.tile-link { display: block; text-decoration: none; border-color: #2f2a44; transition: border-color 0.15s, background 0.15s; }
   a.tile-link:hover { border-color: #a78bfa; background: #1d1a26; }
@@ -106,6 +106,7 @@
   .avail-gpu { width: 14px; height: 14px; border-radius: 3px; background: #2e2e2e; }
   .avail-gpu.free { background: var(--free); }
   .avail-gpu.busy { background: var(--busy); }
+  .avail-gpu.recent { background: #2a2a2a; border: 2px solid var(--busy); }
   .avail-gpu.offline { background: #2a2a2a; border: 1px solid #f8717166; }
   .avail-legend { margin-left: auto; display: inline-flex; gap: 12px; font-size: 11px; color: var(--muted); }
   .avail-legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -187,6 +188,7 @@
   .gpu-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: #444; }
   .gpu-dot.free { background: var(--free); box-shadow: 0 0 5px #4ade8066; }
   .gpu-dot.busy { background: var(--busy); }
+  .gpu-dot.recent { background: transparent; border: 2px solid var(--busy); }
   .gpu-dot.offline { background: #333; border: 1px solid #f8717166; }
   .gpu-id-text { min-width: 0; }
   .gpu-idx { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -208,6 +210,7 @@
   .gpu-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .who-free { color: var(--free); font-size: 12px; font-weight: 500; }
   .who-idle { color: var(--muted); font-size: 12px; font-style: italic; }
+  .who-recent { color: #8fa3ff; font-size: 12px; }
   .who-off { color: var(--faint); font-size: 12px; font-style: italic; }
   .proc { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; min-width: 0; }
   .proc-user { color: var(--accent); font-size: 12px; font-weight: 600; }
@@ -381,6 +384,9 @@ const FLEET = '__fleet__';
 // SLEAP inference progress and recording health live in the HCM Monitor (its own Pages site).
 const HCM_URL = 'https://leomeow123.github.io/hcm-dashboard/#inference-panel';
 const BUSY_UTIL = 10;          // a GPU with no visible process but util above this is "in use"
+const RECENT_PEAK = 30;        // idle right now, but peaked above this in the agent's 30-min window: not safe to grab
+const GLITCH_UTIL = 90;        // util this high with ~no memory and no process = driver reporting glitch
+const GLITCH_MEM_MB = 64;
 const STALE_SECONDS = 600;     // no report for this long = offline
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -750,16 +756,25 @@ function machineSlot(key) {
   return SERIES[(i < 0 ? 0 : i) % SERIES.length];
 }
 
-// 'free' | 'busy' | 'offline'
+// 'free' | 'busy' | 'recent' | 'offline'
+// 'recent' = nothing running at the sampled instant, but the GPU peaked above RECENT_PEAK within
+// the agent's 30-minute window. Jobs that restart per file look like this between files; treat as taken.
 function gpuState(g, stale) {
   if (stale) return 'offline';
   const procs = (g.processes || []).length;
   const util = g.utilization_percent ?? 0;
-  return (procs > 0 || util >= BUSY_UTIL) ? 'busy' : 'free';
+  const peak = g.utilization_peak_percent ?? util;
+  if (procs > 0 || util >= BUSY_UTIL) return 'busy';
+  if (peak >= RECENT_PEAK) return 'recent';
+  return 'free';
+}
+// util pegged high with no memory in use and no process: the driver is misreporting, nothing can be running
+function isGlitch(g) {
+  return (g.processes || []).length === 0 && (g.utilization_percent ?? 0) >= GLITCH_UTIL && (g.memory_used_mb || 0) < GLITCH_MEM_MB;
 }
 function gpuCounts(e) {
   const stale = isStale(e);
-  const c = { free: 0, busy: 0, offline: 0, total: 0 };
+  const c = { free: 0, busy: 0, recent: 0, offline: 0, total: 0 };
   for (const g of (e.snap.gpus || [])) { c[gpuState(g, stale)]++; c.total++; }
   return c;
 }
@@ -769,7 +784,7 @@ function computeStats() {
   if (activeTypeFilter !== 'all') all = all.filter(e => entryType(e) === activeTypeFilter);
 
   let wsCount = 0, runaiCount = 0, onlineMachines = 0, staleMachines = 0;
-  let totalGpus = 0, freeGpus = 0, busyGpus = 0, offlineGpus = 0;
+  let totalGpus = 0, freeGpus = 0, busyGpus = 0, recentGpus = 0, offlineGpus = 0;
   let totalPowerDraw = 0, totalPowerLimit = 0, hasPower = false;
   let totalVramUsed = 0, totalVramTotal = 0, utilSum = 0, utilN = 0, totalProcesses = 0;
 
@@ -780,7 +795,7 @@ function computeStats() {
     for (const g of (e.snap.gpus || [])) {
       totalGpus++;
       const st = gpuState(g, stale);
-      if (st === 'free') freeGpus++; else if (st === 'busy') busyGpus++; else offlineGpus++;
+      if (st === 'free') freeGpus++; else if (st === 'busy') busyGpus++; else if (st === 'recent') recentGpus++; else offlineGpus++;
       totalVramUsed += (g.memory_used_mb || 0);
       totalVramTotal += (g.memory_total_mb || 0);
       if (!stale) { utilSum += (g.utilization_percent ?? 0); utilN++; }
@@ -791,7 +806,7 @@ function computeStats() {
   }
   return {
     totalMachines: all.length, onlineMachines, staleMachines, wsCount, runaiCount,
-    totalGpus, freeGpus, busyGpus, offlineGpus,
+    totalGpus, freeGpus, busyGpus, recentGpus, offlineGpus,
     avgUtil: utilN ? Math.round(utilSum / utilN) : 0,
     totalVramUsed, totalVramTotal, totalProcesses,
     totalPowerDraw: Math.round(totalPowerDraw), totalPowerLimit: Math.round(totalPowerLimit), hasPower,
@@ -819,7 +834,7 @@ function renderSummary(s) {
     <div class="tile">
       <div class="lbl">Free GPUs</div>
       <div class="val ${freeClass}">${s.freeGpus}<small> / ${s.totalGpus}</small></div>
-      <div class="sub"><span class="st-busy">${s.busyGpus} busy</span>${s.offlineGpus ? `<span class="dot">&middot;</span><span class="st-off">${s.offlineGpus} offline</span>` : ''}</div>
+      <div class="sub"><span class="st-busy">${s.busyGpus} busy</span>${s.recentGpus ? `<span class="dot">&middot;</span><span class="st-recent" title="Idle at the last sample but active within the past 30 minutes">${s.recentGpus} recently active</span>` : ''}${s.offlineGpus ? `<span class="dot">&middot;</span><span class="st-off">${s.offlineGpus} offline</span>` : ''}</div>
     </div>
     <div class="tile">
       <div class="lbl">Machines online</div>
@@ -865,13 +880,13 @@ function renderAvailability() {
       const squares = (e.snap.gpus || []).slice().sort((a, b) => a.index - b.index).map(g => {
         const st = gpuState(g, stale);
         const who = [...new Set((g.processes || []).map(p => p.user).filter(Boolean))];
-        const title = `${displayName(e.key)} · GPU ${g.index} · ${st}${st === 'busy' ? ` · ${g.utilization_percent ?? 0}%${who.length ? ' · ' + who.join(', ') : ''}` : ''}`;
+        const title = `${displayName(e.key)} · GPU ${g.index} · ${st === 'recent' ? `idle now, ${g.utilization_peak_percent ?? 0}% peak in last 30 min` : st}${st === 'busy' ? ` · ${g.utilization_percent ?? 0}%${who.length ? ' · ' + who.join(', ') : ''}` : ''}`;
         return `<span class="avail-gpu ${st}" title="${esc(title)}"></span>`;
       }).join('');
       return `<span class="avail-machine" onclick="scrollToCard('${esc(e.key)}')" title="Jump to ${esc(displayName(e.key))}">
         <span class="avail-name">${esc(displayName(e.key))}</span><span class="avail-gpus">${squares || '<span class="hw">no GPUs</span>'}</span></span>`;
     }).join('')}
-    <span class="avail-legend"><span><span class="avail-gpu free"></span>free</span><span><span class="avail-gpu busy"></span>busy</span><span><span class="avail-gpu offline"></span>offline</span></span>
+    <span class="avail-legend"><span><span class="avail-gpu free"></span>free</span><span><span class="avail-gpu busy"></span>busy</span><span><span class="avail-gpu recent"></span>recently active</span><span><span class="avail-gpu offline"></span>offline</span></span>
   </div>`;
 }
 
@@ -1092,6 +1107,7 @@ function renderGpuRow(g, stale) {
 
   let who;
   if (state === 'offline') who = `<span class="who-off">no recent report</span>`;
+  else if (isGlitch(g)) who = `<span class="who-idle" title="A GPU cannot be computing with no memory allocated and no process. Check with nvidia-smi on the machine; enabling persistence mode often clears it.">driver reports ${util}% but 0 MB in use and no process · likely a reporting glitch</span>`;
   else if (procs.length) {
     who = procs.map(p => `
       <div class="proc" title="${esc(p.command || '')}">
@@ -1101,6 +1117,7 @@ function renderGpuRow(g, stale) {
       </div>`).join('');
   }
   else if (state === 'busy') who = `<span class="who-idle">in use · ${util}% util, no visible process</span>`;
+  else if (state === 'recent') who = `<span class="who-recent" title="Nothing was running at the last sample, but this GPU was active within the past 30 minutes. Jobs that restart per file look like this between files.">idle now · ${peak ?? 0}% peak in the last 30 min</span>`;
   else who = `<span class="who-free">free</span>`;
 
   return `
@@ -1532,6 +1549,11 @@ function demoSnapshot(d, nowMs) {
       memory_used_mb: busy ? procs.reduce((s, p) => s + p.gpu_memory_mb, 0) + 800 : 500, memory_total_mb: d.vram,
       temperature_c: Math.round(35 + util * 0.45), power_draw_w: Math.round(40 + util * 2.4), power_limit_w: 300, processes: procs,
     });
+  }
+  if (d.key === 'blackwell-2') {
+    // demo the two edge states: a per-file job caught between files, and a driver glitch
+    Object.assign(gpus[1], { utilization_percent: 0, utilization_peak_percent: 97, memory_used_mb: 4, processes: [], temperature_c: 41, power_draw_w: 45 });
+    Object.assign(gpus[3], { utilization_percent: 100, utilization_peak_percent: 100, memory_used_mb: 0, processes: [], temperature_c: 38, power_draw_w: 44 });
   }
   return {
     machine: { hostname: d.hostname, label: d.label, type: d.type },

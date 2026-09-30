@@ -31,7 +31,9 @@ The live page is built around one question: **which GPUs are free right now, and
 
 SLEAP inference progress is not shown here anymore; the **Inference progress** tile and the header link jump to the [HCM Monitor](https://leomeow123.github.io/hcm-dashboard/#inference-panel), which tracks inference and recording health.
 
-A GPU counts as **free** when it has no visible process and utilization is below 10%. A machine that has not reported for 10 minutes shows as **offline**.
+GPU states: **busy** = a visible process or utilization at or above 10%; **recently active** = idle at the last sample but above 30% at some point in the agent's 30-minute peak window (jobs that restart per file look like this between files, so it is not counted as free); **free** = neither; **offline** = the machine has not reported for 10 minutes. A GPU reporting 90%+ utilization with under 64 MB in use and no process is flagged as a likely driver reporting glitch, since no CUDA context can exist in 0 MB.
+
+Agents should push every 30 s (`interval_seconds`); a 5-minute interval makes a momentary reading stick on the page for 5 minutes.
 
 Raw per-minute history is kept for 14 days (configurable); hourly roll-ups are kept indefinitely, so long ranges always work.
 

@@ -7,16 +7,14 @@ Monitor the lab's GPUs from one web page, with live status and utilization histo
 ## How It Works
 
 ```
-Workstation 1 ──push──►                      ┌─ bridge ─►  Supabase (Postgres + Auth + Realtime)  ◄──read──  Dashboard (GitHub Pages)
-Workstation 2 ──push──►  GitHub Gist  ───────┤                 · gpu_latest    live cards
-RunAI pod     ──push──►  (agents, as before) │                 · gpu_samples   history & charts
-                                             └─ read ───►  Slack bot · daily report · 30-min alert (still on the Gist)
+Workstation / RunAI agents ──POST (per-machine key)──►  Supabase (Postgres + Auth + Realtime)  ◄──read──  Dashboard (GitHub Pages)
+                                                          · gpu_latest    live cards                  ◄──read──  Slack bot & daily report
+Machines not yet migrated ──push──► GitHub Gist ──bridge──►  · gpu_samples   history & charts
 ```
 
-- **Agents are unchanged.** Each machine runs the same small Python agent, pushing a JSON snapshot to the shared GitHub Gist every 30 s.
-- **A bridge copies the Gist into Supabase.** One instance (on the lab workstation) polls the Gist and writes the latest snapshot per machine, plus one history sample per GPU per minute. It also rolls history up to hourly rows and prunes raw rows after 14 days.
-- **The dashboard reads Supabase, not GitHub.** Sign in with a one-time code sent to your Salk email. Live cards update over Realtime; history charts are bucketed server-side.
-- **Access is enforced in the database.** Row-level security allows reads only for signed-in users whose email ends in `@salk.edu` (plus an optional allow-list). Writes are only possible with the service-role key, which lives on the bridge machine.
+- **Agents post straight to Supabase.** Each machine has its own ingest key (issued with `bridge/issue_key.py`); the `gpu_ingest` function checks the key's hash and writes the snapshot, the latest-per-machine row and one history sample per minute. No GitHub token on the machines, and no GitHub quota: Gist updates are capped at **100 per hour per account**, which a few machines at 30 s intervals exceed on their own.
+- **The bridge covers machines still on the Gist.** It copies their Gist snapshots through the same only-if-newer function, so it can never overwrite a fresher direct report. Once every machine has a key, the bridge and the Gist retire.
+- **Access is enforced in the database.** Row-level security allows reads only for signed-in users whose email ends in `@salk.edu` (plus an optional allow-list). Writes go through security-definer functions; the service-role key lives only on the bridge host.
 - **Preferences are shared.** Renaming, hiding and reordering machines is stored in Supabase, so everyone sees the same layout. "Hide" replaces the old "Remove" (nothing is deleted; the machine keeps reporting).
 
 ## What It Shows
@@ -113,7 +111,19 @@ Most SMTP providers (Resend, Postmark, SendGrid) require a verified sending doma
 
 Gmail allows about 500 messages per day, far more than the lab will use.
 
-### 4. Bridge
+### 4. Direct ingest (migration 002)
+
+Run `supabase/migration_002_direct_ingest.sql` in the SQL editor once. Then, on the bridge host, issue a key per machine and put it in that machine's agent config:
+
+```bash
+python3 bridge/issue_key.py blackwell-2          # prints the key once; stores only its sha256
+python3 bridge/issue_key.py --list               # which machines have keys
+python3 bridge/issue_key.py blackwell-2 --revoke
+```
+
+On the machine: add `supabase_url`, `supabase_anon_key` (the publishable key), `ingest_key` and `"push_gist": false` to `~/.config/gpu-dashboard/config.json`, or re-run `agent/install.sh`, then `systemctl --user restart gpu-agent`. The agent log shows `Supabase: … (direct ingest)` on start.
+
+### 5. Bridge (only while some machines still use the Gist)
 
 On one machine that has the agent config (the lab workstation that runs the Slack bot is the natural choice):
 
@@ -130,7 +140,7 @@ gpu-bridge --status                       # what Supabase holds
 gpu-bridge --dry-run                      # read the Gist, write nothing
 ```
 
-### 5. Dashboard
+### 6. Dashboard
 
 `index.html` has the project URL and publishable key near the top of the script (`SUPA_URL`, `SUPA_KEY`). The publishable key is meant to be public; row-level security does the gating. Push to `main` and GitHub Pages serves it. The previous Gist-based page is kept as `legacy.html`.
 
@@ -184,7 +194,11 @@ Config lives in `~/.config/gpu-dashboard/config.json` or environment variables:
 
 | Config key | Env variable | Description |
 |---|---|---|
-| `gist_id` | `GPU_DASH_GIST_ID` | Shared Gist ID |
+| `supabase_url` | `GPU_DASH_SUPABASE_URL` | Project URL (direct ingest) |
+| `supabase_anon_key` | `GPU_DASH_SUPABASE_ANON_KEY` | Publishable key (direct ingest) |
+| `ingest_key` | `GPU_DASH_INGEST_KEY` | This machine's key from `issue_key.py` |
+| `push_gist` | — | Also push to the Gist (default: only when no ingest key) |
+| `gist_id` | `GPU_DASH_GIST_ID` | Shared Gist ID (legacy) |
 | `github_token` | `GPU_DASH_GITHUB_TOKEN` | GitHub token with `gist` scope |
 | `machine_label` | `GPU_DASH_LABEL` | Display name (also the machine key in Supabase) |
 | `machine_type` | `GPU_DASH_TYPE` | `workstation` or `runai` |
@@ -208,7 +222,7 @@ Ideas gathered from using the dashboard as a lab tool. Roughly in priority order
 - **Claim a GPU.** Click a free GPU, enter your name and an expected duration, and everyone sees "reserved by … until …". Claims expire on their own and clear when a process appears. Same shared-prefs mechanism as rename/hide.
 - **Notify me when a GPU frees up.** A button on a busy machine that sends a Slack DM the next time a GPU there turns free. Same path gives "machine went offline" and "GPU over 85 °C" alerts.
 - **`gpu-pick` command line tool.** Prints the freest GPU on a machine so scripts can do `CUDA_VISIBLE_DEVICES=$(gpu-pick)`.
-- **Phase 2 ingest.** Agents post straight to Supabase with a per-machine revocable key; the shared Gist token and the bridge retire.
+- **Phase 2 ingest** — *done (migration 002)*: agents post straight to Supabase with a per-machine revocable key. Remaining: migrate every machine, then retire the Gist, the bridge and `slack_alert.sh`'s Gist read.
 
 ### Later
 

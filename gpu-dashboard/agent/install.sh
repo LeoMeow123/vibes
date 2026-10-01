@@ -58,16 +58,33 @@ if [[ "$USE_EXISTING" =~ ^[Nn] ]]; then
     read -rp "Poll interval in seconds [30]: " INTERVAL
     INTERVAL=${INTERVAL:-30}
 
+    echo ""
+    echo "Direct ingest (recommended): the agent posts straight to Supabase with a key issued"
+    echo "for this machine (ask the maintainer to run: bridge/issue_key.py <machine-key>)."
+    echo "Leave blank to push to the GitHub Gist instead (shared token, 100 updates/hour lab-wide)."
+    read -rp "Ingest key (gdk_...): " INGEST_KEY
+    SUPA_URL_DEFAULT="https://xgiqhkcpssakrlemvodx.supabase.co"
+    SUPA_ANON_DEFAULT="sb_publishable_qbDIUER221OxvA_HvwhpCw_-V5OsMcD"
+    PUSH_GIST=true
+    SUPA_URL=""; SUPA_ANON=""
+    if [ -n "$INGEST_KEY" ]; then
+        PUSH_GIST=false
+        read -rp "Supabase URL [$SUPA_URL_DEFAULT]: " SUPA_URL
+        SUPA_URL=${SUPA_URL:-$SUPA_URL_DEFAULT}
+        read -rp "Supabase publishable key [lab default]: " SUPA_ANON
+        SUPA_ANON=${SUPA_ANON:-$SUPA_ANON_DEFAULT}
+    fi
+
     mkdir -p "$CONFIG_DIR"
-    cat > "$CONFIG_FILE" <<EOF
-{
-    "gist_id": "$GIST_ID",
-    "github_token": "$GITHUB_TOKEN",
-    "machine_label": "$LABEL",
-    "machine_type": "$TYPE",
-    "interval_seconds": $INTERVAL
-}
-EOF
+    python3 - "$CONFIG_FILE" "$GIST_ID" "$GITHUB_TOKEN" "$LABEL" "$TYPE" "$INTERVAL" "$SUPA_URL" "$SUPA_ANON" "$INGEST_KEY" "$PUSH_GIST" <<'PYCFG'
+import json, sys
+path, gist, tok, label, typ, interval, surl, sanon, ikey, push_gist = sys.argv[1:11]
+cfg = {"machine_label": label, "machine_type": typ, "interval_seconds": int(interval or 30),
+       "gist_id": gist, "github_token": tok, "push_gist": push_gist == "true"}
+if ikey:
+    cfg.update({"supabase_url": surl, "supabase_anon_key": sanon, "ingest_key": ikey})
+json.dump(cfg, open(path, "w"), indent=4)
+PYCFG
     chmod 600 "$CONFIG_FILE"
     echo "Config written to $CONFIG_FILE"
 fi

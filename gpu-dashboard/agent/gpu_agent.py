@@ -13,9 +13,11 @@ Usage:
     # Custom interval
     python gpu_agent.py --interval 60
 
-Configuration (pick one):
-    1. Config file: ~/.config/gpu-dashboard/config.json
-    2. Environment variables: GPU_DASH_GIST_ID, GPU_DASH_GITHUB_TOKEN, GPU_DASH_LABEL
+Configuration: ~/.config/gpu-dashboard/config.json or environment variables.
+    Direct ingest (preferred): supabase_url, supabase_anon_key, ingest_key
+        (GPU_DASH_SUPABASE_URL, GPU_DASH_SUPABASE_ANON_KEY, GPU_DASH_INGEST_KEY)
+    Legacy Gist:               gist_id, github_token (GPU_DASH_GIST_ID, GPU_DASH_GITHUB_TOKEN)
+    machine_label / GPU_DASH_LABEL, machine_type / GPU_DASH_TYPE, interval_seconds
 """
 
 from __future__ import annotations
@@ -81,14 +83,25 @@ def load_config() -> dict:
     )
     cfg.setdefault("roi_refresh_seconds", 300)
 
-    if not cfg["gist_id"]:
-        print("ERROR: No gist_id configured.")
-        print(f"  Set GPU_DASH_GIST_ID env var or add to {CONFIG_PATH}")
+    # Direct ingest (preferred): POST snapshots to Supabase with a per-machine key.
+    # No GitHub involved, so no shared token and no 100-updates-per-hour Gist quota.
+    cfg["supabase_url"] = os.environ.get("GPU_DASH_SUPABASE_URL", cfg.get("supabase_url", "")).rstrip("/")
+    cfg["supabase_anon_key"] = os.environ.get("GPU_DASH_SUPABASE_ANON_KEY", cfg.get("supabase_anon_key", ""))
+    cfg["ingest_key"] = os.environ.get("GPU_DASH_INGEST_KEY", cfg.get("ingest_key", ""))
+    cfg["direct"] = bool(cfg["supabase_url"] and cfg["supabase_anon_key"] and cfg["ingest_key"])
+    # Gist push: on by default when there is no direct ingest; otherwise opt-in (transition only).
+    cfg["push_gist"] = bool(cfg.get("push_gist", not cfg["direct"]))
+
+    if not cfg["direct"] and not cfg["push_gist"]:
+        print("ERROR: nothing to push to. Configure supabase_url + supabase_anon_key + ingest_key, or gist_id + github_token.")
         sys.exit(1)
-    if not cfg["github_token"]:
-        print("ERROR: No github_token configured.")
-        print(f"  Set GPU_DASH_GITHUB_TOKEN env var or add to {CONFIG_PATH}")
-        sys.exit(1)
+    if cfg["push_gist"] and not (cfg["gist_id"] and cfg["github_token"]):
+        if cfg["direct"]:
+            cfg["push_gist"] = False
+        else:
+            print("ERROR: gist_id / github_token missing.")
+            print(f"  Set GPU_DASH_GIST_ID / GPU_DASH_GITHUB_TOKEN or add them to {CONFIG_PATH}")
+            sys.exit(1)
 
     return cfg
 
@@ -660,6 +673,36 @@ def push_to_gist(cfg: dict, snapshot: dict) -> tuple[bool, int]:
         return False, 0
 
 
+def push_to_supabase(cfg: dict, snapshot: dict) -> tuple[bool, int]:
+    """POST the snapshot to the gpu_ingest RPC. Returns (success, retry_after_seconds)."""
+    key = cfg["supabase_anon_key"]
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    if key.startswith("eyJ"):
+        headers["Authorization"] = f"Bearer {key}"
+    try:
+        resp = requests.post(
+            f"{cfg['supabase_url']}/rest/v1/rpc/gpu_ingest",
+            headers=headers,
+            data=json.dumps({"p_ingest_key": cfg["ingest_key"], "p_snapshot": snapshot}, separators=(",", ":")),
+            timeout=20,
+        )
+        if resp.status_code == 200:
+            return True, 0
+        if resp.status_code in (401, 403) or "ingest key" in resp.text:
+            _log(f"Supabase rejected the ingest key ({resp.status_code}): {resp.text[:160]} — re-issue with bridge/issue_key.py")
+            return False, 300
+        if resp.status_code == 404:
+            _log("Supabase: gpu_ingest function not found — run supabase/migration_002_direct_ingest.sql")
+            return False, 300
+        if resp.status_code == 429:
+            return False, int(resp.headers.get("Retry-After", 60) or 60)
+        _log(f"Supabase ingest failed: {resp.status_code} {resp.text[:200]}")
+        return False, 0
+    except requests.RequestException as e:
+        _log(f"Supabase ingest error: {e}")
+        return False, 0
+
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 
@@ -704,7 +747,10 @@ def main():
     interval = args.interval or cfg.get("interval_seconds", 30)
 
     _log(f"GPU Agent starting — {cfg['machine_label']} ({platform.node()})")
-    _log(f"  Gist: {cfg['gist_id'][:8]}...")
+    if cfg["direct"]:
+        _log(f"  Supabase: {cfg['supabase_url']} (direct ingest, key {cfg['ingest_key'][:8]}...)")
+    if cfg["push_gist"]:
+        _log(f"  Gist: {cfg['gist_id'][:8]}... (shared token, 100 updates/hour across the lab)")
     _log(f"  Interval: {interval}s")
     _log(f"  GPUs detected: {len(collect_gpus())}")
     if not NVIDIA_SMI:
@@ -722,7 +768,15 @@ def main():
     while True:
         try:
             snapshot = collect_snapshot(cfg)
-            ok, retry_after = push_to_gist(cfg, snapshot)
+            ok, retry_after = True, 0
+            if cfg["direct"]:
+                ok, retry_after = push_to_supabase(cfg, snapshot)
+            if cfg["push_gist"]:
+                g_ok, g_retry = push_to_gist(cfg, snapshot)
+                if not cfg["direct"]:
+                    ok, retry_after = g_ok, g_retry
+                elif not g_ok:
+                    _log("  (gist push failed; direct ingest is the source of truth, ignoring)")
             gpu_summary = ", ".join(
                 f"GPU{g['index']}:{g['utilization_percent']}%"
                 for g in snapshot["gpus"]

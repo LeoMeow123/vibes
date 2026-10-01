@@ -225,6 +225,7 @@ class Supa:
         self.url = cfg["url"]
         self.key = cfg["key"]
         self.keep_days = cfg["keep_days"]
+        self.rpc_available: bool | None = None   # unknown until the first call
 
     def _headers(self, prefer: str | None = None) -> dict:
         # Legacy keys are JWTs and go in both headers. New-style sb_secret_ keys go in
@@ -325,6 +326,17 @@ class Bridge:
             age_min = int((time.time() - ts_epoch) / 60) if ts_epoch else -1
             summary.append(f"{key}({n_gpus}gpu,{age_min}m{'*' if changed else ''}{'+' if due else ''})")
 
+        if not self.dry_run and self.supa is not None and self.supa.rpc_available is not False:
+            applied = self._apply_via_rpc(snaps, latest)
+            if applied is not None:
+                for key, snap in snaps.items():
+                    self.last_ts[key] = snap["timestamp"]
+                for row in hosts:
+                    self.last_sample_ts[row["machine_key"]] = _iso_to_epoch(row["ts"])
+                _log(f"[OK] {len(snaps)} machines via gpu_apply_snapshot, {applied} newer  " + " ".join(summary))
+                self.maintenance()
+                return
+
         if self.dry_run:
             _log("DRY RUN — would write:")
             _log(f"  gpu_machines     upsert {len(machines)} rows")
@@ -350,6 +362,25 @@ class Bridge:
 
         _log(f"[OK] {len(snaps)} machines, {len(latest)} updated, {len(samples)} gpu samples  " + " ".join(summary))
         self.maintenance()
+
+    def _apply_via_rpc(self, snaps: dict, latest: list) -> int | None:
+        """Send changed snapshots through gpu_apply_snapshot. Returns count applied, or None
+        if the function is not installed yet (caller falls back to direct table writes)."""
+        assert self.supa is not None
+        applied = 0
+        for row in latest:
+            try:
+                res = self.supa.rpc("gpu_apply_snapshot", {"p_key": row["machine_key"], "p_snapshot": row["snapshot"]})
+            except RuntimeError as e:
+                if "404" in str(e) or "PGRST202" in str(e):
+                    self.supa.rpc_available = False
+                    _log("gpu_apply_snapshot not installed; using direct table writes (run migration_002)")
+                    return None
+                raise
+            if isinstance(res, dict) and not res.get("skipped"):
+                applied += 1
+        self.supa.rpc_available = True
+        return applied
 
     def maintenance(self) -> None:
         now = time.monotonic()
